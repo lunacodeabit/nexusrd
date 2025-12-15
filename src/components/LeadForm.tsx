@@ -1,0 +1,146 @@
+import React, { useState } from 'react';
+import type { Lead } from '../types';
+import { LeadStatus } from '../types';
+
+interface LeadFormProps {
+  onSave: (lead: Lead) => void;
+  onCancel: () => void;
+}
+
+const LeadForm: React.FC<LeadFormProps> = ({ onSave, onCancel }) => {
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    source: 'Website' as Lead['source'],
+    budget: '',
+    interestArea: '',
+    notes: ''
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    const newLead: Lead = {
+      id: `l-${Date.now()}`,
+      name: formData.name || 'Sin nombre',
+      email: formData.email,
+      phone: formData.phone,
+      source: formData.source,
+      status: LeadStatus.NEW,
+      budget: Number(formData.budget) || 0,
+      interestArea: formData.interestArea,
+      createdAt: new Date().toISOString(),
+      nextFollowUpDate: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(), // +2 horas
+      notes: formData.notes
+    };
+
+    onSave(newLead);
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div>
+        <label className="block text-sm text-gray-400 mb-1">Nombre completo *</label>
+        <input
+          type="text"
+          required
+          value={formData.name}
+          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+          className="w-full bg-nexus-base border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-nexus-accent"
+          placeholder="Ej: Juan García"
+        />
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm text-gray-400 mb-1">Email</label>
+          <input
+            type="email"
+            value={formData.email}
+            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+            className="w-full bg-nexus-base border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-nexus-accent"
+            placeholder="email@ejemplo.com"
+          />
+        </div>
+        <div>
+          <label className="block text-sm text-gray-400 mb-1">Teléfono *</label>
+          <input
+            type="tel"
+            required
+            value={formData.phone}
+            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+            className="w-full bg-nexus-base border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-nexus-accent"
+            placeholder="+34 600 000 000"
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm text-gray-400 mb-1">Fuente</label>
+          <select
+            value={formData.source}
+            onChange={(e) => setFormData({ ...formData, source: e.target.value as Lead['source'] })}
+            className="w-full bg-nexus-base border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-nexus-accent"
+          >
+            <option value="Website">Website</option>
+            <option value="Idealista">Idealista</option>
+            <option value="Instagram">Instagram</option>
+            <option value="Referido">Referido</option>
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm text-gray-400 mb-1">Presupuesto (€)</label>
+          <input
+            type="number"
+            value={formData.budget}
+            onChange={(e) => setFormData({ ...formData, budget: e.target.value })}
+            className="w-full bg-nexus-base border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-nexus-accent"
+            placeholder="250000"
+          />
+        </div>
+      </div>
+
+      <div>
+        <label className="block text-sm text-gray-400 mb-1">Zona de interés</label>
+        <input
+          type="text"
+          value={formData.interestArea}
+          onChange={(e) => setFormData({ ...formData, interestArea: e.target.value })}
+          className="w-full bg-nexus-base border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-nexus-accent"
+          placeholder="Ej: Centro, Zona Norte..."
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm text-gray-400 mb-1">Notas</label>
+        <textarea
+          value={formData.notes}
+          onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+          rows={3}
+          className="w-full bg-nexus-base border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-nexus-accent resize-none"
+          placeholder="Información adicional sobre el lead..."
+        />
+      </div>
+
+      <div className="flex gap-3 pt-4">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="flex-1 px-4 py-2 border border-white/20 text-gray-400 rounded-lg hover:bg-white/5 transition-colors"
+        >
+          Cancelar
+        </button>
+        <button
+          type="submit"
+          className="flex-1 px-4 py-2 bg-nexus-accent text-nexus-base font-bold rounded-lg hover:bg-orange-400 transition-colors"
+        >
+          Guardar Lead
+        </button>
+      </div>
+    </form>
+  );
+};
+
+export default LeadForm;

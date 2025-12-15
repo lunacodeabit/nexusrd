@@ -1,0 +1,138 @@
+import React, { useState } from 'react';
+import { Home, Users, Building, BarChart3, Menu, FileText, X, ClipboardList } from 'lucide-react';
+
+interface LayoutProps {
+  children: React.ReactNode;
+  activeTab: string;
+  setActiveTab: (tab: string) => void;
+}
+
+const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) => {
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  const navItems = [
+    { id: 'dashboard', label: 'Dashboard', icon: Home },
+    { id: 'leads', label: 'Leads Flow', icon: Users },
+    { id: 'inventory', label: 'Captaciones', icon: Building },
+    { id: 'activities', label: 'Actividades', icon: ClipboardList },
+    { id: 'analytics', label: 'Métricas', icon: BarChart3 },
+    { id: 'architecture', label: 'Arquitectura', icon: FileText },
+  ];
+
+  const handleNavClick = (tabId: string) => {
+    setActiveTab(tabId);
+    setIsMobileMenuOpen(false);
+  };
+
+  return (
+    <div className="min-h-screen bg-nexus-base text-nexus-text font-sans">
+      {/* Top Mobile Bar */}
+      <div className="md:hidden flex items-center justify-between p-4 bg-nexus-surface border-b border-white/10 sticky top-0 z-50">
+        <h1 className="text-xl font-bold tracking-wider text-nexus-accent">NEXUS CRM</h1>
+        <button 
+          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          className="text-white p-2 hover:bg-white/10 rounded-lg transition-colors"
+        >
+          {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+        </button>
+      </div>
+
+      {/* Mobile Menu Overlay */}
+      {isMobileMenuOpen && (
+        <div className="md:hidden fixed inset-0 z-40 bg-black/50" onClick={() => setIsMobileMenuOpen(false)}>
+          <div 
+            className="absolute right-0 top-16 w-64 bg-nexus-surface border-l border-white/10 h-full shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <nav className="p-4 space-y-2">
+              {navItems.map((item) => {
+                const Icon = item.icon;
+                const isActive = activeTab === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => handleNavClick(item.id)}
+                    className={`flex items-center w-full px-4 py-3 rounded-lg transition-all duration-200 ${
+                      isActive 
+                        ? 'bg-nexus-accent text-nexus-base font-bold' 
+                        : 'text-gray-400 hover:bg-white/5 hover:text-white'
+                    }`}
+                  >
+                    <Icon size={20} className={`mr-3 ${isActive ? 'text-nexus-base' : 'text-nexus-accent'}`} />
+                    {item.label}
+                  </button>
+                );
+              })}
+            </nav>
+          </div>
+        </div>
+      )}
+
+      <div className="flex h-screen overflow-hidden">
+        {/* Sidebar (Desktop) */}
+        <aside className="hidden md:flex flex-col w-64 bg-nexus-surface border-r border-white/10">
+          <div className="p-6">
+            <h1 className="text-2xl font-bold tracking-widest text-nexus-accent">NEXUS</h1>
+            <p className="text-xs text-gray-400 mt-1">Real Estate OS v1.0</p>
+          </div>
+          
+          <nav className="flex-1 px-4 py-4 space-y-2">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = activeTab === item.id;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => setActiveTab(item.id)}
+                  className={`flex items-center w-full px-4 py-3 rounded-lg transition-all duration-200 group ${
+                    isActive 
+                      ? 'bg-nexus-accent text-nexus-base font-bold shadow-[0_0_15px_rgba(255,133,27,0.4)]' 
+                      : 'text-gray-400 hover:bg-white/5 hover:text-white'
+                  }`}
+                >
+                  <Icon size={20} className={`mr-3 ${isActive ? 'text-nexus-base' : 'text-nexus-accent'}`} />
+                  {item.label}
+                </button>
+              );
+            })}
+          </nav>
+
+          <div className="p-4 border-t border-white/10">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-nexus-accent to-purple-500"></div>
+              <div>
+                <p className="text-sm font-medium text-white">Agente Senior</p>
+                <p className="text-xs text-green-400">● Online</p>
+              </div>
+            </div>
+          </div>
+        </aside>
+
+        {/* Main Content */}
+        <main className="flex-1 overflow-y-auto p-4 md:p-8 relative pb-24 md:pb-8">
+          {children}
+        </main>
+      </div>
+
+      {/* Mobile Bottom Nav */}
+      <div className="md:hidden fixed bottom-0 w-full bg-nexus-surface border-t border-white/10 flex justify-around p-3 z-50 safe-area-pb">
+        {navItems.slice(0, 4).map((item) => {
+           const Icon = item.icon;
+           const isActive = activeTab === item.id;
+           return (
+             <button 
+                key={item.id}
+                onClick={() => setActiveTab(item.id)}
+                className={`flex flex-col items-center p-2 rounded-lg transition-colors ${isActive ? 'text-nexus-accent' : 'text-gray-500'}`}
+             >
+               <Icon size={24} />
+               <span className="text-[10px] mt-1">{item.label}</span>
+             </button>
+           )
+        })}
+      </div>
+    </div>
+  );
+};
+
+export default Layout;

@@ -1,0 +1,284 @@
+import React, { useState, useMemo } from 'react';
+import { ChevronRight, ChevronLeft, CheckCircle, BarChart3 } from 'lucide-react';
+import { 
+  QUALIFICATION_QUESTIONS, 
+  calculateLeadScore, 
+  getScoreColor, 
+  getScoreEmoji,
+  type QualificationAnswers,
+  type LeadScore
+} from '../services/leadScoring';
+import { notificationSound } from '../services/notificationSound';
+
+interface LeadQualificationProps {
+  onComplete: (score: LeadScore) => void;
+  onCancel: () => void;
+  leadName?: string;
+}
+
+const LeadQualification: React.FC<LeadQualificationProps> = ({ onComplete, onCancel, leadName }) => {
+  const [currentStep, setCurrentStep] = useState(0);
+  const [answers, setAnswers] = useState<QualificationAnswers>({});
+  const [showResults, setShowResults] = useState(false);
+
+  // Filtrar preguntas basadas en condicionales
+  const visibleQuestions = useMemo(() => {
+    return QUALIFICATION_QUESTIONS.filter(question => {
+      if (!question.conditional) return true;
+      const dependsOnAnswer = answers[question.conditional.dependsOn];
+      return question.conditional.showWhen.includes(dependsOnAnswer);
+    });
+  }, [answers]);
+
+  const currentQuestion = visibleQuestions[currentStep];
+  const progress = ((currentStep + 1) / visibleQuestions.length) * 100;
+  const isLastQuestion = currentStep === visibleQuestions.length - 1;
+
+  const handleSelectOption = (value: string) => {
+    setAnswers(prev => ({
+      ...prev,
+      [currentQuestion.id]: value
+    }));
+  };
+
+  const handleNext = () => {
+    if (isLastQuestion) {
+      setShowResults(true);
+      // Play success sound when qualification is complete
+      const score = calculateLeadScore(answers);
+      if (score.category === 'HOT') {
+        notificationSound.playUrgent();
+      } else {
+        notificationSound.playSuccess();
+      }
+    } else {
+      setCurrentStep(prev => prev + 1);
+    }
+  };
+
+  const handleBack = () => {
+    if (currentStep > 0) {
+      setCurrentStep(prev => prev - 1);
+    }
+  };
+
+  const handleComplete = () => {
+    const score = calculateLeadScore(answers);
+    onComplete(score);
+  };
+
+  const score = useMemo(() => calculateLeadScore(answers), [answers]);
+
+  // Vista de resultados
+  if (showResults) {
+    return (
+      <div className="space-y-6">
+        {/* Score Header */}
+        <div className="text-center py-6">
+          <div className="text-6xl mb-4">{getScoreEmoji(score.category)}</div>
+          <h3 className="text-2xl font-bold text-white mb-2">
+            Lead Calificado: {score.category}
+          </h3>
+          <p className="text-gray-400">
+            {leadName ? `${leadName} ha sido calificado` : 'Calificación completada'}
+          </p>
+        </div>
+
+        {/* Score Display */}
+        <div className="bg-nexus-base p-6 rounded-xl text-center">
+          <div className="relative w-32 h-32 mx-auto mb-4">
+            <svg className="w-full h-full transform -rotate-90">
+              <circle
+                cx="64"
+                cy="64"
+                r="56"
+                stroke="currentColor"
+                strokeWidth="8"
+                fill="none"
+                className="text-white/10"
+              />
+              <circle
+                cx="64"
+                cy="64"
+                r="56"
+                stroke="currentColor"
+                strokeWidth="8"
+                fill="none"
+                strokeDasharray={`${score.percentage * 3.52} 352`}
+                className={score.category === 'HOT' ? 'text-red-500' : score.category === 'WARM' ? 'text-yellow-500' : 'text-blue-500'}
+              />
+            </svg>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="text-3xl font-bold text-white">{score.percentage}%</span>
+            </div>
+          </div>
+          <p className="text-gray-400">
+            {score.total} de {score.maxPossible} puntos posibles
+          </p>
+        </div>
+
+        {/* Score Interpretation */}
+        <div className={`p-4 rounded-lg border ${getScoreColor(score.category)}`}>
+          {score.category === 'HOT' && (
+            <div>
+              <p className="font-bold">🔥 Lead Caliente - Prioridad Alta</p>
+              <p className="text-sm mt-1 opacity-80">
+                Este lead está listo para avanzar. Tiene financiamiento, presupuesto definido y quiere agendar cita. ¡Actúa rápido!
+              </p>
+            </div>
+          )}
+          {score.category === 'WARM' && (
+            <div>
+              <p className="font-bold">🟡 Lead Tibio - Seguimiento Activo</p>
+              <p className="text-sm mt-1 opacity-80">
+                Tiene interés real pero necesita más información o resolver algunos temas. Mantén contacto frecuente.
+              </p>
+            </div>
+          )}
+          {score.category === 'COLD' && (
+            <div>
+              <p className="font-bold">🔵 Lead Frío - Nurturing</p>
+              <p className="text-sm mt-1 opacity-80">
+                Está explorando opciones. Agrégalo a campañas de email y contenido educativo. Revisa en 2-3 meses.
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Summary of key answers */}
+        <div className="bg-nexus-base p-4 rounded-lg">
+          <h4 className="font-bold text-white mb-3 flex items-center gap-2">
+            <BarChart3 size={18} className="text-nexus-accent" />
+            Resumen de Respuestas Clave
+          </h4>
+          <div className="space-y-2 text-sm">
+            {visibleQuestions.slice(0, 5).map(q => {
+              const answer = answers[q.id];
+              const option = q.options.find(o => o.value === answer);
+              return (
+                <div key={q.id} className="flex justify-between">
+                  <span className="text-gray-400">{q.question.replace('¿', '').replace('?', '')}</span>
+                  <span className="text-white font-medium">{option?.label || '-'}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex gap-3">
+          <button
+            onClick={() => setShowResults(false)}
+            className="flex-1 px-4 py-3 border border-white/20 text-gray-400 rounded-lg hover:bg-white/5 transition-colors"
+          >
+            Revisar Respuestas
+          </button>
+          <button
+            onClick={handleComplete}
+            className="flex-1 px-4 py-3 bg-nexus-accent text-nexus-base font-bold rounded-lg hover:bg-orange-400 transition-colors flex items-center justify-center gap-2"
+          >
+            <CheckCircle size={18} />
+            Guardar Calificación
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Vista del cuestionario
+  return (
+    <div className="space-y-6">
+      {/* Progress Bar */}
+      <div className="space-y-2">
+        <div className="flex justify-between text-xs text-gray-400">
+          <span>Pregunta {currentStep + 1} de {visibleQuestions.length}</span>
+          <span>{Math.round(progress)}% completado</span>
+        </div>
+        <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+          <div 
+            className="h-full bg-nexus-accent transition-all duration-300"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+      </div>
+
+      {/* Question */}
+      <div className="py-4">
+        <h3 className="text-xl font-bold text-white mb-6">
+          {currentQuestion.question}
+        </h3>
+
+        {/* Options */}
+        <div className="space-y-3">
+          {currentQuestion.options.map((option) => {
+            const isSelected = answers[currentQuestion.id] === option.value;
+            return (
+              <button
+                key={option.value}
+                onClick={() => handleSelectOption(option.value)}
+                className={`w-full text-left p-4 rounded-lg border transition-all ${
+                  isSelected
+                    ? 'bg-nexus-accent/20 border-nexus-accent text-white'
+                    : 'bg-nexus-base border-white/10 text-gray-300 hover:border-white/30'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                    isSelected ? 'border-nexus-accent' : 'border-gray-500'
+                  }`}>
+                    {isSelected && <div className="w-2.5 h-2.5 rounded-full bg-nexus-accent" />}
+                  </div>
+                  <span>{option.label}</span>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Navigation */}
+      <div className="flex gap-3 pt-4">
+        {currentStep > 0 ? (
+          <button
+            onClick={handleBack}
+            className="flex-1 flex items-center justify-center gap-2 px-4 py-3 border border-white/20 text-gray-400 rounded-lg hover:bg-white/5 transition-colors"
+          >
+            <ChevronLeft size={18} />
+            Anterior
+          </button>
+        ) : (
+          <button
+            onClick={onCancel}
+            className="flex-1 px-4 py-3 border border-white/20 text-gray-400 rounded-lg hover:bg-white/5 transition-colors"
+          >
+            Cancelar
+          </button>
+        )}
+        <button
+          onClick={handleNext}
+          disabled={!answers[currentQuestion.id]}
+          className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-bold transition-colors ${
+            answers[currentQuestion.id]
+              ? 'bg-nexus-accent text-nexus-base hover:bg-orange-400'
+              : 'bg-gray-700 text-gray-500 cursor-not-allowed'
+          }`}
+        >
+          {isLastQuestion ? 'Ver Resultados' : 'Siguiente'}
+          <ChevronRight size={18} />
+        </button>
+      </div>
+
+      {/* Current Score Preview */}
+      <div className="text-center pt-2">
+        <p className="text-xs text-gray-500">
+          Score actual: <span className={`font-bold ${
+            score.category === 'HOT' ? 'text-red-500' : 
+            score.category === 'WARM' ? 'text-yellow-500' : 'text-blue-500'
+          }`}>{score.percentage}% ({score.category})</span>
+        </p>
+      </div>
+    </div>
+  );
+};
+
+export default LeadQualification;

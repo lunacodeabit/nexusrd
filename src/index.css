@@ -1,0 +1,8 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Forzamos el color de fondo oscuro para toda la app */
+body {
+  @apply bg-[#001f3f] text-white;
+}
