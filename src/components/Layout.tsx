@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Home, Users, Building, BarChart3, Menu, Settings, X, ClipboardList } from 'lucide-react';
+import { Home, Users, Building, BarChart3, Menu, Settings, X, ClipboardList, LogOut } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 interface LayoutProps {
@@ -10,7 +10,7 @@ interface LayoutProps {
 
 const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   
   // Get agent name from user metadata
   const agentName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Agente';
@@ -37,7 +37,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
           onClick={() => setActiveTab('dashboard')}
           className="text-xl font-bold tracking-wider text-nexus-accent hover:text-orange-400 transition-colors"
         >
-          NEXUS CRM
+          ALVEARE
         </button>
         <button 
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -51,10 +51,10 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
       {isMobileMenuOpen && (
         <div className="md:hidden fixed inset-0 z-40 bg-black/50" onClick={() => setIsMobileMenuOpen(false)}>
           <div 
-            className="absolute right-0 top-16 w-64 bg-nexus-surface border-l border-white/10 h-full shadow-2xl"
+            className="absolute right-0 top-16 w-64 bg-nexus-surface border-l border-white/10 h-full shadow-2xl flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
-            <nav className="p-4 space-y-2">
+            <nav className="p-4 space-y-2 flex-1">
               {navItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = activeTab === item.id;
@@ -74,6 +74,17 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
                 );
               })}
             </nav>
+            
+            {/* Mobile Logout Button */}
+            <div className="p-4 border-t border-white/10">
+              <button
+                onClick={signOut}
+                className="flex items-center w-full px-4 py-3 rounded-lg text-red-400 hover:bg-red-500/10 transition-colors"
+              >
+                <LogOut size={20} className="mr-3" />
+                Cerrar Sesión
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -86,7 +97,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
               onClick={() => setActiveTab('dashboard')}
               className="text-2xl font-bold tracking-widest text-nexus-accent hover:text-orange-400 transition-colors"
             >
-              NEXUS
+              ALVEARE
             </button>
             <p className="text-sm text-white mt-1 font-medium">{agentName}</p>
           </div>
@@ -113,12 +124,21 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
           </nav>
 
           <div className="p-4 border-t border-white/10">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-nexus-accent to-purple-500"></div>
-              <div>
-                <p className="text-sm font-medium text-white">Agente Senior</p>
-                <p className="text-xs text-green-400">● Online</p>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-nexus-accent to-purple-500"></div>
+                <div>
+                  <p className="text-sm font-medium text-white truncate max-w-[120px]">{agentName}</p>
+                  <p className="text-xs text-green-400">● Online</p>
+                </div>
               </div>
+              <button
+                onClick={signOut}
+                className="p-2 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                title="Cerrar sesión"
+              >
+                <LogOut size={18} />
+              </button>
             </div>
           </div>
         </aside>

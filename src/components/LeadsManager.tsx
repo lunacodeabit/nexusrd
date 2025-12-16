@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import type { Lead } from '../types';
 import { LeadStatus } from '../types';
-import { Search, Plus, Smartphone, MessageSquare, TrendingUp, CalendarClock, LayoutGrid, List, DollarSign } from 'lucide-react';
+import { Search, Plus, Smartphone, MessageSquare, TrendingUp, CalendarClock, LayoutGrid, List } from 'lucide-react';
 import Modal from './Modal';
 import LeadForm from './LeadForm';
 import LeadDetail from './LeadDetail';

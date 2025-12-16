@@ -6,7 +6,7 @@ import {
   Image, Upload, Camera
 } from 'lucide-react';
 import type { Captacion, SocialPlatform, ProjectType, CaptacionStatus } from '../types/captaciones';
-import { detectPlatform, getPlatformInfo, getStatusInfo, getProjectTypeLabel } from '../types/captaciones';
+import { detectPlatform, getPlatformInfo, getStatusInfo } from '../types/captaciones';
 import { useCaptaciones } from '../hooks/useCaptaciones';
 import Modal from './Modal';
 
@@ -62,20 +62,6 @@ const CaptacionesView: React.FC = () => {
     setFormData({ ...formData, url, platform });
   };
 
-  // Quick save - guardar enlace rápido sin abrir modal
-  const handleQuickSave = () => {
-    if (!quickUrl.trim()) return;
-    
-    const platform = detectPlatform(quickUrl);
-    addCaptacion({
-      url: quickUrl,
-      platform,
-      status: 'pendiente',
-      projectType: 'proyecto_nuevo'
-    });
-    setQuickUrl('');
-  };
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.url) return;
@@ -118,10 +104,6 @@ const CaptacionesView: React.FC = () => {
         confidence: type === 'perplexity' ? 'high' : 'medium'
       }
     });
-  };
-
-  const handleStatusChange = (id: string, status: CaptacionStatus) => {
-    updateCaptacion(id, { status });
   };
 
   const handleDelete = (id: string) => {
@@ -626,7 +608,7 @@ interface CaptacionDetailProps {
 }
 
 const CaptacionDetail: React.FC<CaptacionDetailProps> = ({ 
-  captacion, onUpdate, onDelete, onAISearch, onClose 
+  captacion, onUpdate, onDelete, onAISearch, onClose: _onClose 
 }) => {
   const [editing, setEditing] = useState(false);
   const [editingDescription, setEditingDescription] = useState(false);
@@ -644,7 +626,6 @@ const CaptacionDetail: React.FC<CaptacionDetailProps> = ({
   });
 
   const platformInfo = getPlatformInfo(captacion.platform);
-  const statusInfo = getStatusInfo(captacion.status);
 
   const handleScreenshotChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

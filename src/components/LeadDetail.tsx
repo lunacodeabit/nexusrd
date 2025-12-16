@@ -20,11 +20,6 @@ const formatMoney = (value: number): string => {
   return value.toLocaleString('en-US');
 };
 
-// Parse money string back to number
-const parseMoney = (value: string): number => {
-  return parseInt(value.replace(/,/g, ''), 10) || 0;
-};
-
 interface LeadDetailProps {
   lead: Lead;
   onClose: () => void;

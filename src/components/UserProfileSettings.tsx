@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, Phone, Mail, Bell, Volume2, MessageSquare, Save, Check } from 'lucide-react';
+import { User, Mail, Bell, Volume2, MessageSquare, Save, Check } from 'lucide-react';
 import { getUserProfile, saveUserProfile, type UserProfile } from '../services/userProfile';
 
 const UserProfileSettings: React.FC = () => {
@@ -25,7 +25,7 @@ const UserProfileSettings: React.FC = () => {
     
     const formattedPhone = profile.whatsappNumber.replace(/[^\d]/g, '');
     const testMessage = encodeURIComponent(
-      `*NEXUS CRM* - Prueba de Alertas\n\nTu configuracion de WhatsApp funciona correctamente!\n\nAhora recibiras alertas de:\n- Llamadas programadas\n- Mensajes de WhatsApp\n- Emails pendientes\n- Visitas/Citas\n- Otras tareas\n\nListo para aumentar tu productividad!`
+      `*CRM ALVEARE* - Prueba de Alertas\n\nTu configuracion de WhatsApp funciona correctamente!\n\nAhora recibiras alertas de:\n- Llamadas programadas\n- Mensajes de WhatsApp\n- Emails pendientes\n- Visitas/Citas\n- Otras tareas\n\nListo para aumentar tu productividad!`
     );
     
     window.open(`https://wa.me/${formattedPhone}?text=${testMessage}`, '_blank');
@@ -48,7 +48,7 @@ const UserProfileSettings: React.FC = () => {
       <div className="space-y-4">
         {/* Name */}
         <div>
-          <label className="text-sm text-gray-400 block mb-2 flex items-center gap-2">
+          <label className="text-sm text-gray-400 mb-2 flex items-center gap-2">
             <User size={14} />
             Nombre Completo
           </label>
@@ -63,7 +63,7 @@ const UserProfileSettings: React.FC = () => {
 
         {/* WhatsApp Number */}
         <div>
-          <label className="text-sm text-gray-400 block mb-2 flex items-center gap-2">
+          <label className="text-sm text-gray-400 mb-2 flex items-center gap-2">
             <MessageSquare size={14} className="text-green-400" />
             Número de WhatsApp (para alertas)
           </label>
@@ -94,7 +94,7 @@ const UserProfileSettings: React.FC = () => {
 
         {/* Email */}
         <div>
-          <label className="text-sm text-gray-400 block mb-2 flex items-center gap-2">
+          <label className="text-sm text-gray-400 mb-2 flex items-center gap-2">
             <Mail size={14} />
             Email
           </label>

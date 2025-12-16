@@ -145,12 +145,11 @@ export function useCaptaciones() {
   }, []);
 
   // Búsqueda con Perplexity (preparado para futuro)
-  const searchWithPerplexity = useCallback(async (captacion: Captacion): Promise<string | null> => {
+  const searchWithPerplexity = useCallback(async (_captacion: Captacion): Promise<string | null> => {
     // TODO: Integrar Perplexity API cuando esté disponible
     // const PERPLEXITY_API_KEY = import.meta.env.VITE_PERPLEXITY_API_KEY;
     // if (!PERPLEXITY_API_KEY) return null;
-    
-    const _query = `Busca información de contacto (teléfono, WhatsApp, email) de la constructora o desarrolladora del proyecto inmobiliario "${captacion.projectName}" ubicado en ${captacion.location || 'República Dominicana'}. Solo me interesan proyectos en República Dominicana. Necesito el nombre de la empresa, número de teléfono y cualquier forma de contacto disponible.`;
+    // Query: `Busca información de contacto del proyecto \"${_captacion.projectName}\" en ${_captacion.location || 'República Dominicana'}`
     
     // const response = await fetch('https://api.perplexity.ai/chat/completions', {
     //   method: 'POST',

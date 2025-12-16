@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import type { Lead } from '../types';
 import { LeadStatus } from '../types';
-import { AlertTriangle, Clock, Phone, TrendingUp, Bell, X, MessageSquare, Mail, MapPin, MoreHorizontal, CheckCircle2 } from 'lucide-react';
+import { AlertTriangle, Clock, Phone, TrendingUp, Bell, X, MessageSquare, Mail, MapPin, MoreHorizontal, CheckCircle2, Pencil, CalendarPlus } from 'lucide-react';
 import Modal from './Modal';
 import LeadDetail from './LeadDetail';
 import type { LeadScore } from '../services/leadScoring';
@@ -40,6 +40,22 @@ const Dashboard: React.FC<DashboardProps> = ({
 }) => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  const [editingTask, setEditingTask] = useState<ScheduledTask | null>(null);
+  const [taskForm, setTaskForm] = useState({
+    method: 'LLAMADA' as ScheduledTask['method'],
+    date: '',
+    time: '',
+    notes: '',
+    alertMinutesBefore: 15
+  });
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const ALERT_TIME_OPTIONS = [
+    { value: 15, label: '15m' },
+    { value: 30, label: '30m' },
+    { value: 60, label: '1h' },
+    { value: 120, label: '2h' },
+  ];
 
   // ---------------------------------------------------------------------------
   // LOGICA DE ALERTAS INTELIGENTE ("El Flow Lógico")
@@ -88,7 +104,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     return allTasks
       .filter(task => task.scheduledDate === today && !task.completed)
       .sort((a, b) => a.scheduledTime.localeCompare(b.scheduledTime));
-  }, [leads]); // Re-run when leads change to refresh
+  }, [leads, refreshKey]); // Re-run when leads change or refreshKey changes
 
   const handleCompleteTask = (taskId: string) => {
     const saved = localStorage.getItem('nexus_scheduled_tasks');
@@ -99,7 +115,56 @@ const Dashboard: React.FC<DashboardProps> = ({
       t.id === taskId ? { ...t, completed: true } : t
     );
     localStorage.setItem('nexus_scheduled_tasks', JSON.stringify(updated));
-    // Force re-render
+    setRefreshKey(prev => prev + 1);
+    window.dispatchEvent(new Event('storage'));
+  };
+
+  const handleEditTask = (task: ScheduledTask) => {
+    setEditingTask(task);
+    setTaskForm({
+      method: task.method,
+      date: task.scheduledDate,
+      time: task.scheduledTime,
+      notes: task.notes,
+      alertMinutesBefore: task.alertMinutesBefore || 15
+    });
+  };
+
+  const handleSaveTask = () => {
+    if (!editingTask || !taskForm.date || !taskForm.time) return;
+    
+    const saved = localStorage.getItem('nexus_scheduled_tasks');
+    if (!saved) return;
+    
+    const allTasks: ScheduledTask[] = JSON.parse(saved);
+    const updated = allTasks.map(t => 
+      t.id === editingTask.id 
+        ? {
+            ...t,
+            method: taskForm.method,
+            scheduledDate: taskForm.date,
+            scheduledTime: taskForm.time,
+            notes: taskForm.notes,
+            alertMinutesBefore: taskForm.alertMinutesBefore,
+            alertSent: false
+          }
+        : t
+    );
+    localStorage.setItem('nexus_scheduled_tasks', JSON.stringify(updated));
+    setEditingTask(null);
+    setRefreshKey(prev => prev + 1);
+    window.dispatchEvent(new Event('storage'));
+  };
+
+  const handleDeleteTask = (taskId: string) => {
+    const saved = localStorage.getItem('nexus_scheduled_tasks');
+    if (!saved) return;
+    
+    const allTasks: ScheduledTask[] = JSON.parse(saved);
+    const updated = allTasks.filter(t => t.id !== taskId);
+    localStorage.setItem('nexus_scheduled_tasks', JSON.stringify(updated));
+    setEditingTask(null);
+    setRefreshKey(prev => prev + 1);
     window.dispatchEvent(new Event('storage'));
   };
 
@@ -256,13 +321,22 @@ const Dashboard: React.FC<DashboardProps> = ({
                          {task.notes && ` • ${task.notes}`}
                        </p>
                      </div>
-                     <button
-                       onClick={() => handleCompleteTask(task.id)}
-                       className="p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity bg-green-500/20 text-green-400 hover:bg-green-500 hover:text-white"
-                       title="Marcar como completada"
-                     >
-                       <CheckCircle2 size={16} />
-                     </button>
+                     <div className="flex gap-1 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                       <button
+                         onClick={() => handleEditTask(task)}
+                         className="p-1.5 rounded-lg bg-blue-500/20 text-blue-400 hover:bg-blue-500 hover:text-white"
+                         title="Editar tarea"
+                       >
+                         <Pencil size={14} />
+                       </button>
+                       <button
+                         onClick={() => handleCompleteTask(task.id)}
+                         className="p-1.5 rounded-lg bg-green-500/20 text-green-400 hover:bg-green-500 hover:text-white"
+                         title="Marcar como completada"
+                       >
+                         <CheckCircle2 size={14} />
+                       </button>
+                     </div>
                    </div>
                  ))}
                </div>
@@ -360,6 +434,119 @@ const Dashboard: React.FC<DashboardProps> = ({
             followUps={followUps}
             onAddFollowUp={handleAddFollowUp}
           />
+        )}
+      </Modal>
+
+      {/* Modal: Edit Task */}
+      <Modal isOpen={!!editingTask} onClose={() => setEditingTask(null)} title="Editar Tarea">
+        {editingTask && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 pb-3 border-b border-white/10">
+              <CalendarPlus size={20} className="text-blue-400" />
+              <div>
+                <p className="font-bold text-white">{editingTask.leadName}</p>
+                <p className="text-xs text-gray-400">Editando tarea programada</p>
+              </div>
+            </div>
+
+            {/* Method Selection */}
+            <div>
+              <label className="text-xs text-gray-500 block mb-2">Tipo de contacto</label>
+              <div className="grid grid-cols-5 gap-2">
+                {(['LLAMADA', 'WHATSAPP', 'EMAIL', 'VISITA', 'OTRO'] as const).map((method) => (
+                  <button
+                    key={method}
+                    onClick={() => setTaskForm(prev => ({ ...prev, method }))}
+                    className={`p-2 rounded-lg flex flex-col items-center gap-1 transition-all ${
+                      taskForm.method === method
+                        ? getTaskColor(method).replace('bg-', 'bg-') + '/30 border border-white/30 text-white'
+                        : 'bg-nexus-surface border border-white/10 text-gray-400'
+                    }`}
+                  >
+                    {getTaskIcon(method)}
+                    <span className="text-[10px]">{method}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Date & Time */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs text-gray-500 block mb-2">Fecha</label>
+                <input
+                  type="date"
+                  value={taskForm.date}
+                  onChange={(e) => setTaskForm(prev => ({ ...prev, date: e.target.value }))}
+                  className="w-full bg-nexus-surface border border-white/10 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-blue-500 [color-scheme:dark]"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-gray-500 block mb-2">Hora</label>
+                <input
+                  type="time"
+                  value={taskForm.time}
+                  onChange={(e) => setTaskForm(prev => ({ ...prev, time: e.target.value }))}
+                  className="w-full bg-nexus-surface border border-white/10 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-blue-500 [color-scheme:dark]"
+                />
+              </div>
+            </div>
+
+            {/* Alert Time */}
+            <div>
+              <label className="text-xs text-gray-500 block mb-2">Alertarme antes</label>
+              <div className="grid grid-cols-4 gap-2">
+                {ALERT_TIME_OPTIONS.map((option) => (
+                  <button
+                    key={option.value}
+                    onClick={() => setTaskForm(prev => ({ ...prev, alertMinutesBefore: option.value }))}
+                    className={`p-2 rounded-lg text-xs transition-all ${
+                      taskForm.alertMinutesBefore === option.value
+                        ? 'bg-blue-500 text-white font-bold'
+                        : 'bg-nexus-surface border border-white/10 text-gray-400 hover:border-white/30'
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Notes */}
+            <div>
+              <label className="text-xs text-gray-500 block mb-2">Nota</label>
+              <input
+                type="text"
+                value={taskForm.notes}
+                onChange={(e) => setTaskForm(prev => ({ ...prev, notes: e.target.value }))}
+                placeholder="Nota opcional..."
+                className="w-full bg-nexus-surface border border-white/10 rounded-lg p-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
+              />
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-2 pt-2">
+              <button
+                onClick={handleSaveTask}
+                disabled={!taskForm.date || !taskForm.time}
+                className="flex-1 bg-blue-500 text-white py-2 rounded-lg font-bold hover:bg-blue-400 transition-colors disabled:opacity-50"
+              >
+                Guardar Cambios
+              </button>
+              <button
+                onClick={() => handleDeleteTask(editingTask.id)}
+                className="px-4 py-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500 hover:text-white transition-colors"
+              >
+                Eliminar
+              </button>
+              <button
+                onClick={() => setEditingTask(null)}
+                className="px-4 py-2 border border-white/20 text-gray-400 rounded-lg hover:bg-white/5 transition-colors"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
         )}
       </Modal>
     </div>

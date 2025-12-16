@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   Phone, MessageSquare, Mail, MapPin, MoreHorizontal,
   Plus, CheckCircle2, Clock, AlertCircle,
-  TrendingUp, CalendarPlus, Bell, X
+  TrendingUp, CalendarPlus, Bell, X, Pencil
 } from 'lucide-react';
 import type { Lead } from '../types';
 import type { LeadFollowUp } from '../types/activities';
@@ -68,6 +68,7 @@ const LeadFollowUpTracker: React.FC<LeadFollowUpTrackerProps> = ({
     notes: '',
     alertMinutesBefore: 15
   });
+  const [editingTask, setEditingTask] = useState<ScheduledTask | null>(null);
 
   // Save scheduled tasks to localStorage
   useEffect(() => {
@@ -188,6 +189,46 @@ const LeadFollowUpTracker: React.FC<LeadFollowUpTrackerProps> = ({
 
   const handleDeleteTask = (taskId: string) => {
     setScheduledTasks(prev => prev.filter(t => t.id !== taskId));
+  };
+
+  const handleEditTask = (task: ScheduledTask) => {
+    setEditingTask(task);
+    setScheduledTask({
+      method: task.method,
+      date: task.scheduledDate,
+      time: task.scheduledTime,
+      notes: task.notes,
+      alertMinutesBefore: task.alertMinutesBefore
+    });
+    setIsScheduling(true);
+  };
+
+  const handleSaveEditTask = () => {
+    if (!editingTask || !scheduledTask.date || !scheduledTask.time) return;
+    
+    setScheduledTasks(prev => prev.map(t => 
+      t.id === editingTask.id 
+        ? {
+            ...t,
+            method: scheduledTask.method,
+            scheduledDate: scheduledTask.date,
+            scheduledTime: scheduledTask.time,
+            notes: scheduledTask.notes,
+            alertMinutesBefore: scheduledTask.alertMinutesBefore,
+            alertSent: false // Reset alert if time changed
+          }
+        : t
+    ));
+    setEditingTask(null);
+    setScheduledTask({ method: 'LLAMADA', date: '', time: '', notes: '', alertMinutesBefore: 15 });
+    setIsScheduling(false);
+    notificationSound.playSuccess();
+  };
+
+  const handleCancelScheduling = () => {
+    setEditingTask(null);
+    setScheduledTask({ method: 'LLAMADA', date: '', time: '', notes: '', alertMinutesBefore: 15 });
+    setIsScheduling(false);
   };
 
   const getMethodIcon = (method: LeadFollowUp['method']) => {
@@ -474,6 +515,13 @@ const LeadFollowUpTracker: React.FC<LeadFollowUpTrackerProps> = ({
                   </div>
                   <div className="flex gap-1">
                     <button
+                      onClick={() => handleEditTask(task)}
+                      className="p-1.5 text-blue-400 hover:bg-blue-500/20 rounded transition-colors"
+                      title="Editar tarea"
+                    >
+                      <Pencil size={16} />
+                    </button>
+                    <button
                       onClick={() => handleCompleteTask(task.id)}
                       className="p-1.5 text-green-400 hover:bg-green-500/20 rounded transition-colors"
                       title="Marcar como completado"
@@ -498,10 +546,19 @@ const LeadFollowUpTracker: React.FC<LeadFollowUpTrackerProps> = ({
 
         {/* Schedule Task Form */}
         {isScheduling && (
-          <div className="bg-nexus-base rounded-lg p-4 border border-yellow-500/30 space-y-3 mt-3">
+          <div className={`bg-nexus-base rounded-lg p-4 border ${editingTask ? 'border-blue-500/30' : 'border-yellow-500/30'} space-y-3 mt-3`}>
             <div className="flex items-center gap-2 mb-3">
-              <CalendarPlus size={16} className="text-yellow-400" />
-              <span className="font-bold text-white">Programar Tarea</span>
+              {editingTask ? (
+                <>
+                  <Pencil size={16} className="text-blue-400" />
+                  <span className="font-bold text-white">Editar Tarea</span>
+                </>
+              ) : (
+                <>
+                  <CalendarPlus size={16} className="text-yellow-400" />
+                  <span className="font-bold text-white">Programar Tarea</span>
+                </>
+              )}
             </div>
 
             {/* Method Selection */}
@@ -584,14 +641,14 @@ const LeadFollowUpTracker: React.FC<LeadFollowUpTrackerProps> = ({
             {/* Actions */}
             <div className="flex gap-2">
               <button
-                onClick={handleScheduleTask}
+                onClick={editingTask ? handleSaveEditTask : handleScheduleTask}
                 disabled={!scheduledTask.date || !scheduledTask.time}
-                className="flex-1 bg-yellow-500 text-nexus-base py-2 rounded-lg font-bold hover:bg-yellow-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className={`flex-1 ${editingTask ? 'bg-blue-500 hover:bg-blue-400' : 'bg-yellow-500 hover:bg-yellow-400'} text-nexus-base py-2 rounded-lg font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
               >
-                Programar Recordatorio
+                {editingTask ? 'Guardar Cambios' : 'Programar Recordatorio'}
               </button>
               <button
-                onClick={() => setIsScheduling(false)}
+                onClick={handleCancelScheduling}
                 className="px-4 py-2 border border-white/20 text-gray-400 rounded-lg hover:bg-white/5 transition-colors"
               >
                 Cancelar

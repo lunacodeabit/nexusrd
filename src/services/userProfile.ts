@@ -70,11 +70,11 @@ export const getAlertMessage = (
     : 'ahora';
 
   const messages: Record<string, string> = {
-    'LLAMADA': `*NEXUS CRM* - Recordatorio\n\nTienes una *LLAMADA* programada ${timeText}\nCliente: *${leadName}*${notes ? `\nNota: ${notes}` : ''}\n\nNo olvides hacer la llamada!`,
-    'WHATSAPP': `*NEXUS CRM* - Recordatorio\n\nTienes que enviar un *WHATSAPP* ${timeText}\nCliente: *${leadName}*${notes ? `\nNota: ${notes}` : ''}\n\nEnvia el mensaje ahora!`,
-    'EMAIL': `*NEXUS CRM* - Recordatorio\n\nTienes que enviar un *EMAIL* ${timeText}\nCliente: *${leadName}*${notes ? `\nNota: ${notes}` : ''}\n\nRedacta y envia el correo!`,
-    'VISITA': `*NEXUS CRM* - Recordatorio\n\nTienes una *VISITA* programada ${timeText}\nCliente: *${leadName}*${notes ? `\nNota: ${notes}` : ''}\n\nPreparate para la reunion!`,
-    'OTRO': `*NEXUS CRM* - Recordatorio\n\nTienes una *TAREA* programada ${timeText}\nCliente: *${leadName}*${notes ? `\nNota: ${notes}` : ''}\n\nRevisa los detalles!`,
+    'LLAMADA': `*CRM ALVEARE* - Recordatorio\n\nTienes una *LLAMADA* programada ${timeText}\nCliente: *${leadName}*${notes ? `\nNota: ${notes}` : ''}\n\nNo olvides hacer la llamada!`,
+    'WHATSAPP': `*CRM ALVEARE* - Recordatorio\n\nTienes que enviar un *WHATSAPP* ${timeText}\nCliente: *${leadName}*${notes ? `\nNota: ${notes}` : ''}\n\nEnvia el mensaje ahora!`,
+    'EMAIL': `*CRM ALVEARE* - Recordatorio\n\nTienes que enviar un *EMAIL* ${timeText}\nCliente: *${leadName}*${notes ? `\nNota: ${notes}` : ''}\n\nRedacta y envia el correo!`,
+    'VISITA': `*CRM ALVEARE* - Recordatorio\n\nTienes una *VISITA* programada ${timeText}\nCliente: *${leadName}*${notes ? `\nNota: ${notes}` : ''}\n\nPreparate para la reunion!`,
+    'OTRO': `*CRM ALVEARE* - Recordatorio\n\nTienes una *TAREA* programada ${timeText}\nCliente: *${leadName}*${notes ? `\nNota: ${notes}` : ''}\n\nRevisa los detalles!`,
   };
 
   return messages[taskType] || messages['OTRO'];
