@@ -9,18 +9,24 @@ import {
   ChevronRight,
   RefreshCw,
   UserX,
-  CheckCircle2
+  CheckCircle2,
+  UserCog,
+  BarChart3
 } from 'lucide-react';
 import { useTeamData } from '../hooks/useTeamData';
 import { useUserRole } from '../hooks/useUserRole';
 import type { TeamMemberPerformance } from '../types';
 import AsesorDetailModal from './AsesorDetailModal';
+import UserManagement from './UserManagement';
+
+type TabView = 'dashboard' | 'users';
 
 export default function SuperAdminDashboard() {
-  const { canViewTeam, role } = useUserRole();
+  const { canViewTeam, isAdmin, role } = useUserRole();
   const { teamMembers, teamStats, isLoading, refetch } = useTeamData();
   const [selectedAsesor, setSelectedAsesor] = useState<TeamMemberPerformance | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [activeView, setActiveView] = useState<TabView>('dashboard');
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -37,6 +43,46 @@ export default function SuperAdminDashboard() {
           <p className="text-gray-400">No tienes permisos para ver esta sección.</p>
           <p className="text-gray-500 text-sm mt-2">Rol actual: {role || 'asesor'}</p>
         </div>
+      </div>
+    );
+  }
+
+  // Tab navigation for admins
+  const renderTabs = () => (
+    <div className="flex gap-2 mb-6">
+      <button
+        onClick={() => setActiveView('dashboard')}
+        className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+          activeView === 'dashboard'
+            ? 'bg-nexus-accent text-black'
+            : 'bg-nexus-surface text-gray-400 hover:text-white'
+        }`}
+      >
+        <BarChart3 className="w-4 h-4" />
+        Dashboard Equipo
+      </button>
+      {isAdmin && (
+        <button
+          onClick={() => setActiveView('users')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+            activeView === 'users'
+              ? 'bg-nexus-accent text-black'
+              : 'bg-nexus-surface text-gray-400 hover:text-white'
+          }`}
+        >
+          <UserCog className="w-4 h-4" />
+          Gestión Usuarios
+        </button>
+      )}
+    </div>
+  );
+
+  // User Management View
+  if (activeView === 'users' && isAdmin) {
+    return (
+      <div className="space-y-6">
+        {renderTabs()}
+        <UserManagement />
       </div>
     );
   }
@@ -67,6 +113,9 @@ export default function SuperAdminDashboard() {
 
   return (
     <div className="space-y-6">
+      {/* Tabs */}
+      {renderTabs()}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
