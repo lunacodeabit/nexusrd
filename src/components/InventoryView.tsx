@@ -61,7 +61,7 @@ const InventoryView: React.FC<InventoryViewProps> = ({ properties, addProperty }
 
               <div className="mt-auto pt-4 border-t border-white/10 flex justify-between items-center">
                  <div className="text-xl font-bold text-nexus-accent flex items-center">
-                   {prop.price.toLocaleString()} €
+                   RD${prop.price.toLocaleString()}
                  </div>
                  <button 
                    onClick={(e) => { e.stopPropagation(); setSelectedProperty(prop); }}

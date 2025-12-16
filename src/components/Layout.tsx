@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Home, Users, Building, BarChart3, Menu, FileText, X, ClipboardList } from 'lucide-react';
+import { Home, Users, Building, BarChart3, Menu, Settings, X, ClipboardList } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -9,14 +10,18 @@ interface LayoutProps {
 
 const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { user } = useAuth();
+  
+  // Get agent name from user metadata
+  const agentName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Agente';
 
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: Home },
     { id: 'leads', label: 'Leads Flow', icon: Users },
+    { id: 'activities', label: 'Marketing', icon: ClipboardList },
     { id: 'inventory', label: 'Captaciones', icon: Building },
-    { id: 'activities', label: 'Actividades', icon: ClipboardList },
     { id: 'analytics', label: 'Métricas', icon: BarChart3 },
-    { id: 'architecture', label: 'Arquitectura', icon: FileText },
+    { id: 'architecture', label: 'Configuraciones', icon: Settings },
   ];
 
   const handleNavClick = (tabId: string) => {
@@ -28,7 +33,12 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
     <div className="min-h-screen bg-nexus-base text-nexus-text font-sans">
       {/* Top Mobile Bar */}
       <div className="md:hidden flex items-center justify-between p-4 bg-nexus-surface border-b border-white/10 sticky top-0 z-50">
-        <h1 className="text-xl font-bold tracking-wider text-nexus-accent">NEXUS CRM</h1>
+        <button 
+          onClick={() => setActiveTab('dashboard')}
+          className="text-xl font-bold tracking-wider text-nexus-accent hover:text-orange-400 transition-colors"
+        >
+          NEXUS CRM
+        </button>
         <button 
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           className="text-white p-2 hover:bg-white/10 rounded-lg transition-colors"
@@ -72,8 +82,13 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
         {/* Sidebar (Desktop) */}
         <aside className="hidden md:flex flex-col w-64 bg-nexus-surface border-r border-white/10">
           <div className="p-6">
-            <h1 className="text-2xl font-bold tracking-widest text-nexus-accent">NEXUS</h1>
-            <p className="text-xs text-gray-400 mt-1">Real Estate OS v1.0</p>
+            <button 
+              onClick={() => setActiveTab('dashboard')}
+              className="text-2xl font-bold tracking-widest text-nexus-accent hover:text-orange-400 transition-colors"
+            >
+              NEXUS
+            </button>
+            <p className="text-sm text-white mt-1 font-medium">{agentName}</p>
           </div>
           
           <nav className="flex-1 px-4 py-4 space-y-2">

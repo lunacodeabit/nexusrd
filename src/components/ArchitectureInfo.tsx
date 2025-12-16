@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Database, GitBranch, Terminal, Webhook, Copy, Check } from 'lucide-react';
+import UserProfileSettings from './UserProfileSettings';
 
 const ArchitectureInfo: React.FC = () => {
   const [copied, setCopied] = useState<string | null>(null);
@@ -14,6 +15,9 @@ const ArchitectureInfo: React.FC = () => {
 
   return (
     <div className="space-y-8 pb-20 max-w-4xl mx-auto">
+      {/* User Profile Settings */}
+      <UserProfileSettings />
+
       {/* Webhook Integration Card */}
       <div className="bg-gradient-to-r from-green-500/10 to-emerald-500/10 p-6 rounded-xl border border-green-500/30">
         <div className="flex items-center gap-3 mb-4">
@@ -93,7 +97,7 @@ const ArchitectureInfo: React.FC = () => {
       </div>
 
       <div className="bg-nexus-surface p-8 rounded-xl border border-nexus-accent/20">
-        <h2 className="text-3xl font-bold text-nexus-accent mb-6">Arquitectura Técnica Nexus</h2>
+        <h2 className="text-3xl font-bold text-nexus-accent mb-6">Configuraciones</h2>
         <p className="text-gray-300 mb-6">
           A continuación se presenta el análisis arquitectónico solicitado para la migración de Excel a PWA.
         </p>

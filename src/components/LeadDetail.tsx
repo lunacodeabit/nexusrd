@@ -1,25 +1,147 @@
-import React, { useState } from 'react';
-import type { Lead } from '../types';
+import React, { useState, useRef } from 'react';
+import type { Lead, Currency } from '../types';
 import { LeadStatus } from '../types';
-import { Phone, MessageSquare, Mail, Calendar, Clock, ChevronRight, ClipboardCheck, TrendingUp } from 'lucide-react';
+import { Phone, MessageSquare, Mail, Calendar, Clock, ChevronRight, ClipboardCheck, TrendingUp, Edit3, Check, X, Save } from 'lucide-react';
 import { getScoreColor, getScoreEmoji, type LeadScore } from '../services/leadScoring';
 import LeadQualification from './LeadQualification';
 import LeadFollowUpTracker from './LeadFollowUpTracker';
 import type { LeadFollowUp } from '../types/activities';
+
+// Format phone number as xxx-xxx-xxxx
+const formatPhoneNumber = (value: string): string => {
+  const numbers = value.replace(/\D/g, '');
+  if (numbers.length <= 3) return numbers;
+  if (numbers.length <= 6) return `${numbers.slice(0, 3)}-${numbers.slice(3)}`;
+  return `${numbers.slice(0, 3)}-${numbers.slice(3, 6)}-${numbers.slice(6, 10)}`;
+};
+
+// Format money with commas: 1,234,567
+const formatMoney = (value: number): string => {
+  return value.toLocaleString('en-US');
+};
+
+// Parse money string back to number
+const parseMoney = (value: string): number => {
+  return parseInt(value.replace(/,/g, ''), 10) || 0;
+};
 
 interface LeadDetailProps {
   lead: Lead;
   onClose: () => void;
   onUpdateStatus: (leadId: string, newStatus: LeadStatus) => void;
   onUpdateScore?: (leadId: string, score: LeadScore) => void;
+  onUpdateLead?: (leadId: string, updates: Partial<Lead>) => void;
   followUps?: LeadFollowUp[];
   onAddFollowUp?: (followUp: Omit<LeadFollowUp, 'id'>) => void;
 }
 
-const LeadDetail: React.FC<LeadDetailProps> = ({ lead, onClose, onUpdateStatus, onUpdateScore, followUps = [], onAddFollowUp }) => {
+const LeadDetail: React.FC<LeadDetailProps> = ({ lead, onClose, onUpdateStatus, onUpdateScore, onUpdateLead, followUps = [], onAddFollowUp }) => {
   const [showStatusMenu, setShowStatusMenu] = useState(false);
   const [showQualification, setShowQualification] = useState(false);
   const [showFollowUps, setShowFollowUps] = useState(false);
+  const budgetInputRef = useRef<HTMLInputElement>(null);
+  
+  // Editable fields state
+  const [editingField, setEditingField] = useState<string | null>(null);
+  const [editValues, setEditValues] = useState({
+    phone: formatPhoneNumber(lead.phone),
+    email: lead.email,
+    budget: lead.budget,
+    budgetDisplay: formatMoney(lead.budget), // For display with commas
+    currency: lead.currency || 'USD' as Currency,
+    interestArea: lead.interestArea,
+    notes: lead.notes,
+    nextFollowUp: new Date(lead.nextFollowUpDate).toISOString().slice(0, 16)
+  });
+
+  // Handle budget input with formatting
+  const handleBudgetChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const rawValue = e.target.value.replace(/,/g, '');
+    if (rawValue === '' || /^\d+$/.test(rawValue)) {
+      const numValue = parseInt(rawValue, 10) || 0;
+      setEditValues(prev => ({
+        ...prev,
+        budget: numValue,
+        budgetDisplay: rawValue === '' ? '' : formatMoney(numValue)
+      }));
+    }
+  };
+
+  // Handle phone input with formatting
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatPhoneNumber(e.target.value);
+    setEditValues(prev => ({ ...prev, phone: formatted }));
+  };
+
+  // Select all text when focusing on budget if value is 0
+  const handleBudgetFocus = () => {
+    if (editValues.budget === 0 && budgetInputRef.current) {
+      budgetInputRef.current.select();
+    }
+  };
+
+  const handleSaveField = async (field: string) => {
+    if (onUpdateLead) {
+      try {
+        const updates: Partial<Lead> = {};
+        switch (field) {
+          case 'phone':
+            // Remove formatting for storage
+            updates.phone = editValues.phone.replace(/-/g, '');
+            break;
+          case 'email':
+            updates.email = editValues.email;
+            break;
+          case 'budget':
+            updates.budget = editValues.budget;
+            // Note: currency update temporarily disabled until DB column exists
+            // updates.currency = editValues.currency;
+            break;
+          case 'interestArea':
+            updates.interestArea = editValues.interestArea;
+            break;
+          case 'notes':
+            updates.notes = editValues.notes;
+            break;
+        }
+        console.log('Saving field:', field, 'with updates:', updates);
+        await onUpdateLead(lead.id, updates);
+        console.log('Field saved successfully');
+        setEditingField(null);
+      } catch (error) {
+        console.error('Error saving field:', error);
+        alert('Error al guardar. Por favor intenta de nuevo.');
+      }
+    } else {
+      console.warn('onUpdateLead is not defined');
+      setEditingField(null);
+    }
+  };
+
+  const handleCancelEdit = (field: string) => {
+    if (field === 'budget') {
+      setEditValues(prev => ({
+        ...prev,
+        budget: lead.budget,
+        budgetDisplay: formatMoney(lead.budget),
+        currency: lead.currency || 'USD'
+      }));
+    } else {
+      setEditValues(prev => ({
+        ...prev,
+        [field]: field === 'phone' ? formatPhoneNumber(lead.phone) : 
+                 field === 'email' ? lead.email :
+                 field === 'interestArea' ? lead.interestArea :
+                 lead.notes
+      }));
+    }
+    setEditingField(null);
+  };
+
+  // Get currency symbol
+  const getCurrencySymbol = (currency?: Currency) => {
+    return currency === 'RD$' ? 'RD$' : 'US$';
+  };
 
   const handleCall = () => {
     window.open(`tel:${lead.phone}`, '_self');
@@ -178,27 +300,189 @@ const LeadDetail: React.FC<LeadDetailProps> = ({ lead, onClose, onUpdateStatus, 
         )}
       </div>
 
-      {/* Contact Info */}
+      {/* Contact Info - Editable */}
       <div className="space-y-2">
-        <div className="flex items-center gap-3 p-3 bg-nexus-base rounded-lg">
-          <Phone size={16} className="text-gray-400" />
-          <span className="text-white">{lead.phone}</span>
+        {/* Phone */}
+        <div className="flex items-center gap-3 p-3 bg-nexus-base rounded-lg group">
+          <Phone size={16} className="text-gray-400 flex-shrink-0" />
+          {editingField === 'phone' ? (
+            <div className="flex-1 flex items-center gap-2">
+              <input
+                type="tel"
+                value={editValues.phone}
+                onChange={handlePhoneChange}
+                placeholder="809-555-1234"
+                className="flex-1 bg-transparent border-b border-nexus-accent text-white focus:outline-none"
+                autoFocus
+              />
+              <button type="button" onClick={() => handleSaveField('phone')} className="text-green-400 hover:text-green-300 p-1 hover:bg-green-400/20 rounded">
+                <Check size={16} />
+              </button>
+              <button type="button" onClick={() => handleCancelEdit('phone')} className="text-red-400 hover:text-red-300 p-1 hover:bg-red-400/20 rounded">
+                <X size={16} />
+              </button>
+            </div>
+          ) : (
+            <>
+              <span className="text-white flex-1">{formatPhoneNumber(lead.phone)}</span>
+              {onUpdateLead && (
+                <button 
+                  onClick={() => {
+                    setEditValues(prev => ({ ...prev, phone: formatPhoneNumber(lead.phone) }));
+                    setEditingField('phone');
+                  }}
+                  className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-nexus-accent transition-all"
+                >
+                  <Edit3 size={14} />
+                </button>
+              )}
+            </>
+          )}
         </div>
-        <div className="flex items-center gap-3 p-3 bg-nexus-base rounded-lg">
-          <Mail size={16} className="text-gray-400" />
-          <span className="text-white">{lead.email}</span>
+        
+        {/* Email */}
+        <div className="flex items-center gap-3 p-3 bg-nexus-base rounded-lg group">
+          <Mail size={16} className="text-gray-400 flex-shrink-0" />
+          {editingField === 'email' ? (
+            <div className="flex-1 flex items-center gap-2">
+              <input
+                type="email"
+                value={editValues.email}
+                onChange={(e) => setEditValues(prev => ({ ...prev, email: e.target.value }))}
+                className="flex-1 bg-transparent border-b border-nexus-accent text-white focus:outline-none"
+                autoFocus
+              />
+              <button type="button" onClick={() => handleSaveField('email')} className="text-green-400 hover:text-green-300 p-1 hover:bg-green-400/20 rounded">
+                <Check size={16} />
+              </button>
+              <button type="button" onClick={() => handleCancelEdit('email')} className="text-red-400 hover:text-red-300 p-1 hover:bg-red-400/20 rounded">
+                <X size={16} />
+              </button>
+            </div>
+          ) : (
+            <>
+              <span className="text-white flex-1">{lead.email}</span>
+              {onUpdateLead && (
+                <button 
+                  onClick={() => {
+                    setEditValues(prev => ({ ...prev, email: lead.email }));
+                    setEditingField('email');
+                  }}
+                  className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-nexus-accent transition-all"
+                >
+                  <Edit3 size={14} />
+                </button>
+              )}
+            </>
+          )}
         </div>
       </div>
 
-      {/* Details */}
+      {/* Details - Editable */}
       <div className="grid grid-cols-2 gap-3">
-        <div className="bg-nexus-base p-3 rounded-lg">
-          <p className="text-xs text-gray-500">Presupuesto</p>
-          <p className="text-lg font-bold text-nexus-accent">€{lead.budget.toLocaleString()}</p>
+        {/* Budget */}
+        <div className="bg-nexus-base p-3 rounded-lg group overflow-hidden">
+          <p className="text-xs text-gray-500 flex items-center justify-between mb-1">
+            Presupuesto
+            {onUpdateLead && editingField !== 'budget' && (
+              <button 
+                onClick={() => {
+                  setEditValues(prev => ({
+                    ...prev,
+                    budget: lead.budget,
+                    budgetDisplay: lead.budget === 0 ? '' : formatMoney(lead.budget),
+                    currency: lead.currency || 'USD'
+                  }));
+                  setEditingField('budget');
+                }}
+                className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-nexus-accent transition-all"
+              >
+                <Edit3 size={12} />
+              </button>
+            )}
+          </p>
+          {editingField === 'budget' ? (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <select
+                  value={editValues.currency}
+                  onChange={(e) => setEditValues(prev => ({ ...prev, currency: e.target.value as Currency }))}
+                  className="bg-nexus-surface border border-nexus-accent rounded px-2 py-1 text-nexus-accent font-bold text-sm focus:outline-none flex-shrink-0"
+                >
+                  <option value="USD">US$</option>
+                  <option value="RD$">RD$</option>
+                </select>
+                <input
+                  ref={budgetInputRef}
+                  type="text"
+                  inputMode="numeric"
+                  value={editValues.budgetDisplay}
+                  onChange={handleBudgetChange}
+                  onFocus={handleBudgetFocus}
+                  placeholder="0"
+                  className="w-20 min-w-0 bg-transparent border-b border-nexus-accent text-white focus:outline-none"
+                  autoFocus
+                />
+              </div>
+              <div className="flex gap-1">
+                <button 
+                  type="button"
+                  onClick={() => handleSaveField('budget')} 
+                  className="text-green-400 hover:text-green-300 p-1 hover:bg-green-400/20 rounded"
+                >
+                  <Check size={14} />
+                </button>
+                <button 
+                  type="button"
+                  onClick={() => handleCancelEdit('budget')} 
+                  className="text-red-400 hover:text-red-300 p-1 hover:bg-red-400/20 rounded"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            </div>
+          ) : (
+            <p className="text-lg font-bold text-nexus-accent truncate">{getCurrencySymbol(lead.currency)} {formatMoney(lead.budget)}</p>
+          )}
         </div>
-        <div className="bg-nexus-base p-3 rounded-lg">
-          <p className="text-xs text-gray-500">Zona de interés</p>
-          <p className="text-white font-medium">{lead.interestArea || 'No especificada'}</p>
+        
+        {/* Interest Area */}
+        <div className="bg-nexus-base p-3 rounded-lg group overflow-hidden">
+          <p className="text-xs text-gray-500 flex items-center justify-between mb-1">
+            Zona de interés
+            {onUpdateLead && editingField !== 'interestArea' && (
+              <button 
+                onClick={() => {
+                  setEditValues(prev => ({ ...prev, interestArea: lead.interestArea }));
+                  setEditingField('interestArea');
+                }}
+                className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-nexus-accent transition-all"
+              >
+                <Edit3 size={12} />
+              </button>
+            )}
+          </p>
+          {editingField === 'interestArea' ? (
+            <div className="space-y-2">
+              <input
+                type="text"
+                value={editValues.interestArea}
+                onChange={(e) => setEditValues(prev => ({ ...prev, interestArea: e.target.value }))}
+                className="w-full bg-transparent border-b border-nexus-accent text-white focus:outline-none"
+                autoFocus
+              />
+              <div className="flex gap-1">
+                <button type="button" onClick={() => handleSaveField('interestArea')} className="text-green-400 hover:text-green-300 p-1 hover:bg-green-400/20 rounded">
+                  <Check size={14} />
+                </button>
+                <button type="button" onClick={() => handleCancelEdit('interestArea')} className="text-red-400 hover:text-red-300 p-1 hover:bg-red-400/20 rounded">
+                  <X size={14} />
+                </button>
+              </div>
+            </div>
+          ) : (
+            <p className="text-white font-medium truncate">{lead.interestArea || 'No especificada'}</p>
+          )}
         </div>
       </div>
 
@@ -208,10 +492,51 @@ const LeadDetail: React.FC<LeadDetailProps> = ({ lead, onClose, onUpdateStatus, 
           <Calendar size={14} />
           <span>Creado: {new Date(lead.createdAt).toLocaleDateString()}</span>
         </div>
-        <div className="flex items-center gap-2 text-sm text-gray-400">
+        
+        {/* Próximo seguimiento - Editable */}
+        <div className="flex items-center gap-2 text-sm text-gray-400 group">
           <Clock size={14} />
-          <span>Próximo seguimiento: {new Date(lead.nextFollowUpDate).toLocaleString()}</span>
+          {editingField === 'nextFollowUp' ? (
+            <div className="flex items-center gap-2 flex-1">
+              <input
+                type="datetime-local"
+                value={editValues.nextFollowUp || new Date(lead.nextFollowUpDate).toISOString().slice(0, 16)}
+                onChange={(e) => setEditValues(prev => ({ ...prev, nextFollowUp: e.target.value }))}
+                className="bg-nexus-base border border-nexus-accent rounded px-2 py-1 text-white text-xs focus:outline-none"
+              />
+              <button
+                onClick={() => {
+                  if (onUpdateLead && editValues.nextFollowUp) {
+                    onUpdateLead(lead.id, { nextFollowUpDate: new Date(editValues.nextFollowUp).toISOString() });
+                  }
+                  setEditingField(null);
+                }}
+                className="text-green-400 hover:text-green-300"
+              >
+                <Save size={14} />
+              </button>
+              <button onClick={() => setEditingField(null)} className="text-red-400 hover:text-red-300">
+                <X size={14} />
+              </button>
+            </div>
+          ) : (
+            <>
+              <span>Próximo seguimiento: {new Date(lead.nextFollowUpDate).toLocaleString()}</span>
+              {onUpdateLead && (
+                <button 
+                  onClick={() => {
+                    setEditValues(prev => ({ ...prev, nextFollowUp: new Date(lead.nextFollowUpDate).toISOString().slice(0, 16) }));
+                    setEditingField('nextFollowUp');
+                  }}
+                  className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-nexus-accent transition-all"
+                >
+                  <Edit3 size={12} />
+                </button>
+              )}
+            </>
+          )}
         </div>
+        
         {lead.score?.qualifiedAt && (
           <div className="flex items-center gap-2 text-sm text-gray-400">
             <ClipboardCheck size={14} />
@@ -220,13 +545,52 @@ const LeadDetail: React.FC<LeadDetailProps> = ({ lead, onClose, onUpdateStatus, 
         )}
       </div>
 
-      {/* Notes */}
-      {lead.notes && (
-        <div className="bg-nexus-base p-3 rounded-lg">
-          <p className="text-xs text-gray-500 mb-1">Notas</p>
-          <p className="text-gray-300 text-sm italic">"{lead.notes}"</p>
-        </div>
-      )}
+      {/* Notes - Editable */}
+      <div className="bg-nexus-base p-3 rounded-lg group">
+        <p className="text-xs text-gray-500 mb-1 flex items-center justify-between">
+          Notas
+          {onUpdateLead && editingField !== 'notes' && (
+            <button 
+              onClick={() => {
+                setEditValues(prev => ({ ...prev, notes: lead.notes }));
+                setEditingField('notes');
+              }}
+              className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-nexus-accent transition-all"
+            >
+              <Edit3 size={12} />
+            </button>
+          )}
+        </p>
+        {editingField === 'notes' ? (
+          <div className="space-y-2">
+            <textarea
+              value={editValues.notes}
+              onChange={(e) => setEditValues(prev => ({ ...prev, notes: e.target.value }))}
+              className="w-full bg-transparent border border-nexus-accent rounded p-2 text-white focus:outline-none resize-none"
+              rows={3}
+              autoFocus
+            />
+            <div className="flex gap-2 justify-end">
+              <button 
+                type="button"
+                onClick={() => handleSaveField('notes')} 
+                className="px-3 py-1 bg-green-500/20 text-green-400 rounded text-sm hover:bg-green-500/30"
+              >
+                Guardar
+              </button>
+              <button 
+                type="button"
+                onClick={() => handleCancelEdit('notes')} 
+                className="px-3 py-1 bg-red-500/20 text-red-400 rounded text-sm hover:bg-red-500/30"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        ) : (
+          <p className="text-gray-300 text-sm italic">"{lead.notes || 'Sin notas'}"</p>
+        )}
+      </div>
 
       {/* Action Buttons */}
       <div className="grid grid-cols-3 gap-3 pt-2">

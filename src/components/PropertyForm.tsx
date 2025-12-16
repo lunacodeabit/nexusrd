@@ -68,7 +68,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ onSave, onCancel }) => {
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm text-gray-400 mb-1">Precio (€) *</label>
+          <label className="block text-sm text-gray-400 mb-1">Precio (RD$) *</label>
           <input
             type="number"
             required

@@ -1,16 +1,43 @@
 import React, { useMemo, useState } from 'react';
 import type { Lead } from '../types';
 import { LeadStatus } from '../types';
-import { AlertTriangle, Clock, Phone, TrendingUp, Bell, X } from 'lucide-react';
+import { AlertTriangle, Clock, Phone, TrendingUp, Bell, X, MessageSquare, Mail, MapPin, MoreHorizontal, CheckCircle2 } from 'lucide-react';
 import Modal from './Modal';
 import LeadDetail from './LeadDetail';
+import type { LeadScore } from '../services/leadScoring';
+import type { LeadFollowUp } from '../types/activities';
+
+// Interface for scheduled tasks (same as in LeadFollowUpTracker)
+interface ScheduledTask {
+  id: string;
+  leadId: string;
+  leadName: string;
+  method: 'LLAMADA' | 'WHATSAPP' | 'EMAIL' | 'VISITA' | 'OTRO';
+  scheduledDate: string;
+  scheduledTime: string;
+  notes: string;
+  completed: boolean;
+  alertMinutesBefore?: number;
+  alertSent?: boolean;
+}
 
 interface DashboardProps {
   leads: Lead[];
   onUpdateLeadStatus?: (leadId: string, newStatus: LeadStatus) => void;
+  onUpdateLeadScore?: (leadId: string, score: LeadScore) => void;
+  onUpdateLead?: (leadId: string, updates: Partial<Lead>) => void;
+  followUps?: LeadFollowUp[];
+  onAddFollowUp?: (followUp: Omit<LeadFollowUp, 'id'>) => void;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ leads, onUpdateLeadStatus }) => {
+const Dashboard: React.FC<DashboardProps> = ({ 
+  leads, 
+  onUpdateLeadStatus,
+  onUpdateLeadScore,
+  onUpdateLead,
+  followUps = [],
+  onAddFollowUp
+}) => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
 
@@ -21,22 +48,80 @@ const Dashboard: React.FC<DashboardProps> = ({ leads, onUpdateLeadStatus }) => {
   const urgentAlerts = useMemo(() => {
     const now = new Date();
     return leads.filter(lead => {
-      // Regla 1: Lead NUEVO sin contactar por > 2 horas (Simulado con 30 min para demo)
+      // Excluir leads cerrados (ganados o perdidos)
+      if (lead.status === LeadStatus.CLOSED_WON || lead.status === LeadStatus.CLOSED_LOST) {
+        return false;
+      }
+
+      // Regla 1: Lead NUEVO sin contactar por > 2 horas
       const createdTime = new Date(lead.createdAt).getTime();
       const isNewAndOld = lead.status === LeadStatus.NEW && (now.getTime() - createdTime > 1000 * 60 * 60 * 2);
 
-      // Regla 2: Seguimiento vencido o para hoy
+      // Regla 2: Seguimiento vencido (nextFollowUpDate ya pasó)
       const followUp = new Date(lead.nextFollowUpDate).getTime();
       const isOverdue = followUp < now.getTime();
+
+      // Si fue contactado recientemente (últimas 2 horas), no mostrar como alerta
+      if (lead.lastContactDate) {
+        const lastContact = new Date(lead.lastContactDate).getTime();
+        const recentlyContacted = (now.getTime() - lastContact) < 1000 * 60 * 60 * 2;
+        if (recentlyContacted) return false;
+      }
 
       return isNewAndOld || isOverdue;
     });
   }, [leads]);
 
   const todaysTasks = useMemo(() => {
-     // Simulación de tareas para hoy
+     // Visitas programadas (leads con status VISIT_SCHEDULED)
      return leads.filter(l => l.status === LeadStatus.VISIT_SCHEDULED);
   }, [leads]);
+
+  // Get scheduled tasks from localStorage for today
+  const todaysScheduledTasks = useMemo(() => {
+    const saved = localStorage.getItem('nexus_scheduled_tasks');
+    if (!saved) return [];
+    
+    const allTasks: ScheduledTask[] = JSON.parse(saved);
+    const today = new Date().toISOString().split('T')[0];
+    
+    return allTasks
+      .filter(task => task.scheduledDate === today && !task.completed)
+      .sort((a, b) => a.scheduledTime.localeCompare(b.scheduledTime));
+  }, [leads]); // Re-run when leads change to refresh
+
+  const handleCompleteTask = (taskId: string) => {
+    const saved = localStorage.getItem('nexus_scheduled_tasks');
+    if (!saved) return;
+    
+    const allTasks: ScheduledTask[] = JSON.parse(saved);
+    const updated = allTasks.map(t => 
+      t.id === taskId ? { ...t, completed: true } : t
+    );
+    localStorage.setItem('nexus_scheduled_tasks', JSON.stringify(updated));
+    // Force re-render
+    window.dispatchEvent(new Event('storage'));
+  };
+
+  const getTaskIcon = (method: ScheduledTask['method']) => {
+    switch (method) {
+      case 'LLAMADA': return <Phone size={14} className="text-green-400" />;
+      case 'WHATSAPP': return <MessageSquare size={14} className="text-green-400" />;
+      case 'EMAIL': return <Mail size={14} className="text-blue-400" />;
+      case 'VISITA': return <MapPin size={14} className="text-purple-400" />;
+      default: return <MoreHorizontal size={14} className="text-gray-400" />;
+    }
+  };
+
+  const getTaskColor = (method: ScheduledTask['method']) => {
+    switch (method) {
+      case 'LLAMADA': return 'bg-green-500';
+      case 'WHATSAPP': return 'bg-green-500';
+      case 'EMAIL': return 'bg-blue-500';
+      case 'VISITA': return 'bg-purple-500';
+      default: return 'bg-gray-500';
+    }
+  };
 
   const handleContactLead = (lead: Lead) => {
     setSelectedLead(lead);
@@ -51,6 +136,18 @@ const Dashboard: React.FC<DashboardProps> = ({ leads, onUpdateLeadStatus }) => {
       onUpdateLeadStatus(leadId, newStatus);
     }
     setSelectedLead(null);
+  };
+
+  const handleUpdateScore = (leadId: string, score: LeadScore) => {
+    if (onUpdateLeadScore) {
+      onUpdateLeadScore(leadId, score);
+    }
+  };
+
+  const handleAddFollowUp = (followUp: Omit<LeadFollowUp, 'id'>) => {
+    if (onAddFollowUp) {
+      onAddFollowUp(followUp);
+    }
   };
 
   // Request notification permission on mount
@@ -133,74 +230,119 @@ const Dashboard: React.FC<DashboardProps> = ({ leads, onUpdateLeadStatus }) => {
       {/* ALERT SECTION */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        {/* Critical Alerts Column */}
-        <div className="lg:col-span-2 bg-nexus-surface rounded-xl border border-red-900/30 overflow-hidden">
+        {/* Daily Tasks - Now Large on Left */}
+        <div className="lg:col-span-2 bg-nexus-surface rounded-xl border border-white/5">
+          <div className="p-4 border-b border-white/10 flex items-center gap-2">
+            <Clock size={18} className="text-nexus-accent" />
+            <h3 className="font-bold text-nexus-text">Agenda Hoy</h3>
+          </div>
+          <div className="p-4 space-y-3 max-h-[450px] overflow-y-auto">
+             {/* Scheduled Tasks for Today */}
+             {todaysScheduledTasks.length > 0 && (
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                 {todaysScheduledTasks.map(task => (
+                   <div 
+                     key={task.id} 
+                     className="flex gap-3 items-center p-3 bg-nexus-base rounded-lg border border-white/5 hover:border-nexus-accent/30 transition-all group"
+                   >
+                     <div className={`w-2 h-2 rounded-full ${getTaskColor(task.method)}`}></div>
+                     <div className="flex-1 min-w-0">
+                       <div className="flex items-center gap-2">
+                         {getTaskIcon(task.method)}
+                         <p className="text-sm font-medium text-white truncate">{task.leadName}</p>
+                       </div>
+                       <p className="text-xs text-gray-400">
+                         {task.scheduledTime} - {task.method}
+                         {task.notes && ` • ${task.notes}`}
+                       </p>
+                     </div>
+                     <button
+                       onClick={() => handleCompleteTask(task.id)}
+                       className="p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity bg-green-500/20 text-green-400 hover:bg-green-500 hover:text-white"
+                       title="Marcar como completada"
+                     >
+                       <CheckCircle2 size={16} />
+                     </button>
+                   </div>
+                 ))}
+               </div>
+             )}
+
+             {/* Visits (leads with VISIT_SCHEDULED status) */}
+             {todaysTasks.length > 0 && (
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                 {todaysTasks.map(task => (
+                   <div 
+                     key={task.id} 
+                     className="flex gap-3 items-center p-3 bg-nexus-base rounded-lg border border-purple-500/20 cursor-pointer hover:border-purple-500/50 transition-all"
+                     onClick={() => setSelectedLead(task)}
+                   >
+                     <div className="w-2 h-2 rounded-full bg-purple-400"></div>
+                     <div className="flex-1">
+                       <div className="flex items-center gap-2">
+                         <MapPin size={14} className="text-purple-400" />
+                         <p className="text-sm font-medium text-white">Visita: {task.name}</p>
+                       </div>
+                       <p className="text-xs text-gray-400">{task.interestArea}</p>
+                     </div>
+                   </div>
+                 ))}
+               </div>
+             )}
+
+             {/* Empty state */}
+             {todaysScheduledTasks.length === 0 && todaysTasks.length === 0 && (
+               <p className="text-sm text-gray-500 text-center py-8">No hay tareas para hoy 🎉</p>
+             )}
+
+             {/* Recurring task hint */}
+             <div className="flex gap-3 items-center p-3 opacity-50 border-t border-white/5 mt-2 pt-4">
+                <div className="w-2 h-2 rounded-full bg-gray-600"></div>
+                <div>
+                   <p className="text-sm font-medium text-white">Revisar captaciones nuevas</p>
+                   <p className="text-xs text-gray-400">Tarea recurrente</p>
+                 </div>
+             </div>
+          </div>
+        </div>
+
+        {/* Critical Alerts Column - Now Small on Right */}
+        <div className="bg-nexus-surface rounded-xl border border-red-900/30 overflow-hidden">
           <div className="p-4 border-b border-white/10 flex items-center gap-2 bg-red-900/10">
             <AlertTriangle size={18} className="text-red-500" />
-            <h3 className="font-bold text-red-100">Acciones Críticas Requeridas</h3>
+            <h3 className="font-bold text-red-100">Acciones Críticas</h3>
           </div>
-          <div className="p-0">
+          <div className="p-0 max-h-[400px] overflow-y-auto">
             {urgentAlerts.length === 0 ? (
               <div className="p-8 text-center text-gray-500">Todo al día. ¡Buen trabajo!</div>
             ) : (
               urgentAlerts.map(lead => (
-                <div key={lead.id} className="p-4 border-b border-white/5 hover:bg-white/5 transition-colors flex justify-between items-center">
+                <div key={lead.id} className="p-3 border-b border-white/5 hover:bg-white/5 transition-colors">
                   <div 
-                    className="flex-1 cursor-pointer"
+                    className="cursor-pointer"
                     onClick={() => handleContactLead(lead)}
                   >
-                    <div className="flex items-center gap-2">
-                       <span className="font-bold text-white">{lead.name}</span>
-                       <span className="text-xs px-2 py-0.5 rounded bg-red-500/20 text-red-400 border border-red-500/20">
-                         {lead.status === LeadStatus.NEW ? 'NUEVO SIN CONTACTAR' : 'SEGUIMIENTO VENCIDO'}
+                    <div className="flex items-center gap-2 flex-wrap">
+                       <span className="font-bold text-white text-sm">{lead.name}</span>
+                       <span className="text-xs px-1.5 py-0.5 rounded bg-red-500/20 text-red-400 border border-red-500/20">
+                         {lead.status === LeadStatus.NEW ? 'NUEVO' : 'VENCIDO'}
                        </span>
                     </div>
-                    <p className="text-sm text-gray-400 mt-1">{lead.notes}</p>
+                    <p className="text-xs text-gray-400 mt-1 line-clamp-1">{lead.notes}</p>
                     <p className="text-xs text-red-400 mt-1 flex items-center gap-1">
-                      <Clock size={12} />
-                      {new Date(lead.nextFollowUpDate).toLocaleString()}
+                      <Clock size={10} />
+                      {new Date(lead.nextFollowUpDate).toLocaleDateString()}
                     </p>
                   </div>
                   <button 
                     onClick={() => handleCall(lead.phone)}
-                    className="bg-nexus-accent text-nexus-base px-4 py-2 rounded font-bold text-sm hover:bg-orange-400 shadow-[0_0_10px_rgba(255,133,27,0.3)]"
+                    className="w-full mt-2 bg-nexus-accent text-nexus-base px-3 py-1.5 rounded font-bold text-xs hover:bg-orange-400"
                   >
                     Contactar
                   </button>
                 </div>
               ))
             )}
-          </div>
-        </div>
-
-        {/* Daily Tasks */}
-        <div className="bg-nexus-surface rounded-xl border border-white/5">
-          <div className="p-4 border-b border-white/10">
-            <h3 className="font-bold text-nexus-text">Agenda Hoy</h3>
-          </div>
-          <div className="p-4 space-y-4">
-             {todaysTasks.length > 0 ? todaysTasks.map(task => (
-               <div 
-                 key={task.id} 
-                 className="flex gap-3 items-start cursor-pointer hover:bg-white/5 p-2 rounded-lg -m-2"
-                 onClick={() => setSelectedLead(task)}
-               >
-                 <div className="w-2 h-2 mt-2 rounded-full bg-blue-400"></div>
-                 <div>
-                   <p className="text-sm font-medium text-white">Visita: {task.name}</p>
-                   <p className="text-xs text-gray-400">{task.interestArea}</p>
-                 </div>
-               </div>
-             )) : (
-               <p className="text-sm text-gray-500">No hay visitas programadas.</p>
-             )}
-             <div className="flex gap-3 items-start opacity-50">
-                <div className="w-2 h-2 mt-2 rounded-full bg-gray-600"></div>
-                <div>
-                   <p className="text-sm font-medium text-white">Revisar captaciones nuevas</p>
-                   <p className="text-xs text-gray-400">Tarea recurrente</p>
-                 </div>
-             </div>
           </div>
         </div>
 
@@ -213,6 +355,10 @@ const Dashboard: React.FC<DashboardProps> = ({ leads, onUpdateLeadStatus }) => {
             lead={selectedLead} 
             onClose={() => setSelectedLead(null)}
             onUpdateStatus={handleUpdateStatus}
+            onUpdateScore={handleUpdateScore}
+            onUpdateLead={onUpdateLead}
+            followUps={followUps}
+            onAddFollowUp={handleAddFollowUp}
           />
         )}
       </Modal>

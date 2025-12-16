@@ -195,18 +195,18 @@ const DailyActivities: React.FC<DailyActivitiesProps> = ({ completions, onToggle
       </div>
 
       {/* Time Slot Selector */}
-      <div className="flex gap-2 overflow-x-auto pb-2">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
         {timeSlots.map((slot) => (
           <button
             key={slot}
             onClick={() => setSelectedTimeSlot(slot)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium whitespace-nowrap transition-all ${
+            className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg font-medium text-sm transition-all ${
               selectedTimeSlot === slot
                 ? 'bg-nexus-accent text-nexus-base'
                 : 'bg-nexus-surface border border-white/10 text-gray-400 hover:border-white/30'
             }`}
           >
-            <Clock size={16} />
+            <Clock size={14} />
             {slot}
           </button>
         ))}

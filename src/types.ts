@@ -22,6 +22,9 @@ export const PropertyStatus = {
 
 export type PropertyStatus = typeof PropertyStatus[keyof typeof PropertyStatus];
 
+// Currency type
+export type Currency = 'USD' | 'RD$';
+
 // Tabla: LEADS (Unifica "Leads Flow" y "Seguimiento")
 export interface Lead {
   id: string;
@@ -31,6 +34,7 @@ export interface Lead {
   source: string; // Flexible: Instagram, WhatsApp, Facebook, Referido, SuperCasas, Corotos, etc.
   status: LeadStatus;
   budget: number;
+  currency?: Currency; // US$ or RD$ (default: USD)
   interestArea: string;
   createdAt: string; // ISO Date
   lastContactDate?: string; // ISO Date

@@ -2,112 +2,123 @@ import { useState } from 'react';
 import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
 import LeadsManager from './components/LeadsManager';
-import InventoryView from './components/InventoryView';
+import CaptacionesView from './components/CaptacionesView';
 import AdvancedAnalytics from './components/AdvancedAnalytics';
 import ArchitectureInfo from './components/ArchitectureInfo';
 import DailyActivities from './components/DailyActivities';
-import { MOCK_LEADS, MOCK_PROPERTIES } from './services/mockData';
-import { DEMO_FOLLOW_UPS, DEMO_TASK_COMPLETIONS } from './services/demoData';
-import type { Lead, Property } from './types';
+import { AuthScreen } from './components/Auth';
+import { useAuth } from './contexts/AuthContext';
+import { useLeads } from './hooks/useLeads';
+import { useFollowUps } from './hooks/useFollowUps';
+import { useActivities } from './hooks/useActivities';
+import type { Lead } from './types';
 import { LeadStatus } from './types';
 import type { LeadScore } from './services/leadScoring';
 import type { TaskCompletion, LeadFollowUp } from './types/activities';
 
 const App: React.FC = () => {
+  const { user, loading: authLoading } = useAuth();
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [leads, setLeads] = useState<Lead[]>(MOCK_LEADS);
-  const [properties, setProperties] = useState<Property[]>(MOCK_PROPERTIES);
   
-  // Daily Activities State - con datos de demo
-  const [taskCompletions, setTaskCompletions] = useState<TaskCompletion[]>(DEMO_TASK_COMPLETIONS);
-  
-  // Lead Follow-ups State - con datos de demo
-  const [followUps, setFollowUps] = useState<LeadFollowUp[]>(DEMO_FOLLOW_UPS);
+  // Supabase hooks
+  const { leads, addLead: addLeadToDb, updateLead } = useLeads();
+  const { followUps, addFollowUp: addFollowUpToDb } = useFollowUps();
+  const { completions: taskCompletions, toggleTask } = useActivities();
+
+  // Show auth screen if not logged in
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-900 via-blue-800 to-indigo-900 flex items-center justify-center">
+        <div className="text-white text-xl">Cargando...</div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <AuthScreen />;
+  }
 
   // Add new lead (from Webhook or Form)
-  const addLead = (newLead: Lead) => {
-    setLeads(prev => [newLead, ...prev]);
+  const addLead = async (newLead: Lead) => {
+    await addLeadToDb(newLead);
   };
 
   // Update lead status
-  const updateLeadStatus = (leadId: string, newStatus: LeadStatus) => {
-    setLeads(prev => prev.map(lead => 
-      lead.id === leadId 
-        ? { ...lead, status: newStatus, lastContactDate: new Date().toISOString() } 
-        : lead
-    ));
+  const updateLeadStatus = async (leadId: string, newStatus: LeadStatus) => {
+    // Calcular próximo seguimiento basado en el nuevo estado
+    const getNextFollowUpDate = () => {
+      const now = new Date();
+      switch (newStatus) {
+        case LeadStatus.CONTACTED:
+          // Próximo seguimiento en 24 horas
+          return new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString();
+        case LeadStatus.VISIT_SCHEDULED:
+          // Próximo seguimiento en 3 días
+          return new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000).toISOString();
+        case LeadStatus.NEGOTIATION:
+          // Próximo seguimiento en 2 días
+          return new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000).toISOString();
+        case LeadStatus.CLOSED_WON:
+        case LeadStatus.CLOSED_LOST:
+          // Sin seguimiento futuro para leads cerrados
+          return new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000).toISOString();
+        default:
+          return new Date(now.getTime() + 2 * 60 * 60 * 1000).toISOString();
+      }
+    };
+
+    await updateLead(leadId, { 
+      status: newStatus, 
+      lastContactDate: new Date().toISOString(),
+      nextFollowUpDate: getNextFollowUpDate()
+    });
   };
 
   // Update lead score
-  const updateLeadScore = (leadId: string, score: LeadScore) => {
-    setLeads(prev => prev.map(lead => 
-      lead.id === leadId 
-        ? { 
-            ...lead, 
-            score: {
-              total: score.total,
-              percentage: score.percentage,
-              category: score.category,
-              qualifiedAt: new Date().toISOString()
-            }
-          } 
-        : lead
-    ));
-  };
-
-  // Toggle task completion
-  const toggleTaskCompletion = (taskId: string, date: string, dayOfWeek: TaskCompletion['dayOfWeek']) => {
-    setTaskCompletions(prev => {
-      const existing = prev.find(c => c.taskId === taskId && c.date === date);
-      if (existing) {
-        // Toggle existing
-        return prev.map(c => 
-          c.taskId === taskId && c.date === date 
-            ? { ...c, completed: !c.completed, completedAt: !c.completed ? new Date().toISOString() : undefined }
-            : c
-        );
-      } else {
-        // Add new completion
-        return [...prev, {
-          taskId,
-          date,
-          dayOfWeek,
-          completed: true,
-          completedAt: new Date().toISOString()
-        }];
+  const updateLeadScore = async (leadId: string, score: LeadScore) => {
+    await updateLead(leadId, {
+      score: {
+        total: score.total,
+        percentage: score.percentage,
+        category: score.category,
+        qualifiedAt: new Date().toISOString()
       }
     });
   };
 
-  // Add lead follow-up
-  const addFollowUp = (followUp: Omit<LeadFollowUp, 'id'>) => {
-    const newFollowUp: LeadFollowUp = {
-      ...followUp,
-      id: `fu-${Date.now()}`
-    };
-    setFollowUps(prev => [...prev, newFollowUp]);
+  // Toggle task completion
+  const toggleTaskCompletion = async (taskId: string, date: string, dayOfWeek: TaskCompletion['dayOfWeek']) => {
+    await toggleTask(taskId, date, dayOfWeek);
   };
 
-  // Add new property
-  const addProperty = (newProperty: Property) => {
-    setProperties(prev => [newProperty, ...prev]);
+  // Add lead follow-up
+  const addFollowUp = async (followUp: Omit<LeadFollowUp, 'id'>) => {
+    await addFollowUpToDb(followUp);
   };
 
   const renderContent = () => {
     switch (activeTab) {
       case 'dashboard':
-        return <Dashboard leads={leads} onUpdateLeadStatus={updateLeadStatus} />;
+        return <Dashboard 
+          leads={leads} 
+          onUpdateLeadStatus={updateLeadStatus}
+          onUpdateLeadScore={updateLeadScore}
+          onUpdateLead={updateLead}
+          followUps={followUps}
+          onAddFollowUp={addFollowUp}
+        />;
       case 'leads':
         return <LeadsManager 
           leads={leads} 
           addLead={addLead} 
           updateLeadStatus={updateLeadStatus} 
           updateLeadScore={updateLeadScore}
+          updateLead={updateLead}
           followUps={followUps}
           addFollowUp={addFollowUp}
         />;
       case 'inventory':
-        return <InventoryView properties={properties} addProperty={addProperty} />;
+        return <CaptacionesView />;
       case 'activities':
         return <DailyActivities completions={taskCompletions} onToggleTask={toggleTaskCompletion} />;
       case 'analytics':
@@ -115,7 +126,14 @@ const App: React.FC = () => {
       case 'architecture':
         return <ArchitectureInfo />;
       default:
-        return <Dashboard leads={leads} onUpdateLeadStatus={updateLeadStatus} />;
+        return <Dashboard 
+          leads={leads} 
+          onUpdateLeadStatus={updateLeadStatus}
+          onUpdateLeadScore={updateLeadScore}
+          onUpdateLead={updateLead}
+          followUps={followUps}
+          onAddFollowUp={addFollowUp}
+        />;
     }
   };
 

@@ -1,6 +1,19 @@
-import React, { useState } from 'react';
-import type { Lead } from '../types';
+import React, { useState, useRef } from 'react';
+import type { Lead, Currency } from '../types';
 import { LeadStatus } from '../types';
+
+// Format phone number as xxx-xxx-xxxx
+const formatPhoneNumber = (value: string): string => {
+  const numbers = value.replace(/\D/g, '');
+  if (numbers.length <= 3) return numbers;
+  if (numbers.length <= 6) return `${numbers.slice(0, 3)}-${numbers.slice(3)}`;
+  return `${numbers.slice(0, 3)}-${numbers.slice(3, 6)}-${numbers.slice(6, 10)}`;
+};
+
+// Format money with commas: 1,234,567
+const formatMoney = (value: number): string => {
+  return value.toLocaleString('en-US');
+};
 
 interface LeadFormProps {
   onSave: (lead: Lead) => void;
@@ -8,15 +21,44 @@ interface LeadFormProps {
 }
 
 const LeadForm: React.FC<LeadFormProps> = ({ onSave, onCancel }) => {
+  const budgetInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     phone: '',
     source: 'Website' as Lead['source'],
-    budget: '',
+    budget: 0,
+    budgetDisplay: '',
+    currency: 'USD' as Currency,
     interestArea: '',
     notes: ''
   });
+
+  // Handle phone input with formatting
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatPhoneNumber(e.target.value);
+    setFormData({ ...formData, phone: formatted });
+  };
+
+  // Handle budget input with formatting
+  const handleBudgetChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const rawValue = e.target.value.replace(/,/g, '');
+    if (rawValue === '' || /^\d+$/.test(rawValue)) {
+      const numValue = parseInt(rawValue, 10) || 0;
+      setFormData({
+        ...formData,
+        budget: numValue,
+        budgetDisplay: rawValue === '' ? '' : formatMoney(numValue)
+      });
+    }
+  };
+
+  // Select all on focus if empty or zero
+  const handleBudgetFocus = () => {
+    if (formData.budget === 0 && budgetInputRef.current) {
+      budgetInputRef.current.select();
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,10 +67,11 @@ const LeadForm: React.FC<LeadFormProps> = ({ onSave, onCancel }) => {
       id: `l-${Date.now()}`,
       name: formData.name || 'Sin nombre',
       email: formData.email,
-      phone: formData.phone,
+      phone: formData.phone.replace(/-/g, ''), // Store without formatting
       source: formData.source,
       status: LeadStatus.NEW,
-      budget: Number(formData.budget) || 0,
+      budget: formData.budget,
+      currency: formData.currency,
       interestArea: formData.interestArea,
       createdAt: new Date().toISOString(),
       nextFollowUpDate: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(), // +2 horas
@@ -69,9 +112,9 @@ const LeadForm: React.FC<LeadFormProps> = ({ onSave, onCancel }) => {
             type="tel"
             required
             value={formData.phone}
-            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+            onChange={handlePhoneChange}
             className="w-full bg-nexus-base border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-nexus-accent"
-            placeholder="+34 600 000 000"
+            placeholder="809-555-1234"
           />
         </div>
       </div>
@@ -91,14 +134,27 @@ const LeadForm: React.FC<LeadFormProps> = ({ onSave, onCancel }) => {
           </select>
         </div>
         <div>
-          <label className="block text-sm text-gray-400 mb-1">Presupuesto (€)</label>
-          <input
-            type="number"
-            value={formData.budget}
-            onChange={(e) => setFormData({ ...formData, budget: e.target.value })}
-            className="w-full bg-nexus-base border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-nexus-accent"
-            placeholder="250000"
-          />
+          <label className="block text-sm text-gray-400 mb-1">Presupuesto</label>
+          <div className="flex gap-2">
+            <select
+              value={formData.currency}
+              onChange={(e) => setFormData({ ...formData, currency: e.target.value as Currency })}
+              className="bg-nexus-base border border-white/10 rounded-lg px-3 py-2 text-nexus-accent font-bold focus:outline-none focus:border-nexus-accent"
+            >
+              <option value="USD">US$</option>
+              <option value="RD$">RD$</option>
+            </select>
+            <input
+              ref={budgetInputRef}
+              type="text"
+              inputMode="numeric"
+              value={formData.budgetDisplay}
+              onChange={handleBudgetChange}
+              onFocus={handleBudgetFocus}
+              className="flex-1 bg-nexus-base border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-nexus-accent text-right"
+              placeholder="250,000"
+            />
+          </div>
         </div>
       </div>
 
