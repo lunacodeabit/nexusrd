@@ -6,6 +6,7 @@ import CaptacionesView from './components/CaptacionesView';
 import AdvancedAnalytics from './components/AdvancedAnalytics';
 import ArchitectureInfo from './components/ArchitectureInfo';
 import DailyActivities from './components/DailyActivities';
+import SuperAdminDashboard from './components/SuperAdminDashboard';
 import { AuthScreen } from './components/Auth';
 import { useAuth } from './contexts/AuthContext';
 import { useLeads } from './hooks/useLeads';
@@ -129,6 +130,8 @@ const App: React.FC = () => {
         return <AdvancedAnalytics leads={leads} followUps={followUps} taskCompletions={taskCompletions} />;
       case 'architecture':
         return <ArchitectureInfo />;
+      case 'superadmin':
+        return <SuperAdminDashboard />;
       default:
         return <Dashboard 
           leads={leads} 

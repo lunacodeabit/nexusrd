@@ -81,3 +81,89 @@ export interface DailyKPI {
   visitsConducted: number;
   newLeads: number;
 }
+
+// ---------------------------------------------------------------------------
+// SUPERADMIN TYPES
+// ---------------------------------------------------------------------------
+
+export type UserRole = 'asesor' | 'supervisor' | 'admin';
+
+export interface UserProfile {
+  id: string;
+  email: string;
+  full_name: string | null;
+  phone: string | null;
+  avatar_url: string | null;
+  role: UserRole;
+  team_id: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ScheduledTask {
+  id: string;
+  user_id: string;
+  lead_id: string | null;
+  lead_name: string;
+  lead_phone: string | null;
+  task_type: 'call' | 'whatsapp' | 'visit' | 'email' | 'other';
+  scheduled_date: string;
+  scheduled_time: string;
+  notes: string | null;
+  is_completed: boolean;
+  completed_at: string | null;
+  alert_sent: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export type ActivityType = 
+  | 'lead_created' 
+  | 'lead_updated' 
+  | 'lead_status_changed'
+  | 'task_created'
+  | 'task_completed' 
+  | 'call_made' 
+  | 'whatsapp_sent'
+  | 'visit_completed'
+  | 'login'
+  | 'note_added';
+
+export interface ActivityLog {
+  id: string;
+  user_id: string;
+  action_type: ActivityType;
+  entity_type: 'lead' | 'task' | 'property' | null;
+  entity_id: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+}
+
+// Team Performance (from SQL view)
+export interface TeamMemberPerformance {
+  user_id: string;
+  full_name: string;
+  email: string;
+  role: UserRole;
+  is_active: boolean;
+  total_leads: number;
+  leads_won: number;
+  leads_lost: number;
+  leads_this_week: number;
+  total_tasks: number;
+  tasks_completed: number;
+  last_activity: string | null;
+}
+
+// Daily Activity Summary (from SQL view)
+export interface DailyActivitySummary {
+  user_id: string;
+  activity_date: string;
+  total_actions: number;
+  leads_created: number;
+  leads_updated: number;
+  tasks_completed: number;
+  calls_made: number;
+  whatsapp_sent: number;
+}

@@ -108,17 +108,22 @@ Sistema de gestión de relaciones con clientes diseñado específicamente para a
 - [ ] Integración con email (Gmail, Outlook)
 - [ ] Webhooks para leads automáticos desde landing pages
 
-### Fase 5 - SuperAdmin & Equipos 🎯
-- [ ] Portal SuperAdmin para supervisores
-- [ ] Dashboard de equipo con métricas por asesor
-- [ ] Ranking de asesores (conversiones, actividad, velocidad)
-- [ ] Alertas de inactividad ("Juan no ha registrado actividad en 3 días")
-- [ ] Vista individual de cada asesor (hábitos, productividad)
+### Fase 5 - SuperAdmin & Equipos 🚧 EN PROGRESO
+- [x] Portal SuperAdmin para supervisores (frontend)
+- [x] Dashboard de equipo con métricas por asesor
+- [x] Ranking de asesores (conversiones, actividad, velocidad)
+- [x] Alertas de inactividad ("Juan no ha registrado actividad en 3 días")
+- [x] Vista individual de cada asesor (leads, tareas, actividad)
+- [x] Sistema de roles (asesor/supervisor/admin)
+- [x] Row Level Security policies (SQL listo)
+- [ ] Migración de tareas localStorage → Supabase
 - [ ] Asignación y distribución de leads
 - [ ] Sistema de coaching (notas/feedback a asesores)
 - [ ] Gamificación (badges, reconocimientos)
 - [ ] Reportes exportables para reuniones
-- [ ] Row Level Security (cada asesor ve solo sus leads)
+
+> **Nota:** El frontend del SuperAdmin está completo. Para activarlo, ejecuta el SQL de migración.
+> Ver: [docs/SUPERADMIN_SETUP.md](docs/SUPERADMIN_SETUP.md)
 
 ---
 
@@ -234,12 +239,14 @@ Desarrollado para el mercado inmobiliario de República Dominicana 🇩🇴
 
 ## Última Actualización
 
-**Diciembre 16, 2025**
-- Dashboard: Agenda Hoy muestra tareas programadas del día
-- Sistema de alertas WhatsApp funcional
-- Vista Kanban con drag & drop
-- Perfil de usuario con configuración de alertas
-- Reorganización del menú de navegación
+**Diciembre 16, 2025 (v2.0)**
+- ✨ **SuperAdmin Dashboard** - Panel de supervisión para managers
+- 📊 Ranking de asesores con métricas de rendimiento
+- ⚠️ Alertas de inactividad (3+ días sin actividad)
+- 👤 Vista detallada por asesor (leads, tareas, actividad)
+- 🔐 Sistema de roles (asesor/supervisor/admin)
+- 📝 SQL de migración para nuevas tablas
+- 🐛 Corrección de errores menores
 
 ---
 

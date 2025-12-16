@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Home, Users, Building, BarChart3, Menu, Settings, X, ClipboardList, LogOut } from 'lucide-react';
+import { Home, Users, Building, BarChart3, Menu, Settings, X, ClipboardList, LogOut, Shield } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useUserRole } from '../hooks/useUserRole';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -11,6 +12,7 @@ interface LayoutProps {
 const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { user, signOut } = useAuth();
+  const { canViewTeam, role } = useUserRole();
   
   // Get agent name from user metadata
   const agentName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Agente';
@@ -22,6 +24,8 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
     { id: 'inventory', label: 'Captaciones', icon: Building },
     { id: 'analytics', label: 'Métricas', icon: BarChart3 },
     { id: 'architecture', label: 'Configuraciones', icon: Settings },
+    // SuperAdmin only visible for supervisors/admins
+    ...(canViewTeam ? [{ id: 'superadmin', label: 'SuperAdmin', icon: Shield }] : []),
   ];
 
   const handleNavClick = (tabId: string) => {
@@ -126,10 +130,18 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
           <div className="p-4 border-t border-white/10">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-nexus-accent to-purple-500"></div>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                  canViewTeam 
+                    ? 'bg-gradient-to-tr from-purple-500 to-pink-500' 
+                    : 'bg-gradient-to-tr from-nexus-accent to-purple-500'
+                }`}>
+                  {canViewTeam && <Shield size={14} className="text-white" />}
+                </div>
                 <div>
                   <p className="text-sm font-medium text-white truncate max-w-[120px]">{agentName}</p>
-                  <p className="text-xs text-green-400">● Online</p>
+                  <p className="text-xs text-green-400">
+                    {canViewTeam ? `● ${role === 'admin' ? 'Admin' : 'Supervisor'}` : '● Online'}
+                  </p>
                 </div>
               </div>
               <button
