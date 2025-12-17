@@ -1,5 +1,6 @@
 import { useEffect, useCallback, useRef } from 'react';
 import { usePersonalTasks } from './usePersonalTasks';
+import { getUserProfile } from '../services/userProfile';
 
 /**
  * Hook que monitorea las tareas personales y dispara alertas
@@ -65,6 +66,27 @@ export function usePersonalTaskAlerts() {
     }
   }, []);
 
+  // Open WhatsApp with alert message
+  const sendWhatsAppAlert = useCallback((taskTitle: string, taskTime: string, minutesBefore: number) => {
+    const profile = getUserProfile();
+    
+    if (!profile.enableWhatsAppAlerts || !profile.whatsappNumber) {
+      return;
+    }
+
+    const formattedPhone = profile.whatsappNumber.replace(/[^\d]/g, '');
+    const message = encodeURIComponent(
+      `⏰ *ALERTA CRM ALVEARE*\n\n` +
+      `📋 Tarea: ${taskTitle}\n` +
+      `🕐 Hora: ${taskTime}\n` +
+      `⏳ En ${minutesBefore} minutos\n\n` +
+      `¡No olvides completarla!`
+    );
+    
+    // Open WhatsApp - user will need to click send
+    window.open(`https://wa.me/${formattedPhone}?text=${message}`, '_blank');
+  }, []);
+
   // Check for upcoming tasks
   const checkAlerts = useCallback(() => {
     const now = new Date();
@@ -91,18 +113,29 @@ export function usePersonalTaskAlerts() {
         alertedTasks.current.add(task.id);
         markAlertSent(task.id);
         
-        // Play sound
-        playAlertSound();
+        const profile = getUserProfile();
         
-        // Show notification
-        const timeStr = task.scheduled_time;
-        showNotification(
-          `⏰ Recordatorio: ${task.title}`,
-          `En ${task.alert_minutes_before} minutos (${timeStr})`
-        );
+        // Play sound if enabled
+        if (profile.enableSoundAlerts) {
+          playAlertSound();
+        }
+        
+        // Show browser notification if enabled
+        if (profile.enableBrowserNotifications) {
+          const timeStr = task.scheduled_time;
+          showNotification(
+            `⏰ Recordatorio: ${task.title}`,
+            `En ${task.alert_minutes_before} minutos (${timeStr})`
+          );
+        }
+        
+        // Send WhatsApp alert if enabled
+        if (profile.enableWhatsAppAlerts && profile.whatsappNumber) {
+          sendWhatsAppAlert(task.title, task.scheduled_time, task.alert_minutes_before);
+        }
       }
     }
-  }, [todaysTasks, markAlertSent, playAlertSound, showNotification]);
+  }, [todaysTasks, markAlertSent, playAlertSound, showNotification, sendWhatsAppAlert]);
 
   // Request notification permission
   useEffect(() => {
