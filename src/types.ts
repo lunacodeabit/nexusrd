@@ -244,3 +244,45 @@ export interface PendingAutomation {
   daysInStatus: number;
   suggestedMessage?: string;
 }
+
+// ---------------------------------------------------------------------------
+// TAREAS PERSONALES (Planner Diario)
+// ---------------------------------------------------------------------------
+
+export type TaskPriority = 'alta' | 'media' | 'baja';
+export type TaskCategory = 'personal' | 'trabajo' | 'cliente' | 'admin' | 'otro';
+
+export interface PersonalTask {
+  id: string;
+  user_id: string;
+  title: string;
+  description?: string;
+  category: TaskCategory;
+  priority: TaskPriority;
+  scheduled_date: string;      // YYYY-MM-DD
+  scheduled_time?: string;     // HH:MM (opcional)
+  duration_minutes?: number;   // Duración estimada
+  is_completed: boolean;
+  completed_at?: string;
+  alert_minutes_before?: number; // Minutos antes para notificar
+  alert_sent?: boolean;
+  is_recurring: boolean;
+  recurrence_pattern?: 'daily' | 'weekly' | 'monthly';
+  recurrence_days?: number[];  // [1,3,5] = Lun, Mie, Vie
+  created_at: string;
+  updated_at: string;
+}
+
+// Para la UI
+export interface TaskFormData {
+  title: string;
+  description: string;
+  category: TaskCategory;
+  priority: TaskPriority;
+  scheduled_date: string;
+  scheduled_time: string;
+  duration_minutes: number;
+  alert_minutes_before: number;
+  is_recurring: boolean;
+  recurrence_pattern?: 'daily' | 'weekly' | 'monthly';
+}

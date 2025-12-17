@@ -14,6 +14,7 @@ import { useLeads } from './hooks/useLeads';
 import { useFollowUps } from './hooks/useFollowUps';
 import { useActivities } from './hooks/useActivities';
 import { useTaskAlerts } from './hooks/useTaskAlerts';
+import { usePersonalTaskAlerts } from './hooks/usePersonalTaskAlerts';
 import type { Lead } from './types';
 import { LeadStatus } from './types';
 import type { LeadScore } from './services/leadScoring';
@@ -30,6 +31,7 @@ const App: React.FC = () => {
   
   // Global task alerts - runs always when app is open
   useTaskAlerts();
+  usePersonalTaskAlerts(); // Personal planner alerts
 
   // Show auth screen if not logged in
   if (authLoading) {

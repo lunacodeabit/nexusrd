@@ -4,6 +4,7 @@ import { LeadStatus } from '../types';
 import { AlertTriangle, Clock, Phone, TrendingUp, Bell, X, MessageSquare, Mail, MapPin, MoreHorizontal, CheckCircle2, Pencil, CalendarPlus } from 'lucide-react';
 import Modal from './Modal';
 import LeadDetail from './LeadDetail';
+import DailyPlanner from './DailyPlanner';
 import type { LeadScore } from '../services/leadScoring';
 import type { LeadFollowUp } from '../types/activities';
 import { useTodayActivity } from '../hooks/useTodayActivity';
@@ -370,16 +371,12 @@ const Dashboard: React.FC<DashboardProps> = ({
 
              {/* Empty state */}
              {todaysScheduledTasks.length === 0 && todaysTasks.length === 0 && (
-               <p className="text-sm text-gray-500 text-center py-8">No hay tareas para hoy 🎉</p>
+               <p className="text-sm text-gray-500 text-center py-4">No hay tareas de leads para hoy</p>
              )}
 
-             {/* Recurring task hint */}
-             <div className="flex gap-3 items-center p-3 opacity-50 border-t border-white/5 mt-2 pt-4">
-                <div className="w-2 h-2 rounded-full bg-gray-600"></div>
-                <div>
-                   <p className="text-sm font-medium text-white">Revisar captaciones nuevas</p>
-                   <p className="text-xs text-gray-400">Tarea recurrente</p>
-                 </div>
+             {/* Personal Tasks Section - Integrated Planner */}
+             <div className="border-t border-white/10 pt-4 mt-4">
+               <DailyPlanner compact />
              </div>
           </div>
         </div>
