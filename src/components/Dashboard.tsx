@@ -74,24 +74,43 @@ const Dashboard: React.FC<DashboardProps> = ({
         return false;
       }
 
-      // Regla 1: Lead NUEVO sin contactar por > 2 horas
+      // Verificar si el lead tiene seguimientos registrados
+      const leadFollowUps = followUps.filter(f => f.leadId === lead.id);
+      const hasFollowUps = leadFollowUps.length > 0;
+      
+      // Si tiene seguimientos, obtener la fecha del último
+      const lastFollowUpDate = hasFollowUps 
+        ? Math.max(...leadFollowUps.map(f => new Date(f.date).getTime()))
+        : null;
+
+      // Regla 1: Lead NUEVO sin contactar por > 2 horas Y sin seguimientos
       const createdTime = new Date(lead.createdAt).getTime();
-      const isNewAndOld = lead.status === LeadStatus.NEW && (now.getTime() - createdTime > 1000 * 60 * 60 * 2);
+      const isNewAndOld = lead.status === LeadStatus.NEW && 
+                          !hasFollowUps && 
+                          (now.getTime() - createdTime > 1000 * 60 * 60 * 2);
 
       // Regla 2: Seguimiento vencido (nextFollowUpDate ya pasó)
       const followUp = new Date(lead.nextFollowUpDate).getTime();
       const isOverdue = followUp < now.getTime();
 
       // Si fue contactado recientemente (últimas 2 horas), no mostrar como alerta
-      if (lead.lastContactDate) {
-        const lastContact = new Date(lead.lastContactDate).getTime();
-        const recentlyContacted = (now.getTime() - lastContact) < 1000 * 60 * 60 * 2;
+      // Considerar tanto lastContactDate como el último seguimiento
+      const lastContactTime = lead.lastContactDate 
+        ? new Date(lead.lastContactDate).getTime() 
+        : null;
+      const mostRecentContact = Math.max(
+        lastContactTime || 0, 
+        lastFollowUpDate || 0
+      );
+      
+      if (mostRecentContact > 0) {
+        const recentlyContacted = (now.getTime() - mostRecentContact) < 1000 * 60 * 60 * 2;
         if (recentlyContacted) return false;
       }
 
       return isNewAndOld || isOverdue;
     });
-  }, [leads]);
+  }, [leads, followUps]);
 
   const todaysTasks = useMemo(() => {
      // Visitas programadas (leads con status VISIT_SCHEDULED)

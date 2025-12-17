@@ -102,6 +102,22 @@ const App: React.FC = () => {
   // Add lead follow-up
   const addFollowUp = async (followUp: Omit<LeadFollowUp, 'id'>) => {
     await addFollowUpToDb(followUp);
+    
+    // IMPORTANTE: Actualizar lastContactDate del lead cuando se registra un seguimiento
+    const lead = leads.find(l => l.id === followUp.leadId);
+    if (lead) {
+      const updates: Partial<Lead> = {
+        lastContactDate: new Date().toISOString(),
+      };
+      
+      // Si el lead era NUEVO, cambiarlo a CONTACTADO
+      if (lead.status === LeadStatus.NEW) {
+        updates.status = LeadStatus.CONTACTED;
+        updates.nextFollowUpDate = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(); // 24 horas
+      }
+      
+      await updateLead(lead.id, updates);
+    }
   };
 
   const renderContent = () => {
