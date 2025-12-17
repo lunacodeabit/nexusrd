@@ -1,6 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { User, Mail, Bell, Volume2, MessageSquare, Save, Check, Send } from 'lucide-react';
-import { getUserProfile, saveUserProfile, type UserProfile } from '../services/userProfile';
+import { User, Mail, Bell, Volume2, MessageSquare, Save, Check, Send, RefreshCw } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import { 
+  getUserProfileFromSupabase, 
+  saveUserProfileToSupabase, 
+  migrateLocalStorageToSupabase
+} from '../services/userProfileService';
 import { sendTelegramAlert, getTelegramBotLink } from '../services/telegramService';
 
 // Telegram icon component
@@ -10,31 +15,128 @@ const TelegramIcon = ({ size = 18, className = "" }: { size?: number; className?
   </svg>
 );
 
+interface ProfileFormData {
+  full_name: string;
+  email: string;
+  telegram_chat_id: string;
+  whatsapp_number: string;
+  default_alert_time: number;
+  enable_telegram_alerts: boolean;
+  enable_whatsapp_alerts: boolean;
+  enable_sound_alerts: boolean;
+  enable_browser_notifications: boolean;
+}
+
 const UserProfileSettings: React.FC = () => {
-  const [profile, setProfile] = useState<UserProfile>(getUserProfile());
+  const { user } = useAuth();
+  const [profile, setProfile] = useState<ProfileFormData>({
+    full_name: '',
+    email: '',
+    telegram_chat_id: '',
+    whatsapp_number: '',
+    default_alert_time: 15,
+    enable_telegram_alerts: true,
+    enable_whatsapp_alerts: false,
+    enable_sound_alerts: true,
+    enable_browser_notifications: true,
+  });
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [telegramTestSent, setTelegramTestSent] = useState(false);
   const [telegramTesting, setTelegramTesting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
+  // Load profile from Supabase when component mounts
   useEffect(() => {
-    setProfile(getUserProfile());
-  }, []);
+    const loadProfile = async () => {
+      if (!user) {
+        setIsLoading(false);
+        return;
+      }
 
-  const handleSave = () => {
-    saveUserProfile(profile);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        // First, try to migrate any existing localStorage data
+        await migrateLocalStorageToSupabase(user.id);
+
+        // Then fetch the profile from Supabase
+        const data = await getUserProfileFromSupabase(user.id);
+        
+        if (data) {
+          setProfile({
+            full_name: data.full_name || '',
+            email: data.email || user.email || '',
+            telegram_chat_id: data.telegram_chat_id || '',
+            whatsapp_number: data.whatsapp_number || '',
+            default_alert_time: data.default_alert_time || 15,
+            enable_telegram_alerts: data.enable_telegram_alerts ?? true,
+            enable_whatsapp_alerts: data.enable_whatsapp_alerts ?? false,
+            enable_sound_alerts: data.enable_sound_alerts ?? true,
+            enable_browser_notifications: data.enable_browser_notifications ?? true,
+          });
+        } else {
+          // Use registration info if no profile exists
+          setProfile(prev => ({
+            ...prev,
+            full_name: user.user_metadata?.full_name || '',
+            email: user.email || '',
+          }));
+        }
+      } catch (err) {
+        console.error('Error loading profile:', err);
+        setError('Error al cargar el perfil. Intenta recargar la página.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadProfile();
+  }, [user]);
+
+  const handleSave = async () => {
+    if (!user) return;
+
+    setIsSaving(true);
+    setError(null);
+
+    try {
+      const result = await saveUserProfileToSupabase(user.id, {
+        full_name: profile.full_name,
+        telegram_chat_id: profile.telegram_chat_id,
+        whatsapp_number: profile.whatsapp_number,
+        default_alert_time: profile.default_alert_time,
+        enable_telegram_alerts: profile.enable_telegram_alerts,
+        enable_whatsapp_alerts: profile.enable_whatsapp_alerts,
+        enable_sound_alerts: profile.enable_sound_alerts,
+        enable_browser_notifications: profile.enable_browser_notifications,
+      });
+
+      if (result) {
+        setSaved(true);
+        setTimeout(() => setSaved(false), 2000);
+      } else {
+        setError('Error al guardar. Por favor intenta de nuevo.');
+      }
+    } catch (err) {
+      console.error('Error saving profile:', err);
+      setError('Error al guardar el perfil.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleTestTelegram = async () => {
-    if (!profile.telegramChatId) {
+    if (!profile.telegram_chat_id) {
       alert('Por favor ingresa tu ID de Telegram primero');
       return;
     }
     
     setTelegramTesting(true);
     const success = await sendTelegramAlert(
-      profile.telegramChatId,
+      profile.telegram_chat_id,
       `✅ <b>Prueba exitosa!</b>\n\nTu configuración de Telegram está funcionando.\n\nRecibirás alertas de:\n• Llamadas programadas\n• Visitas con clientes\n• Tareas pendientes`
     );
     
@@ -47,6 +149,17 @@ const UserProfileSettings: React.FC = () => {
     }
   };
 
+  if (isLoading) {
+    return (
+      <div className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 p-6 rounded-xl border border-blue-500/30 mb-6">
+        <div className="flex items-center justify-center gap-3 py-8">
+          <RefreshCw className="animate-spin text-blue-400" size={24} />
+          <span className="text-gray-400">Cargando perfil...</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 p-6 rounded-xl border border-blue-500/30 mb-6">
       <div className="flex items-center gap-3 mb-6">
@@ -56,8 +169,15 @@ const UserProfileSettings: React.FC = () => {
         <div>
           <h2 className="text-xl font-bold text-white">👤 Mi Perfil</h2>
           <p className="text-gray-400 text-sm">Configura tu información para recibir alertas personalizadas</p>
+          <p className="text-green-400 text-xs mt-1">💾 Los datos se guardan en la nube automáticamente</p>
         </div>
       </div>
+
+      {error && (
+        <div className="mb-4 p-3 bg-red-500/20 border border-red-500/30 rounded-lg text-red-400 text-sm">
+          {error}
+        </div>
+      )}
 
       <div className="space-y-4">
         {/* Name */}
@@ -68,8 +188,8 @@ const UserProfileSettings: React.FC = () => {
           </label>
           <input
             type="text"
-            value={profile.fullName}
-            onChange={(e) => setProfile(prev => ({ ...prev, fullName: e.target.value }))}
+            value={profile.full_name}
+            onChange={(e) => setProfile(prev => ({ ...prev, full_name: e.target.value }))}
             placeholder="Tu nombre"
             className="w-full bg-nexus-base border border-white/10 rounded-lg p-3 text-white focus:outline-none focus:border-nexus-accent"
           />
@@ -84,14 +204,14 @@ const UserProfileSettings: React.FC = () => {
           <div className="flex gap-2">
             <input
               type="text"
-              value={profile.telegramChatId}
-              onChange={(e) => setProfile(prev => ({ ...prev, telegramChatId: e.target.value }))}
-              placeholder="Tu ID de Telegram"
+              value={profile.telegram_chat_id}
+              onChange={(e) => setProfile(prev => ({ ...prev, telegram_chat_id: e.target.value }))}
+              placeholder="Tu ID de Telegram (ejemplo: 123456789)"
               className="flex-1 bg-nexus-base border border-white/10 rounded-lg p-3 text-white focus:outline-none focus:border-nexus-accent"
             />
             <button
               onClick={handleTestTelegram}
-              disabled={telegramTesting}
+              disabled={telegramTesting || !profile.telegram_chat_id}
               className={`px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2 ${
                 telegramTestSent 
                   ? 'bg-green-500 text-white' 
@@ -113,7 +233,7 @@ const UserProfileSettings: React.FC = () => {
             <ol className="text-xs text-gray-400 space-y-1 list-decimal list-inside">
               <li>Abre Telegram y busca <a href={getTelegramBotLink()} target="_blank" rel="noopener noreferrer" className="text-sky-400 hover:underline">@alveare_crm_bot</a></li>
               <li>Presiona <strong className="text-white">Start</strong> o envía /start</li>
-              <li>El bot te dará tu ID - cópialo aquí</li>
+              <li>El bot te dará tu ID numérico - cópialo aquí</li>
             </ol>
           </div>
         </div>
@@ -126,26 +246,25 @@ const UserProfileSettings: React.FC = () => {
           </label>
           <input
             type="tel"
-            value={profile.whatsappNumber}
-            onChange={(e) => setProfile(prev => ({ ...prev, whatsappNumber: e.target.value }))}
+            value={profile.whatsapp_number}
+            onChange={(e) => setProfile(prev => ({ ...prev, whatsapp_number: e.target.value }))}
             placeholder="+1 809 555 1234"
             className="w-full bg-nexus-base border border-white/10 rounded-lg p-3 text-white"
             disabled
           />
         </div>
 
-        {/* Email */}
+        {/* Email - Read Only */}
         <div>
           <label className="text-sm text-gray-400 mb-2 flex items-center gap-2">
             <Mail size={14} />
-            Email
+            Email (del registro)
           </label>
           <input
             type="email"
             value={profile.email}
-            onChange={(e) => setProfile(prev => ({ ...prev, email: e.target.value }))}
-            placeholder="tu@email.com"
-            className="w-full bg-nexus-base border border-white/10 rounded-lg p-3 text-white focus:outline-none focus:border-nexus-accent"
+            readOnly
+            className="w-full bg-nexus-base/50 border border-white/10 rounded-lg p-3 text-gray-400 cursor-not-allowed"
           />
         </div>
 
@@ -168,8 +287,8 @@ const UserProfileSettings: React.FC = () => {
               </div>
               <input
                 type="checkbox"
-                checked={profile.enableTelegramAlerts}
-                onChange={(e) => setProfile(prev => ({ ...prev, enableTelegramAlerts: e.target.checked }))}
+                checked={profile.enable_telegram_alerts}
+                onChange={(e) => setProfile(prev => ({ ...prev, enable_telegram_alerts: e.target.checked }))}
                 className="w-5 h-5 rounded accent-sky-400"
               />
             </label>
@@ -185,8 +304,8 @@ const UserProfileSettings: React.FC = () => {
               </div>
               <input
                 type="checkbox"
-                checked={profile.enableSoundAlerts}
-                onChange={(e) => setProfile(prev => ({ ...prev, enableSoundAlerts: e.target.checked }))}
+                checked={profile.enable_sound_alerts}
+                onChange={(e) => setProfile(prev => ({ ...prev, enable_sound_alerts: e.target.checked }))}
                 className="w-5 h-5 rounded accent-nexus-accent"
               />
             </label>
@@ -202,8 +321,8 @@ const UserProfileSettings: React.FC = () => {
               </div>
               <input
                 type="checkbox"
-                checked={profile.enableBrowserNotifications}
-                onChange={(e) => setProfile(prev => ({ ...prev, enableBrowserNotifications: e.target.checked }))}
+                checked={profile.enable_browser_notifications}
+                onChange={(e) => setProfile(prev => ({ ...prev, enable_browser_notifications: e.target.checked }))}
                 className="w-5 h-5 rounded accent-nexus-accent"
               />
             </label>
@@ -216,8 +335,8 @@ const UserProfileSettings: React.FC = () => {
             ⏰ Tiempo predeterminado de alerta
           </label>
           <select
-            value={profile.defaultAlertTime}
-            onChange={(e) => setProfile(prev => ({ ...prev, defaultAlertTime: parseInt(e.target.value) }))}
+            value={profile.default_alert_time}
+            onChange={(e) => setProfile(prev => ({ ...prev, default_alert_time: parseInt(e.target.value) }))}
             className="w-full bg-nexus-base border border-white/10 rounded-lg p-3 text-white focus:outline-none focus:border-nexus-accent"
           >
             <option value={15}>15 minutos antes</option>
@@ -230,16 +349,22 @@ const UserProfileSettings: React.FC = () => {
         {/* Save Button */}
         <button
           onClick={handleSave}
+          disabled={isSaving}
           className={`w-full py-3 rounded-lg font-bold transition-all flex items-center justify-center gap-2 ${
             saved 
               ? 'bg-green-500 text-white' 
               : 'bg-nexus-accent text-nexus-base hover:opacity-90'
-          }`}
+          } disabled:opacity-50`}
         >
-          {saved ? (
+          {isSaving ? (
+            <>
+              <RefreshCw size={18} className="animate-spin" />
+              Guardando...
+            </>
+          ) : saved ? (
             <>
               <Check size={18} />
-              ¡Guardado!
+              ¡Guardado en la nube!
             </>
           ) : (
             <>

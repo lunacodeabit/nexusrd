@@ -1,6 +1,7 @@
-import { useEffect, useCallback, useRef } from 'react';
+import { useEffect, useCallback, useRef, useState } from 'react';
 import { usePersonalTasks } from './usePersonalTasks';
-import { getUserProfile } from '../services/userProfile';
+import { useAuth } from '../contexts/AuthContext';
+import { getProfileForAlerts, type UserProfileData } from './useUserProfile';
 import { sendTelegramAlert, formatAlertMessage } from '../services/telegramService';
 
 /**
@@ -8,9 +9,26 @@ import { sendTelegramAlert, formatAlertMessage } from '../services/telegramServi
  * cuando se acerca la hora programada
  */
 export function usePersonalTaskAlerts() {
+  const { user } = useAuth();
   const { todaysTasks, markAlertSent } = usePersonalTasks();
   const audioRef = useRef<AudioContext | null>(null);
   const alertedTasks = useRef<Set<string>>(new Set());
+  const [userProfile, setUserProfile] = useState<UserProfileData | null>(null);
+
+  // Load user profile from Supabase
+  useEffect(() => {
+    const loadProfile = async () => {
+      if (user?.id) {
+        const profile = await getProfileForAlerts(user.id);
+        setUserProfile(profile);
+      }
+    };
+    loadProfile();
+    
+    // Refresh profile every 2 minutes
+    const interval = setInterval(loadProfile, 120000);
+    return () => clearInterval(interval);
+  }, [user?.id]);
 
   // Play notification sound
   const playAlertSound = useCallback(() => {
@@ -69,13 +87,11 @@ export function usePersonalTaskAlerts() {
 
   // Open WhatsApp with alert message
   const sendWhatsAppAlert = useCallback((taskTitle: string, taskTime: string, minutesBefore: number) => {
-    const profile = getUserProfile();
-    
-    if (!profile.enableWhatsAppAlerts || !profile.whatsappNumber) {
+    if (!userProfile?.enable_whatsapp_alerts || !userProfile?.whatsapp_number) {
       return;
     }
 
-    const formattedPhone = profile.whatsappNumber.replace(/[^\d]/g, '');
+    const formattedPhone = userProfile.whatsapp_number.replace(/[^\d]/g, '');
     const message = encodeURIComponent(
       `⏰ *ALERTA CRM ALVEARE*\n\n` +
       `📋 Tarea: ${taskTitle}\n` +
@@ -86,10 +102,12 @@ export function usePersonalTaskAlerts() {
     
     // Open WhatsApp - user will need to click send
     window.open(`https://wa.me/${formattedPhone}?text=${message}`, '_blank');
-  }, []);
+  }, [userProfile]);
 
   // Check for upcoming tasks
   const checkAlerts = useCallback(() => {
+    if (!userProfile) return;
+    
     const now = new Date();
     
     for (const task of todaysTasks) {
@@ -114,15 +132,13 @@ export function usePersonalTaskAlerts() {
         alertedTasks.current.add(task.id);
         markAlertSent(task.id);
         
-        const profile = getUserProfile();
-        
         // Play sound if enabled
-        if (profile.enableSoundAlerts) {
+        if (userProfile.enable_sound_alerts) {
           playAlertSound();
         }
         
         // Show browser notification if enabled
-        if (profile.enableBrowserNotifications) {
+        if (userProfile.enable_browser_notifications) {
           const timeStr = task.scheduled_time;
           showNotification(
             `⏰ Recordatorio: ${task.title}`,
@@ -131,23 +147,23 @@ export function usePersonalTaskAlerts() {
         }
         
         // Send WhatsApp alert if enabled (opens link - requires user action)
-        if (profile.enableWhatsAppAlerts && profile.whatsappNumber) {
+        if (userProfile.enable_whatsapp_alerts && userProfile.whatsapp_number) {
           sendWhatsAppAlert(task.title, task.scheduled_time, task.alert_minutes_before);
         }
         
         // Send Telegram alert if enabled (automatic!)
-        if (profile.enableTelegramAlerts && profile.telegramChatId) {
+        if (userProfile.enable_telegram_alerts && userProfile.telegram_chat_id) {
           const message = formatAlertMessage(
             task.title, 
             task.scheduled_time, 
             task.alert_minutes_before,
             task.category
           );
-          sendTelegramAlert(profile.telegramChatId, message);
+          sendTelegramAlert(userProfile.telegram_chat_id, message);
         }
       }
     }
-  }, [todaysTasks, markAlertSent, playAlertSound, showNotification, sendWhatsAppAlert]);
+  }, [todaysTasks, userProfile, markAlertSent, playAlertSound, showNotification, sendWhatsAppAlert]);
 
   // Request notification permission
   useEffect(() => {

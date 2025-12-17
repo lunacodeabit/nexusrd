@@ -7,7 +7,9 @@ import {
 import type { Lead } from '../types';
 import type { LeadFollowUp } from '../types/activities';
 import { notificationSound } from '../services/notificationSound';
-import { getUserProfile, sendWhatsAppAlert } from '../services/userProfile';
+import { sendWhatsAppAlert } from '../services/userProfile';
+import { useAuth } from '../contexts/AuthContext';
+import { getProfileForAlerts, type UserProfileData } from '../hooks/useUserProfile';
 
 // Alert time options in minutes
 const ALERT_TIME_OPTIONS = [
@@ -52,6 +54,8 @@ const LeadFollowUpTracker: React.FC<LeadFollowUpTrackerProps> = ({
   onAddFollowUp,
   onUpdateFollowUpNotes
 }) => {
+  const { user } = useAuth();
+  const [userProfile, setUserProfile] = useState<UserProfileData | null>(null);
   const [isAddingFollowUp, setIsAddingFollowUp] = useState(false);
   const [isScheduling, setIsScheduling] = useState(false);
   const [editingFollowUpId, setEditingFollowUpId] = useState<string | null>(null);
@@ -74,6 +78,17 @@ const LeadFollowUpTracker: React.FC<LeadFollowUpTrackerProps> = ({
   });
   const [editingTask, setEditingTask] = useState<ScheduledTask | null>(null);
 
+  // Load user profile from Supabase
+  useEffect(() => {
+    const loadProfile = async () => {
+      if (user?.id) {
+        const profile = await getProfileForAlerts(user.id);
+        setUserProfile(profile);
+      }
+    };
+    loadProfile();
+  }, [user?.id]);
+
   // Save scheduled tasks to localStorage
   useEffect(() => {
     localStorage.setItem('nexus_scheduled_tasks', JSON.stringify(scheduledTasks));
@@ -81,9 +96,10 @@ const LeadFollowUpTracker: React.FC<LeadFollowUpTrackerProps> = ({
 
   // Check for reminders
   useEffect(() => {
+    if (!userProfile) return;
+
     const checkReminders = () => {
       const now = new Date();
-      const userProfile = getUserProfile();
       
       scheduledTasks.forEach(task => {
         if (task.completed || task.alertSent) return;
@@ -95,12 +111,12 @@ const LeadFollowUpTracker: React.FC<LeadFollowUpTrackerProps> = ({
         // Check if it's time to send alert (within 1 minute of alert time)
         if (diffMinutes > 0 && diffMinutes <= alertTime && diffMinutes >= alertTime - 1) {
           // Play sound alert
-          if (userProfile.enableSoundAlerts) {
+          if (userProfile.enable_sound_alerts) {
             notificationSound.playNotification();
           }
           
           // Browser notification
-          if (userProfile.enableBrowserNotifications && Notification.permission === 'granted') {
+          if (userProfile.enable_browser_notifications && Notification.permission === 'granted') {
             new Notification(`⏰ Recordatorio: ${task.method}`, {
               body: `${task.leadName} - ${task.notes || 'Seguimiento programado'} (en ${alertTime} min)`,
               icon: '/icons/icon-192x192.png'
@@ -108,9 +124,9 @@ const LeadFollowUpTracker: React.FC<LeadFollowUpTrackerProps> = ({
           }
           
           // WhatsApp alert
-          if (userProfile.enableWhatsAppAlerts && userProfile.whatsappNumber) {
+          if (userProfile.enable_whatsapp_alerts && userProfile.whatsapp_number) {
             sendWhatsAppAlert(
-              userProfile.whatsappNumber,
+              userProfile.whatsapp_number,
               task.method,
               task.leadName,
               task.notes,
@@ -134,7 +150,7 @@ const LeadFollowUpTracker: React.FC<LeadFollowUpTrackerProps> = ({
     const interval = setInterval(checkReminders, 60000); // Check every minute
     checkReminders(); // Check immediately on mount
     return () => clearInterval(interval);
-  }, [scheduledTasks]);
+  }, [scheduledTasks, userProfile]);
 
   // Get follow-ups for this lead
   const leadFollowUps = followUps

@@ -1,6 +1,8 @@
-import { useEffect, useRef, useCallback } from 'react';
-import { getUserProfile, sendWhatsAppAlert } from '../services/userProfile';
+import { useEffect, useRef, useCallback, useState } from 'react';
+import { sendWhatsAppAlert } from '../services/userProfile';
 import { notificationSound } from '../services/notificationSound';
+import { useAuth } from '../contexts/AuthContext';
+import { getProfileForAlerts, type UserProfileData } from './useUserProfile';
 
 // Scheduled Task Interface (same as in LeadFollowUpTracker)
 interface ScheduledTask {
@@ -17,15 +19,32 @@ interface ScheduledTask {
 }
 
 export const useTaskAlerts = () => {
+  const { user } = useAuth();
   const lastCheckRef = useRef<string>('');
+  const [userProfile, setUserProfile] = useState<UserProfileData | null>(null);
+
+  // Load user profile from Supabase
+  useEffect(() => {
+    const loadProfile = async () => {
+      if (user?.id) {
+        const profile = await getProfileForAlerts(user.id);
+        setUserProfile(profile);
+      }
+    };
+    loadProfile();
+    // Refresh profile every 2 minutes
+    const interval = setInterval(loadProfile, 120000);
+    return () => clearInterval(interval);
+  }, [user?.id]);
 
   const checkAndTriggerAlerts = useCallback(() => {
+    if (!userProfile) return;
+    
     const saved = localStorage.getItem('nexus_scheduled_tasks');
     if (!saved) return;
 
     const tasks: ScheduledTask[] = JSON.parse(saved);
     const now = new Date();
-    const userProfile = getUserProfile();
     let hasChanges = false;
 
     const updatedTasks = tasks.map(task => {
@@ -43,12 +62,12 @@ export const useTaskAlerts = () => {
         console.log(`🔔 Triggering alert for task: ${task.leadName} - ${task.method}`);
         
         // Play sound alert
-        if (userProfile.enableSoundAlerts) {
+        if (userProfile.enable_sound_alerts) {
           notificationSound.playNotification();
         }
 
         // Browser notification
-        if (userProfile.enableBrowserNotifications && Notification.permission === 'granted') {
+        if (userProfile.enable_browser_notifications && Notification.permission === 'granted') {
           new Notification(`Recordatorio: ${task.method}`, {
             body: `${task.leadName} - ${task.notes || 'Seguimiento programado'} (${diffMinutes > 0 ? `en ${Math.round(diffMinutes)} min` : 'AHORA'})`,
             icon: '/icons/icon-192x192.png',
@@ -58,9 +77,9 @@ export const useTaskAlerts = () => {
         }
 
         // WhatsApp alert
-        if (userProfile.enableWhatsAppAlerts && userProfile.whatsappNumber) {
+        if (userProfile.enable_whatsapp_alerts && userProfile.whatsapp_number) {
           sendWhatsAppAlert(
-            userProfile.whatsappNumber,
+            userProfile.whatsapp_number,
             task.method,
             task.leadName,
             task.notes,
@@ -81,7 +100,7 @@ export const useTaskAlerts = () => {
       // Dispatch event to notify other components
       window.dispatchEvent(new Event('storage'));
     }
-  }, []);
+  }, [userProfile]);
 
   useEffect(() => {
     // Request notification permission on mount
