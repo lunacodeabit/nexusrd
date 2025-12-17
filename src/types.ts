@@ -25,6 +25,15 @@ export type PropertyStatus = typeof PropertyStatus[keyof typeof PropertyStatus];
 // Currency type
 export type Currency = 'USD' | 'RD$';
 
+// Note history entry
+export interface NoteEntry {
+  id: string;
+  text: string;
+  createdAt: string;
+  source: 'manual' | 'follow_up';
+  followUpNumber?: number;
+}
+
 // Tabla: LEADS (Unifica "Leads Flow" y "Seguimiento")
 export interface Lead {
   id: string;
@@ -40,6 +49,7 @@ export interface Lead {
   lastContactDate?: string; // ISO Date
   nextFollowUpDate: string; // ISO Date (Critical for Alerts)
   notes: string;
+  notesHistory?: NoteEntry[]; // Historial de notas con timestamp
   // Lead Scoring
   score?: {
     total: number;
@@ -122,6 +132,7 @@ export type ActivityType =
   | 'lead_created' 
   | 'lead_updated' 
   | 'lead_status_changed'
+  | 'follow_up_created'
   | 'task_created'
   | 'task_completed' 
   | 'call_made' 
@@ -154,6 +165,14 @@ export interface TeamMemberPerformance {
   total_tasks: number;
   tasks_completed: number;
   last_activity: string | null;
+  // Métricas avanzadas
+  hot_leads: number;
+  warm_leads: number;
+  cold_leads: number;
+  active_leads: number; // Leads en proceso (no cerrados)
+  conversion_rate: number;
+  avg_follow_ups: number;
+  total_follow_ups: number;
 }
 
 // Daily Activity Summary (from SQL view)
@@ -166,4 +185,62 @@ export interface DailyActivitySummary {
   tasks_completed: number;
   calls_made: number;
   whatsapp_sent: number;
+}
+
+// ---------------------------------------------------------------------------
+// AUTOMATIZACIONES
+// ---------------------------------------------------------------------------
+
+export type AutomationTrigger = 
+  | 'days_without_contact'      // Lead sin contacto por X días
+  | 'days_in_status'            // Lead estancado en un status por X días
+  | 'follow_up_overdue'         // Seguimiento programado vencido
+  | 'no_response_after_contact' // Sin respuesta después de contacto
+  | 'lead_gone_cold';           // Lead calificado como HOT/WARM que se enfrió
+
+export type AutomationAction =
+  | 'send_whatsapp'       // Enviar mensaje de WhatsApp
+  | 'send_email'          // Enviar email
+  | 'create_task'         // Crear tarea automática
+  | 'notify_supervisor'   // Notificar al supervisor
+  | 'change_status'       // Cambiar status del lead
+  | 'show_alert';         // Mostrar alerta en dashboard
+
+export interface AutomationRule {
+  id: string;
+  name: string;
+  description?: string;
+  trigger: AutomationTrigger;
+  trigger_value: number;          // Días, horas, etc. según el trigger
+  trigger_status?: LeadStatus;    // Para 'days_in_status'
+  action: AutomationAction;
+  action_config: {
+    message_template?: string;    // Para WhatsApp/Email
+    task_title?: string;          // Para crear tarea
+    new_status?: LeadStatus;      // Para cambiar status
+    notify_role?: UserRole;       // Para notificar
+  };
+  is_active: boolean;
+  apply_to_statuses?: LeadStatus[]; // En qué status aplicar (null = todos)
+  created_at: string;
+  updated_at: string;
+  user_id: string;                // Quien creó la regla
+}
+
+export interface AutomationExecution {
+  id: string;
+  rule_id: string;
+  lead_id: string;
+  executed_at: string;
+  action_taken: AutomationAction;
+  result: 'success' | 'pending' | 'failed';
+  details?: string;
+}
+
+export interface PendingAutomation {
+  rule: AutomationRule;
+  lead: Lead;
+  daysSinceContact: number;
+  daysInStatus: number;
+  suggestedMessage?: string;
 }

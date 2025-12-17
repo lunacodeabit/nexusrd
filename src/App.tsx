@@ -7,6 +7,7 @@ import AdvancedAnalytics from './components/AdvancedAnalytics';
 import ArchitectureInfo from './components/ArchitectureInfo';
 import DailyActivities from './components/DailyActivities';
 import SuperAdminDashboard from './components/SuperAdminDashboard';
+import AutomationsView from './components/AutomationsView';
 import { AuthScreen } from './components/Auth';
 import { useAuth } from './contexts/AuthContext';
 import { useLeads } from './hooks/useLeads';
@@ -24,7 +25,7 @@ const App: React.FC = () => {
   
   // Supabase hooks
   const { leads, addLead: addLeadToDb, updateLead } = useLeads();
-  const { followUps, addFollowUp: addFollowUpToDb } = useFollowUps();
+  const { followUps, addFollowUp: addFollowUpToDb, updateFollowUpNotes } = useFollowUps();
   const { completions: taskCompletions, toggleTask } = useActivities();
   
   // Global task alerts - runs always when app is open
@@ -111,6 +112,7 @@ const App: React.FC = () => {
           onUpdateLead={updateLead}
           followUps={followUps}
           onAddFollowUp={addFollowUp}
+          onUpdateFollowUpNotes={updateFollowUpNotes}
         />;
       case 'leads':
         return <LeadsManager 
@@ -121,9 +123,12 @@ const App: React.FC = () => {
           updateLead={updateLead}
           followUps={followUps}
           addFollowUp={addFollowUp}
+          updateFollowUpNotes={updateFollowUpNotes}
         />;
       case 'inventory':
         return <CaptacionesView />;
+      case 'automations':
+        return <AutomationsView leads={leads} />;
       case 'activities':
         return <DailyActivities completions={taskCompletions} onToggleTask={toggleTaskCompletion} />;
       case 'analytics':

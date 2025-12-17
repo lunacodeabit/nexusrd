@@ -27,9 +27,10 @@ interface LeadsManagerProps {
   updateLead?: (leadId: string, updates: Partial<Lead>) => void;
   followUps?: LeadFollowUp[];
   addFollowUp?: (followUp: Omit<LeadFollowUp, 'id'>) => void;
+  updateFollowUpNotes?: (followUpId: string, notes: string) => void;
 }
 
-const LeadsManager: React.FC<LeadsManagerProps> = ({ leads, addLead, updateLeadStatus, updateLeadScore, updateLead, followUps = [], addFollowUp }) => {
+const LeadsManager: React.FC<LeadsManagerProps> = ({ leads, addLead, updateLeadStatus, updateLeadScore, updateLead, followUps = [], addFollowUp, updateFollowUpNotes }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
@@ -530,6 +531,7 @@ const LeadsManager: React.FC<LeadsManagerProps> = ({ leads, addLead, updateLeadS
             onUpdateLead={updateLead}
             followUps={followUps}
             onAddFollowUp={addFollowUp}
+            onUpdateFollowUpNotes={updateFollowUpNotes}
           />
         )}
       </Modal>

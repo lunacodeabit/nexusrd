@@ -6,6 +6,7 @@ import Modal from './Modal';
 import LeadDetail from './LeadDetail';
 import type { LeadScore } from '../services/leadScoring';
 import type { LeadFollowUp } from '../types/activities';
+import { useTodayActivity } from '../hooks/useTodayActivity';
 
 // Interface for scheduled tasks (same as in LeadFollowUpTracker)
 interface ScheduledTask {
@@ -28,6 +29,7 @@ interface DashboardProps {
   onUpdateLead?: (leadId: string, updates: Partial<Lead>) => void;
   followUps?: LeadFollowUp[];
   onAddFollowUp?: (followUp: Omit<LeadFollowUp, 'id'>) => void;
+  onUpdateFollowUpNotes?: (followUpId: string, notes: string) => void;
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ 
@@ -36,8 +38,10 @@ const Dashboard: React.FC<DashboardProps> = ({
   onUpdateLeadScore,
   onUpdateLead,
   followUps = [],
-  onAddFollowUp
+  onAddFollowUp,
+  onUpdateFollowUpNotes
 }) => {
+  const { counts: todayActivity } = useTodayActivity();
   const [showNotifications, setShowNotifications] = useState(false);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [editingTask, setEditingTask] = useState<ScheduledTask | null>(null);
@@ -277,8 +281,8 @@ const Dashboard: React.FC<DashboardProps> = ({
         {[
           { label: 'Leads Activos', val: leads.length, icon: TrendingUp, color: 'text-green-400' },
           { label: 'Alertas Rojas', val: urgentAlerts.length, icon: AlertTriangle, color: 'text-red-500' },
-          { label: 'Llamadas Hoy', val: 12, icon: Phone, color: 'text-blue-400' },
-          { label: 'Visitas Pend.', val: todaysTasks.length, icon: Clock, color: 'text-nexus-accent' },
+          { label: 'Llamadas Hoy', val: todayActivity.calls, icon: Phone, color: 'text-blue-400' },
+          { label: 'WhatsApp Hoy', val: todayActivity.whatsapp, icon: MessageSquare, color: 'text-emerald-400' },
         ].map((kpi, idx) => (
           <div key={idx} className="bg-nexus-surface p-4 rounded-xl border border-white/5 shadow-lg">
              <div className="flex justify-between items-start">
@@ -433,6 +437,7 @@ const Dashboard: React.FC<DashboardProps> = ({
             onUpdateLead={onUpdateLead}
             followUps={followUps}
             onAddFollowUp={handleAddFollowUp}
+            onUpdateFollowUpNotes={onUpdateFollowUpNotes}
           />
         )}
       </Modal>

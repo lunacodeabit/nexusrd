@@ -34,20 +34,32 @@ export default function AsesorDetailModal({ asesor, onClose }: AsesorDetailModal
   const [expandedLead, setExpandedLead] = useState<string | null>(null);
 
   useEffect(() => {
+    let isMounted = true;
     const fetchData = async () => {
+      if (!asesor.user_id) return;
       setIsLoading(true);
-      const [leadsData, tasksData, activityData] = await Promise.all([
-        getAsesorLeads(asesor.user_id),
-        getAsesorTasks(asesor.user_id),
-        getAsesorActivity(asesor.user_id, 30)
-      ]);
-      setLeads(leadsData);
-      setTasks(tasksData);
-      setActivity(activityData);
-      setIsLoading(false);
+      try {
+        const [leadsData, tasksData, activityData] = await Promise.all([
+          getAsesorLeads(asesor.user_id),
+          getAsesorTasks(asesor.user_id),
+          getAsesorActivity(asesor.user_id, 30)
+        ]);
+        if (isMounted) {
+          setLeads(leadsData);
+          setTasks(tasksData);
+          setActivity(activityData);
+        }
+      } catch (err) {
+        console.error('Error fetching asesor data:', err);
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
     };
     fetchData();
-  }, [asesor.user_id, getAsesorLeads, getAsesorTasks, getAsesorActivity]);
+    return () => { isMounted = false; };
+  }, [asesor.user_id]); // Solo depende del user_id, no de las funciones
 
   // Calculate stats
   const conversionRate = asesor.total_leads > 0 
@@ -122,7 +134,7 @@ export default function AsesorDetailModal({ asesor, onClose }: AsesorDetailModal
               {/* Overview Tab */}
               {activeTab === 'overview' && (
                 <div className="space-y-6">
-                  {/* KPI Cards */}
+                  {/* KPI Cards - Main Stats */}
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <KPICard 
                       label="Total Leads" 
@@ -144,10 +156,109 @@ export default function AsesorDetailModal({ asesor, onClose }: AsesorDetailModal
                     />
                     <KPICard 
                       label="Conversión" 
-                      value={`${conversionRate}%`} 
+                      value={`${asesor.conversion_rate ?? conversionRate}%`} 
                       icon={<TrendingUp className="w-5 h-5" />}
                       color="orange"
                     />
+                  </div>
+
+                  {/* Advanced Metrics */}
+                  <div className="bg-nexus-base rounded-lg p-4">
+                    <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
+                      <Activity className="w-4 h-4 text-nexus-accent" />
+                      Métricas Avanzadas
+                    </h3>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      {/* Hot Leads */}
+                      <div className="bg-nexus-surface p-4 rounded-lg text-center">
+                        <div className="text-3xl mb-1">🔥</div>
+                        <p className="text-2xl font-bold text-orange-400">{asesor.hot_leads || 0}</p>
+                        <p className="text-gray-500 text-xs">Hot Leads</p>
+                      </div>
+                      {/* Warm Leads */}
+                      <div className="bg-nexus-surface p-4 rounded-lg text-center">
+                        <div className="text-3xl mb-1">🌡️</div>
+                        <p className="text-2xl font-bold text-yellow-400">{asesor.warm_leads || 0}</p>
+                        <p className="text-gray-500 text-xs">Warm Leads</p>
+                      </div>
+                      {/* Cold Leads */}
+                      <div className="bg-nexus-surface p-4 rounded-lg text-center">
+                        <div className="text-3xl mb-1">❄️</div>
+                        <p className="text-2xl font-bold text-blue-400">{asesor.cold_leads || 0}</p>
+                        <p className="text-gray-500 text-xs">Cold Leads</p>
+                      </div>
+                      {/* Active Leads */}
+                      <div className="bg-nexus-surface p-4 rounded-lg text-center">
+                        <div className="text-3xl mb-1">📊</div>
+                        <p className="text-2xl font-bold text-green-400">{asesor.active_leads || 0}</p>
+                        <p className="text-gray-500 text-xs">Activos</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Follow-up Stats */}
+                  <div className="grid md:grid-cols-2 gap-6">
+                    <div className="bg-nexus-base rounded-lg p-4">
+                      <h3 className="text-white font-semibold mb-3 flex items-center gap-2">
+                        <MessageSquare className="w-4 h-4 text-gray-400" />
+                        Efectividad de Seguimientos
+                      </h3>
+                      <div className="space-y-3">
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-400">Total Seguimientos</span>
+                          <span className="text-white font-semibold">{asesor.total_follow_ups || 0}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-400">Promedio por Lead</span>
+                          <span className="text-nexus-accent font-semibold">{asesor.avg_follow_ups || 0}</span>
+                        </div>
+                        <div className="h-2 bg-gray-700 rounded-full overflow-hidden mt-2">
+                          <div 
+                            className="h-full bg-gradient-to-r from-cyan-500 to-nexus-accent rounded-full transition-all"
+                            style={{ width: `${Math.min((asesor.avg_follow_ups || 0) * 20, 100)}%` }}
+                          />
+                        </div>
+                        <p className="text-gray-500 text-xs text-center">
+                          {(asesor.avg_follow_ups || 0) >= 4 ? '¡Excelente seguimiento!' : 
+                           (asesor.avg_follow_ups || 0) >= 2 ? 'Buen seguimiento' : 
+                           'Puede mejorar seguimientos'}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Conversion Analysis */}
+                    <div className="bg-nexus-base rounded-lg p-4">
+                      <h3 className="text-white font-semibold mb-3 flex items-center gap-2">
+                        <TrendingUp className="w-4 h-4 text-gray-400" />
+                        Análisis de Conversión
+                      </h3>
+                      <div className="space-y-3">
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-400">Tasa de Conversión</span>
+                          <span className={`font-bold ${(asesor.conversion_rate || 0) >= 30 ? 'text-green-400' : (asesor.conversion_rate || 0) >= 15 ? 'text-yellow-400' : 'text-red-400'}`}>
+                            {asesor.conversion_rate || 0}%
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-400">Esta Semana</span>
+                          <span className="text-white font-semibold">+{asesor.leads_this_week} leads</span>
+                        </div>
+                        <div className="h-2 bg-gray-700 rounded-full overflow-hidden mt-2">
+                          <div 
+                            className={`h-full rounded-full transition-all ${
+                              (asesor.conversion_rate || 0) >= 30 ? 'bg-green-500' : 
+                              (asesor.conversion_rate || 0) >= 15 ? 'bg-yellow-500' : 'bg-red-500'
+                            }`}
+                            style={{ width: `${Math.min(asesor.conversion_rate || 0, 100)}%` }}
+                          />
+                        </div>
+                        <p className="text-gray-500 text-xs text-center">
+                          {(asesor.conversion_rate || 0) >= 30 ? '¡Excelente rendimiento!' : 
+                           (asesor.conversion_rate || 0) >= 15 ? 'Buen rendimiento' : 
+                           'Necesita mejorar conversiones'}
+                        </p>
+                      </div>
+                    </div>
                   </div>
 
                   {/* Activity & Tasks */}

@@ -6,6 +6,7 @@ import { getScoreColor, getScoreEmoji, type LeadScore } from '../services/leadSc
 import LeadQualification from './LeadQualification';
 import LeadFollowUpTracker from './LeadFollowUpTracker';
 import type { LeadFollowUp } from '../types/activities';
+import { useActivityLogger } from '../hooks/useActivityLogger';
 
 // Format phone number as xxx-xxx-xxxx
 const formatPhoneNumber = (value: string): string => {
@@ -28,9 +29,11 @@ interface LeadDetailProps {
   onUpdateLead?: (leadId: string, updates: Partial<Lead>) => void;
   followUps?: LeadFollowUp[];
   onAddFollowUp?: (followUp: Omit<LeadFollowUp, 'id'>) => void;
+  onUpdateFollowUpNotes?: (followUpId: string, notes: string) => void;
 }
 
-const LeadDetail: React.FC<LeadDetailProps> = ({ lead, onClose, onUpdateStatus, onUpdateScore, onUpdateLead, followUps = [], onAddFollowUp }) => {
+const LeadDetail: React.FC<LeadDetailProps> = ({ lead, onClose, onUpdateStatus, onUpdateScore, onUpdateLead, followUps = [], onAddFollowUp, onUpdateFollowUpNotes }) => {
+  const { logActivity } = useActivityLogger();
   const [showStatusMenu, setShowStatusMenu] = useState(false);
   const [showQualification, setShowQualification] = useState(false);
   const [showFollowUps, setShowFollowUps] = useState(false);
@@ -140,17 +143,38 @@ const LeadDetail: React.FC<LeadDetailProps> = ({ lead, onClose, onUpdateStatus, 
 
   const handleCall = () => {
     window.open(`tel:${lead.phone}`, '_self');
+    // Log activity
+    logActivity({
+      actionType: 'call_made',
+      entityType: 'lead',
+      entityId: lead.id,
+      metadata: { lead_name: lead.name, phone: lead.phone }
+    });
   };
 
   const handleWhatsApp = () => {
-    const message = encodeURIComponent(`Hola ${lead.name}, te contacto de NEXUS Inmobiliaria.`);
+    const message = encodeURIComponent(`Hola ${lead.name}, te contacto de ALVEARE Inmobiliaria.`);
     window.open(`https://wa.me/${lead.phone.replace(/\s/g, '')}?text=${message}`, '_blank');
+    // Log activity
+    logActivity({
+      actionType: 'whatsapp_sent',
+      entityType: 'lead',
+      entityId: lead.id,
+      metadata: { lead_name: lead.name, phone: lead.phone }
+    });
   };
 
   const handleEmail = () => {
-    const subject = encodeURIComponent('Información inmobiliaria - NEXUS');
+    const subject = encodeURIComponent('Información inmobiliaria - ALVEARE');
     const body = encodeURIComponent(`Hola ${lead.name},\n\nGracias por tu interés...`);
     window.open(`mailto:${lead.email}?subject=${subject}&body=${body}`, '_blank');
+    // Log activity
+    logActivity({
+      actionType: 'call_made',
+      entityType: 'lead',
+      entityId: lead.id,
+      metadata: { lead_name: lead.name, email: lead.email, type: 'email_sent' }
+    });
   };
 
   const handleQualificationComplete = (score: LeadScore) => {
@@ -202,6 +226,7 @@ const LeadDetail: React.FC<LeadDetailProps> = ({ lead, onClose, onUpdateStatus, 
           lead={lead}
           followUps={followUps}
           onAddFollowUp={onAddFollowUp}
+          onUpdateFollowUpNotes={onUpdateFollowUpNotes}
         />
       </div>
     );
@@ -541,8 +566,8 @@ const LeadDetail: React.FC<LeadDetailProps> = ({ lead, onClose, onUpdateStatus, 
       </div>
 
       {/* Notes - Editable */}
-      <div className="bg-nexus-base p-3 rounded-lg group">
-        <p className="text-xs text-gray-500 mb-1 flex items-center justify-between">
+      <div className="bg-nexus-base p-3 rounded-lg">
+        <p className="text-xs text-gray-500 mb-2 flex items-center justify-between">
           Notas
           {onUpdateLead && editingField !== 'notes' && (
             <button 
@@ -550,12 +575,13 @@ const LeadDetail: React.FC<LeadDetailProps> = ({ lead, onClose, onUpdateStatus, 
                 setEditValues(prev => ({ ...prev, notes: lead.notes }));
                 setEditingField('notes');
               }}
-              className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-nexus-accent transition-all"
+              className="text-gray-400 hover:text-nexus-accent transition-all"
             >
               <Edit3 size={12} />
             </button>
           )}
         </p>
+        
         {editingField === 'notes' ? (
           <div className="space-y-2">
             <textarea
@@ -564,6 +590,7 @@ const LeadDetail: React.FC<LeadDetailProps> = ({ lead, onClose, onUpdateStatus, 
               className="w-full bg-transparent border border-nexus-accent rounded p-2 text-white focus:outline-none resize-none"
               rows={3}
               autoFocus
+              placeholder="Agregar nota..."
             />
             <div className="flex gap-2 justify-end">
               <button 
@@ -583,7 +610,38 @@ const LeadDetail: React.FC<LeadDetailProps> = ({ lead, onClose, onUpdateStatus, 
             </div>
           </div>
         ) : (
-          <p className="text-gray-300 text-sm italic">"{lead.notes || 'Sin notas'}"</p>
+          <div className="space-y-2 max-h-32 overflow-y-auto">
+            {/* Nota principal del lead */}
+            {lead.notes && (
+              <div className="text-gray-300 text-sm italic border-l-2 border-nexus-accent pl-2">
+                "{lead.notes}"
+              </div>
+            )}
+            
+            {/* Historial de notas de seguimientos */}
+            {followUps
+              .filter(f => f.leadId === lead.id && f.notes)
+              .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+              .slice(0, 5)
+              .map((followUp) => (
+                <div key={followUp.id} className="text-xs text-gray-400 border-l-2 border-gray-600 pl-2">
+                  <span className="text-gray-500">
+                    S{followUp.followUpNumber} - {new Date(followUp.date).toLocaleDateString('es-ES', {
+                      day: '2-digit',
+                      month: '2-digit',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}:
+                  </span>
+                  <span className="ml-1 text-gray-300">{followUp.notes}</span>
+                </div>
+              ))
+            }
+            
+            {!lead.notes && followUps.filter(f => f.leadId === lead.id && f.notes).length === 0 && (
+              <p className="text-gray-500 text-sm italic">Sin notas</p>
+            )}
+          </div>
         )}
       </div>
 

@@ -100,6 +100,22 @@ export function useLeads() {
       .single();
 
     if (error) throw error;
+    
+    // Log activity for SuperAdmin tracking
+    if (data) {
+      try {
+        await supabase.from('activity_logs').insert([{
+          user_id: user.id,
+          action_type: 'lead_created',
+          entity_type: 'lead',
+          entity_id: data.id,
+          metadata: { name: lead.name, source: lead.source }
+        }]);
+      } catch (logError) {
+        console.error('Error logging activity:', logError);
+      }
+    }
+    
     await fetchLeads();
     return data;
   };
@@ -132,6 +148,23 @@ export function useLeads() {
       .single();
 
     if (error) throw error;
+
+    // Log activity for SuperAdmin tracking
+    try {
+      const actionType = updates.status ? 'lead_status_changed' : 'lead_updated';
+      await supabase.from('activity_logs').insert([{
+        user_id: user.id,
+        action_type: actionType,
+        entity_type: 'lead',
+        entity_id: id,
+        metadata: updates.status 
+          ? { new_status: updates.status }
+          : { updated_fields: Object.keys(updates) }
+      }]);
+    } catch (logError) {
+      console.error('Error logging activity:', logError);
+    }
+
     await fetchLeads();
     return data;
   };

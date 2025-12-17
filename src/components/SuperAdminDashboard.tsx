@@ -321,9 +321,17 @@ function AsesorRow({
   const isInactive = !member.last_activity || 
     new Date(member.last_activity) < new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
 
-  const conversionRate = member.total_leads > 0 
-    ? ((member.leads_won / member.total_leads) * 100).toFixed(0) 
-    : '0';
+  // Use the pre-calculated conversion rate if available, or calculate it
+  const conversionRate = member.conversion_rate ?? (member.total_leads > 0 
+    ? Math.round((member.leads_won / member.total_leads) * 100)
+    : 0);
+
+  // Role badge colors
+  const roleBadge = {
+    admin: { bg: 'bg-purple-500/20', text: 'text-purple-400', label: 'Admin' },
+    supervisor: { bg: 'bg-blue-500/20', text: 'text-blue-400', label: 'Supervisor' },
+    asesor: { bg: 'bg-gray-500/20', text: 'text-gray-400', label: 'Asesor' }
+  }[member.role] || { bg: 'bg-gray-500/20', text: 'text-gray-400', label: 'Asesor' };
 
   return (
     <div 
@@ -345,6 +353,9 @@ function AsesorRow({
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
           <p className="text-white font-medium truncate">{member.full_name}</p>
+          <span className={`px-2 py-0.5 ${roleBadge.bg} ${roleBadge.text} text-xs rounded-full hidden sm:inline`}>
+            {roleBadge.label}
+          </span>
           {isInactive && (
             <span className="px-2 py-0.5 bg-red-500/20 text-red-400 text-xs rounded-full">
               Inactivo
@@ -355,28 +366,30 @@ function AsesorRow({
       </div>
 
       {/* Stats */}
-      <div className="hidden md:flex items-center gap-6 text-sm">
+      <div className="hidden md:flex items-center gap-4 text-sm">
         <div className="text-center">
-          <p className="text-gray-400 text-xs">Leads</p>
+          <p className="text-gray-400 text-xs">Total</p>
           <p className="text-white font-semibold">{member.total_leads}</p>
+        </div>
+        <div className="text-center">
+          <p className="text-gray-400 text-xs">🔥 Hot</p>
+          <p className="text-orange-400 font-semibold">{member.hot_leads || 0}</p>
+        </div>
+        <div className="text-center">
+          <p className="text-gray-400 text-xs">Activos</p>
+          <p className="text-blue-400 font-semibold">{member.active_leads || 0}</p>
         </div>
         <div className="text-center">
           <p className="text-gray-400 text-xs">Ganados</p>
           <p className="text-green-400 font-semibold">{member.leads_won}</p>
         </div>
         <div className="text-center">
-          <p className="text-gray-400 text-xs">Perdidos</p>
-          <p className="text-red-400 font-semibold">{member.leads_lost}</p>
-        </div>
-        <div className="text-center">
-          <p className="text-gray-400 text-xs">Conversión</p>
+          <p className="text-gray-400 text-xs">Conv.</p>
           <p className="text-nexus-accent font-semibold">{conversionRate}%</p>
         </div>
         <div className="text-center">
-          <p className="text-gray-400 text-xs">Tareas</p>
-          <p className="text-white font-semibold">
-            {member.tasks_completed}/{member.total_tasks}
-          </p>
+          <p className="text-gray-400 text-xs">Seg.</p>
+          <p className="text-cyan-400 font-semibold">{member.avg_follow_ups || 0}</p>
         </div>
       </div>
 

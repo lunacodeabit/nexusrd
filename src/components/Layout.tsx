@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Home, Users, Building, BarChart3, Menu, Settings, X, ClipboardList, LogOut, Shield } from 'lucide-react';
+import { Home, Users, Building, BarChart3, Menu, Settings, X, ClipboardList, LogOut, Shield, Zap } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useUserRole } from '../hooks/useUserRole';
 
@@ -20,6 +20,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: Home },
     { id: 'leads', label: 'Leads Flow', icon: Users },
+    { id: 'automations', label: 'Auto', icon: Zap },
     { id: 'activities', label: 'Marketing', icon: ClipboardList },
     { id: 'inventory', label: 'Captaciones', icon: Building },
     { id: 'analytics', label: 'Métricas', icon: BarChart3 },

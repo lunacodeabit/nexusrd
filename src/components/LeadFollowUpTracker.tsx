@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   Phone, MessageSquare, Mail, MapPin, MoreHorizontal,
   Plus, CheckCircle2, Clock, AlertCircle,
-  TrendingUp, CalendarPlus, Bell, X, Pencil
+  TrendingUp, CalendarPlus, Bell, X, Pencil, Check
 } from 'lucide-react';
 import type { Lead } from '../types';
 import type { LeadFollowUp } from '../types/activities';
@@ -35,6 +35,7 @@ interface LeadFollowUpTrackerProps {
   lead: Lead;
   followUps: LeadFollowUp[];
   onAddFollowUp: (followUp: Omit<LeadFollowUp, 'id'>) => void;
+  onUpdateFollowUpNotes?: (followUpId: string, notes: string) => void;
 }
 
 // Helper function to format time to 12-hour format with AM/PM
@@ -48,10 +49,13 @@ const formatTime12h = (time24: string): string => {
 const LeadFollowUpTracker: React.FC<LeadFollowUpTrackerProps> = ({ 
   lead, 
   followUps,
-  onAddFollowUp 
+  onAddFollowUp,
+  onUpdateFollowUpNotes
 }) => {
   const [isAddingFollowUp, setIsAddingFollowUp] = useState(false);
   const [isScheduling, setIsScheduling] = useState(false);
+  const [editingFollowUpId, setEditingFollowUpId] = useState<string | null>(null);
+  const [editingNotes, setEditingNotes] = useState('');
   const [scheduledTasks, setScheduledTasks] = useState<ScheduledTask[]>(() => {
     const saved = localStorage.getItem('nexus_scheduled_tasks');
     return saved ? JSON.parse(saved) : [];
@@ -314,29 +318,99 @@ const LeadFollowUpTracker: React.FC<LeadFollowUpTrackerProps> = ({
 
       {/* Follow-up History */}
       {leadFollowUps.length > 0 && (
-        <div className="space-y-2 max-h-48 overflow-y-auto">
+        <div className="space-y-2 max-h-64 overflow-y-auto">
           {leadFollowUps.map((followUp) => (
             <div 
               key={followUp.id}
-              className="flex items-start gap-3 p-3 bg-nexus-base rounded-lg border border-white/5"
+              className="p-3 bg-nexus-base rounded-lg border border-white/5"
             >
-              <div className={`p-1.5 rounded ${getMethodColor(followUp.method)}`}>
-                {getMethodIcon(followUp.method)}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="font-bold text-white text-sm">S{followUp.followUpNumber}</span>
-                  <span className="text-xs text-gray-500">
-                    {new Date(followUp.date).toLocaleDateString('es-ES')}
-                  </span>
-                  <div className="flex items-center gap-1 ml-auto">
-                    {getResponseIcon(followUp.response)}
-                    <span className="text-xs text-gray-400">{getResponseLabel(followUp.response)}</span>
-                  </div>
+              <div className="flex items-start gap-3">
+                <div className={`p-1.5 rounded ${getMethodColor(followUp.method)}`}>
+                  {getMethodIcon(followUp.method)}
                 </div>
-                {followUp.notes && (
-                  <p className="text-xs text-gray-400 mt-1 truncate">{followUp.notes}</p>
-                )}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-bold text-white text-sm">S{followUp.followUpNumber}</span>
+                    <span className="text-xs text-gray-500">
+                      {new Date(followUp.date).toLocaleDateString('es-ES', { 
+                        day: '2-digit', 
+                        month: '2-digit', 
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </span>
+                    <div className="flex items-center gap-1 ml-auto">
+                      {getResponseIcon(followUp.response)}
+                      <span className="text-xs text-gray-400">{getResponseLabel(followUp.response)}</span>
+                    </div>
+                  </div>
+                  
+                  {/* Notes Section - Editable */}
+                  {editingFollowUpId === followUp.id ? (
+                    <div className="mt-2 space-y-2">
+                      <textarea
+                        value={editingNotes}
+                        onChange={(e) => setEditingNotes(e.target.value)}
+                        className="w-full bg-nexus-surface border border-nexus-accent/50 rounded p-2 text-sm text-white placeholder-gray-500 focus:outline-none resize-none"
+                        rows={3}
+                        autoFocus
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => {
+                            if (onUpdateFollowUpNotes) {
+                              onUpdateFollowUpNotes(followUp.id, editingNotes);
+                            }
+                            setEditingFollowUpId(null);
+                          }}
+                          className="flex items-center gap-1 px-2 py-1 bg-green-500/20 text-green-400 rounded text-xs hover:bg-green-500/30"
+                        >
+                          <Check size={12} />
+                          Guardar
+                        </button>
+                        <button
+                          onClick={() => setEditingFollowUpId(null)}
+                          className="flex items-center gap-1 px-2 py-1 bg-gray-500/20 text-gray-400 rounded text-xs hover:bg-gray-500/30"
+                        >
+                          <X size={12} />
+                          Cancelar
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="mt-1 group">
+                      {followUp.notes ? (
+                        <div className="flex items-start gap-2">
+                          <p className="text-xs text-gray-300 flex-1 whitespace-pre-wrap">{followUp.notes}</p>
+                          {onUpdateFollowUpNotes && (
+                            <button
+                              onClick={() => {
+                                setEditingFollowUpId(followUp.id);
+                                setEditingNotes(followUp.notes || '');
+                              }}
+                              className="opacity-0 group-hover:opacity-100 p-1 text-gray-500 hover:text-nexus-accent transition-all"
+                              title="Editar nota"
+                            >
+                              <Pencil size={12} />
+                            </button>
+                          )}
+                        </div>
+                      ) : onUpdateFollowUpNotes && (
+                        <button
+                          onClick={() => {
+                            setEditingFollowUpId(followUp.id);
+                            setEditingNotes('');
+                          }}
+                          className="text-xs text-gray-500 hover:text-nexus-accent flex items-center gap-1"
+                        >
+                          <Plus size={12} />
+                          Agregar nota
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           ))}

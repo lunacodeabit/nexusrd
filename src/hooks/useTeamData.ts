@@ -49,21 +49,27 @@ export function useTeamData(): UseTeamDataReturn {
       setIsLoading(true);
       setError(null);
 
-      // Fetch all asesores profiles
+      // Fetch ALL active user profiles (including admins and supervisors)
       const { data: profiles, error: profilesError } = await supabase
         .from('user_profiles')
         .select('*')
-        .eq('role', 'asesor')
         .eq('is_active', true);
 
       if (profilesError) throw profilesError;
 
-      // Fetch leads count per user
+      // Fetch leads with score info
       const { data: leadsData, error: leadsError } = await supabase
         .from('leads')
-        .select('user_id, status, created_at');
+        .select('user_id, status, created_at, score_category');
 
       if (leadsError) throw leadsError;
+
+      // Fetch follow-ups count per lead
+      const { data: followUpsData, error: followUpsError } = await supabase
+        .from('follow_ups')
+        .select('user_id, lead_id');
+
+      const followUps = followUpsError ? [] : followUpsData || [];
 
       // Fetch tasks data
       const { data: tasksData, error: tasksError } = await supabase
@@ -96,6 +102,7 @@ export function useTeamData(): UseTeamDataReturn {
         const userLeads = (leadsData || []).filter(l => l.user_id === profile.id);
         const userTasks = tasks.filter(t => t.user_id === profile.id);
         const userActivity = activities.filter(a => a.user_id === profile.id);
+        const userFollowUps = followUps.filter(f => f.user_id === profile.id);
         
         const lastActivity = userActivity.length > 0 ? userActivity[0].created_at : null;
         
@@ -104,6 +111,32 @@ export function useTeamData(): UseTeamDataReturn {
         oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
         const leadsThisWeek = userLeads.filter(l => new Date(l.created_at) >= oneWeekAgo).length;
 
+        // Count leads by score category
+        const hotLeads = userLeads.filter(l => l.score_category === 'HOT').length;
+        const warmLeads = userLeads.filter(l => l.score_category === 'WARM').length;
+        const coldLeads = userLeads.filter(l => l.score_category === 'COLD').length;
+        
+        // Active leads (not closed)
+        const activeLeads = userLeads.filter(l => 
+          !['CERRADO_GANADO', 'CERRADO_PERDIDO'].includes(l.status)
+        ).length;
+        
+        // Follow-up metrics
+        const totalFollowUps = userFollowUps.length;
+        const leadsWithFollowUps = new Set(userFollowUps.map(f => f.lead_id)).size;
+        const avgFollowUps = leadsWithFollowUps > 0 
+          ? Math.round((totalFollowUps / leadsWithFollowUps) * 10) / 10 
+          : 0;
+        
+        // Conversion rate (closed won / total closed)
+        const closedLeads = userLeads.filter(l => 
+          ['CERRADO_GANADO', 'CERRADO_PERDIDO'].includes(l.status)
+        ).length;
+        const leadsWon = userLeads.filter(l => l.status === 'CERRADO_GANADO').length;
+        const conversionRate = closedLeads > 0 
+          ? Math.round((leadsWon / closedLeads) * 100) 
+          : 0;
+
         return {
           user_id: profile.id,
           full_name: profile.full_name || profile.email.split('@')[0],
@@ -111,12 +144,20 @@ export function useTeamData(): UseTeamDataReturn {
           role: profile.role,
           is_active: profile.is_active,
           total_leads: userLeads.length,
-          leads_won: userLeads.filter(l => l.status === 'CERRADO_GANADO').length,
+          leads_won: leadsWon,
           leads_lost: userLeads.filter(l => l.status === 'CERRADO_PERDIDO').length,
           leads_this_week: leadsThisWeek,
           total_tasks: userTasks.length,
           tasks_completed: userTasks.filter(t => t.is_completed).length,
-          last_activity: lastActivity
+          last_activity: lastActivity,
+          // New advanced metrics
+          hot_leads: hotLeads,
+          warm_leads: warmLeads,
+          cold_leads: coldLeads,
+          active_leads: activeLeads,
+          conversion_rate: conversionRate,
+          avg_follow_ups: avgFollowUps,
+          total_follow_ups: totalFollowUps
         };
       });
 
@@ -165,7 +206,7 @@ export function useTeamData(): UseTeamDataReturn {
   }, [fetchTeamData]);
 
   // Get specific asesor's leads
-  const getAsesorLeads = async (userId: string): Promise<Lead[]> => {
+  const getAsesorLeads = useCallback(async (userId: string): Promise<Lead[]> => {
     if (!canViewTeam) return [];
 
     const { data, error } = await supabase
@@ -199,10 +240,10 @@ export function useTeamData(): UseTeamDataReturn {
         qualifiedAt: lead.qualified_at
       } : undefined
     }));
-  };
+  }, [canViewTeam]);
 
   // Get specific asesor's tasks
-  const getAsesorTasks = async (userId: string): Promise<ScheduledTask[]> => {
+  const getAsesorTasks = useCallback(async (userId: string): Promise<ScheduledTask[]> => {
     if (!canViewTeam) return [];
 
     const { data, error } = await supabase
@@ -217,10 +258,10 @@ export function useTeamData(): UseTeamDataReturn {
     }
 
     return data || [];
-  };
+  }, [canViewTeam]);
 
   // Get asesor's activity summary
-  const getAsesorActivity = async (userId: string, days = 30): Promise<DailyActivitySummary[]> => {
+  const getAsesorActivity = useCallback(async (userId: string, days = 30): Promise<DailyActivitySummary[]> => {
     if (!canViewTeam) return [];
 
     const startDate = new Date();
@@ -267,7 +308,7 @@ export function useTeamData(): UseTeamDataReturn {
     return Object.values(byDate).sort((a, b) => 
       b.activity_date.localeCompare(a.activity_date)
     );
-  };
+  }, [canViewTeam]);
 
   return {
     teamMembers,
