@@ -1,11 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { User, Mail, Bell, Volume2, MessageSquare, Save, Check } from 'lucide-react';
+import { User, Mail, Bell, Volume2, MessageSquare, Save, Check, Send } from 'lucide-react';
 import { getUserProfile, saveUserProfile, type UserProfile } from '../services/userProfile';
+import { sendTelegramAlert, getTelegramBotLink } from '../services/telegramService';
+
+// Telegram icon component
+const TelegramIcon = ({ size = 18, className = "" }: { size?: number; className?: string }) => (
+  <svg viewBox="0 0 24 24" width={size} height={size} className={className} fill="currentColor">
+    <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
+  </svg>
+);
 
 const UserProfileSettings: React.FC = () => {
   const [profile, setProfile] = useState<UserProfile>(getUserProfile());
   const [saved, setSaved] = useState(false);
-  const [testSent, setTestSent] = useState(false);
+  const [telegramTestSent, setTelegramTestSent] = useState(false);
+  const [telegramTesting, setTelegramTesting] = useState(false);
 
   useEffect(() => {
     setProfile(getUserProfile());
@@ -17,20 +26,25 @@ const UserProfileSettings: React.FC = () => {
     setTimeout(() => setSaved(false), 2000);
   };
 
-  const handleTestWhatsApp = () => {
-    if (!profile.whatsappNumber) {
-      alert('Por favor ingresa tu número de WhatsApp primero');
+  const handleTestTelegram = async () => {
+    if (!profile.telegramChatId) {
+      alert('Por favor ingresa tu ID de Telegram primero');
       return;
     }
     
-    const formattedPhone = profile.whatsappNumber.replace(/[^\d]/g, '');
-    const testMessage = encodeURIComponent(
-      `*CRM ALVEARE* - Prueba de Alertas\n\nTu configuracion de WhatsApp funciona correctamente!\n\nAhora recibiras alertas de:\n- Llamadas programadas\n- Mensajes de WhatsApp\n- Emails pendientes\n- Visitas/Citas\n- Otras tareas\n\nListo para aumentar tu productividad!`
+    setTelegramTesting(true);
+    const success = await sendTelegramAlert(
+      profile.telegramChatId,
+      `✅ <b>Prueba exitosa!</b>\n\nTu configuración de Telegram está funcionando.\n\nRecibirás alertas de:\n• Llamadas programadas\n• Visitas con clientes\n• Tareas pendientes`
     );
     
-    window.open(`https://wa.me/${formattedPhone}?text=${testMessage}`, '_blank');
-    setTestSent(true);
-    setTimeout(() => setTestSent(false), 3000);
+    setTelegramTesting(false);
+    if (success) {
+      setTelegramTestSent(true);
+      setTimeout(() => setTelegramTestSent(false), 3000);
+    } else {
+      alert('Error al enviar. Verifica que el ID sea correcto y hayas iniciado el bot.');
+    }
   };
 
   return (
@@ -61,35 +75,63 @@ const UserProfileSettings: React.FC = () => {
           />
         </div>
 
-        {/* WhatsApp Number */}
+        {/* Telegram ID - Primary */}
         <div>
           <label className="text-sm text-gray-400 mb-2 flex items-center gap-2">
-            <MessageSquare size={14} className="text-green-400" />
-            Número de WhatsApp (para alertas)
+            <TelegramIcon size={14} className="text-sky-400" />
+            Telegram ID ⭐ (Recomendado - Gratis)
           </label>
           <div className="flex gap-2">
             <input
-              type="tel"
-              value={profile.whatsappNumber}
-              onChange={(e) => setProfile(prev => ({ ...prev, whatsappNumber: e.target.value }))}
-              placeholder="+1 809 555 1234"
+              type="text"
+              value={profile.telegramChatId}
+              onChange={(e) => setProfile(prev => ({ ...prev, telegramChatId: e.target.value }))}
+              placeholder="Tu ID de Telegram"
               className="flex-1 bg-nexus-base border border-white/10 rounded-lg p-3 text-white focus:outline-none focus:border-nexus-accent"
             />
             <button
-              onClick={handleTestWhatsApp}
+              onClick={handleTestTelegram}
+              disabled={telegramTesting}
               className={`px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2 ${
-                testSent 
+                telegramTestSent 
                   ? 'bg-green-500 text-white' 
-                  : 'bg-green-500/20 text-green-400 hover:bg-green-500/30'
-              }`}
+                  : 'bg-sky-500/20 text-sky-400 hover:bg-sky-500/30'
+              } disabled:opacity-50`}
             >
-              {testSent ? <Check size={16} /> : <MessageSquare size={16} />}
-              {testSent ? '¡Enviado!' : 'Probar'}
+              {telegramTesting ? (
+                <span className="animate-spin">⏳</span>
+              ) : telegramTestSent ? (
+                <Check size={16} />
+              ) : (
+                <Send size={16} />
+              )}
+              {telegramTestSent ? '¡Enviado!' : 'Probar'}
             </button>
           </div>
-          <p className="text-xs text-gray-600 mt-1">
-            Incluye el código de país (ej: +1 809 para RD, +1 para USA)
-          </p>
+          <div className="mt-2 p-3 bg-sky-500/10 rounded-lg border border-sky-500/20">
+            <p className="text-xs text-sky-300 mb-2">📱 ¿Cómo obtener tu ID?</p>
+            <ol className="text-xs text-gray-400 space-y-1 list-decimal list-inside">
+              <li>Abre Telegram y busca <a href={getTelegramBotLink()} target="_blank" rel="noopener noreferrer" className="text-sky-400 hover:underline">@alveare_crm_bot</a></li>
+              <li>Presiona <strong className="text-white">Start</strong> o envía /start</li>
+              <li>El bot te dará tu ID - cópialo aquí</li>
+            </ol>
+          </div>
+        </div>
+
+        {/* WhatsApp Number - Coming Soon */}
+        <div className="opacity-50">
+          <label className="text-sm text-gray-400 mb-2 flex items-center gap-2">
+            <MessageSquare size={14} className="text-green-400" />
+            WhatsApp (Próximamente)
+          </label>
+          <input
+            type="tel"
+            value={profile.whatsappNumber}
+            onChange={(e) => setProfile(prev => ({ ...prev, whatsappNumber: e.target.value }))}
+            placeholder="+1 809 555 1234"
+            className="w-full bg-nexus-base border border-white/10 rounded-lg p-3 text-white"
+            disabled
+          />
         </div>
 
         {/* Email */}
@@ -115,20 +157,20 @@ const UserProfileSettings: React.FC = () => {
           </h3>
           
           <div className="space-y-3">
-            {/* WhatsApp Alerts */}
-            <label className="flex items-center justify-between p-3 bg-nexus-base rounded-lg cursor-pointer hover:bg-nexus-base/80 transition-colors">
+            {/* Telegram Alerts - Recommended */}
+            <label className="flex items-center justify-between p-3 bg-sky-500/10 border border-sky-500/20 rounded-lg cursor-pointer hover:bg-sky-500/20 transition-colors">
               <div className="flex items-center gap-3">
-                <MessageSquare size={18} className="text-green-400" />
+                <TelegramIcon size={18} className="text-sky-400" />
                 <div>
-                  <p className="text-white text-sm">Alertas por WhatsApp</p>
-                  <p className="text-gray-500 text-xs">Recibe recordatorios en tu WhatsApp</p>
+                  <p className="text-white text-sm">Alertas por Telegram ⭐</p>
+                  <p className="text-gray-500 text-xs">Recibe recordatorios automáticos (Gratis)</p>
                 </div>
               </div>
               <input
                 type="checkbox"
-                checked={profile.enableWhatsAppAlerts}
-                onChange={(e) => setProfile(prev => ({ ...prev, enableWhatsAppAlerts: e.target.checked }))}
-                className="w-5 h-5 rounded accent-nexus-accent"
+                checked={profile.enableTelegramAlerts}
+                onChange={(e) => setProfile(prev => ({ ...prev, enableTelegramAlerts: e.target.checked }))}
+                className="w-5 h-5 rounded accent-sky-400"
               />
             </label>
 

@@ -4,9 +4,11 @@ export interface UserProfile {
   id: string;
   fullName: string;
   whatsappNumber: string;
+  telegramChatId: string;
   email: string;
   defaultAlertTime: number; // Minutes before task (15, 30, 60, 120)
   enableWhatsAppAlerts: boolean;
+  enableTelegramAlerts: boolean;
   enableSoundAlerts: boolean;
   enableBrowserNotifications: boolean;
 }
@@ -17,9 +19,11 @@ const defaultProfile: UserProfile = {
   id: 'default',
   fullName: '',
   whatsappNumber: '',
+  telegramChatId: '',
   email: '',
   defaultAlertTime: 15,
-  enableWhatsAppAlerts: true,
+  enableWhatsAppAlerts: false,
+  enableTelegramAlerts: true,
   enableSoundAlerts: true,
   enableBrowserNotifications: true,
 };

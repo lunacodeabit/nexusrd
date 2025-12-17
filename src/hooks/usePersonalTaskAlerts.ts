@@ -1,6 +1,7 @@
 import { useEffect, useCallback, useRef } from 'react';
 import { usePersonalTasks } from './usePersonalTasks';
 import { getUserProfile } from '../services/userProfile';
+import { sendTelegramAlert, formatAlertMessage } from '../services/telegramService';
 
 /**
  * Hook que monitorea las tareas personales y dispara alertas
@@ -129,9 +130,20 @@ export function usePersonalTaskAlerts() {
           );
         }
         
-        // Send WhatsApp alert if enabled
+        // Send WhatsApp alert if enabled (opens link - requires user action)
         if (profile.enableWhatsAppAlerts && profile.whatsappNumber) {
           sendWhatsAppAlert(task.title, task.scheduled_time, task.alert_minutes_before);
+        }
+        
+        // Send Telegram alert if enabled (automatic!)
+        if (profile.enableTelegramAlerts && profile.telegramChatId) {
+          const message = formatAlertMessage(
+            task.title, 
+            task.scheduled_time, 
+            task.alert_minutes_before,
+            task.category
+          );
+          sendTelegramAlert(profile.telegramChatId, message);
         }
       }
     }
