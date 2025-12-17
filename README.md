@@ -4,6 +4,22 @@
 
 Sistema de gestión de relaciones con clientes diseñado específicamente para agentes inmobiliarios, con enfoque en el mercado dominicano. Aplicación PWA instalable en dispositivos móviles.
 
+🌐 **Demo en vivo:** https://alvearecrm.netlify.app
+
+---
+
+## 🆕 Novedades (17 Dic 2025)
+
+### ✅ Alertas Telegram 24/7
+- Las alertas ahora funcionan **sin necesidad de tener el navegador abierto**
+- El servidor revisa cada minuto y envía notificaciones a Telegram
+- Configura tu Chat ID en Configuración → Perfil
+
+### ✅ Datos en la Nube
+- El perfil y las tareas personales ahora se guardan en Supabase
+- **Ya no se pierden al cerrar el navegador**
+- Sincronización automática entre dispositivos
+
 ---
 
 ## 🛠 Tech Stack
@@ -11,7 +27,8 @@ Sistema de gestión de relaciones con clientes diseñado específicamente para a
 - **Frontend:** React 19 + TypeScript + Vite 7.3
 - **Styling:** Tailwind CSS
 - **Backend:** Supabase (Auth, Database, Storage)
-- **State:** Local Storage + React State
+- **Hosting:** Netlify (con Scheduled Functions)
+- **Alertas:** Telegram Bot API
 - **PWA:** Service Worker + Web App Manifest
 
 ---
@@ -37,11 +54,13 @@ Sistema de gestión de relaciones con clientes diseñado específicamente para a
 ### Sistema de Seguimiento (Follow-up Tracker)
 - [x] Programación de tareas (Llamada, WhatsApp, Email, Visita, Otro)
 - [x] Selector de tiempo de alerta (15min, 30min, 1h, 2h)
+- [x] **Alertas Telegram 24/7** - Funcionan sin navegador abierto 🆕
 - [x] **Alertas WhatsApp** - Notificaciones automáticas al teléfono
 - [x] Alertas de sonido en navegador
 - [x] Notificaciones push del sistema
 - [x] Edición de tareas programadas
 - [x] Sistema de alertas global (funciona en cualquier vista)
+- [x] **Mi Planner Personal** - Tareas guardadas en Supabase 🆕
 
 ### Marketing
 - [x] Gestión de campañas de marketing
@@ -54,9 +73,11 @@ Sistema de gestión de relaciones con clientes diseñado específicamente para a
 - [x] Estados de captación (Pendiente, Contactado, En Negociación, Captado, Descartado)
 
 ### Configuraciones
-- [x] **Perfil de Usuario** - Configuración personal
+- [x] **Perfil de Usuario** - Configuración guardada en Supabase 🆕
+- [x] **Telegram Chat ID** - Para alertas 24/7 🆕
 - [x] Número de WhatsApp para alertas
-- [x] Preferencias de notificaciones (sonido, browser, WhatsApp)
+- [x] Preferencias de notificaciones (sonido, browser, Telegram, WhatsApp)
+- [x] Test de conexión Telegram 🆕
 - [x] Test de conexión WhatsApp
 - [x] **Cerrar Sesión**
 
@@ -86,18 +107,27 @@ Sistema de gestión de relaciones con clientes diseñado específicamente para a
 - [x] Vista Kanban con drag & drop (desktop)
 - [x] Sistema de tareas programadas con alertas
 - [x] Alertas WhatsApp automáticas
+- [x] **Alertas Telegram 24/7 (servidor)** 🆕
+- [x] **Mi Planner Personal con alertas** 🆕
 - [x] Agenda Hoy en Dashboard
-- [x] Perfil de usuario y configuraciones
+- [x] **Perfil de usuario guardado en Supabase** 🆕
 - [x] Edición de tareas desde cualquier vista
 - [x] PWA instalable
 - [x] Diseño mobile-first responsive
 - [x] Cerrar sesión
 
-### Fase 3 - Inteligencia (Próxima)
+### Fase 3 - Inteligencia (En Progreso)
+- [x] **Datos persistentes en la nube** 🆕
 - [ ] Lead scoring avanzado con ML
 - [ ] Predicción de probabilidad de cierre
 - [ ] Recomendaciones automáticas de siguiente acción
 - [ ] Análisis de sentimiento en notas
+
+### Fase 4 - Alertas Completas (Próxima)
+- [ ] Alertas de follow-ups de leads en servidor
+- [ ] Alertas de visitas programadas en servidor
+- [ ] Notificación de nuevos leads por Telegram
+- [ ] Resumen diario matutino por Telegram
 - [ ] Métricas de actividad personal (score de disciplina)
 - [ ] Metas configurables por usuario
 
