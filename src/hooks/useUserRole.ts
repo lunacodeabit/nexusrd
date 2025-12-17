@@ -9,7 +9,10 @@ interface UseUserRoleReturn {
   isLoading: boolean;
   isSupervisor: boolean;
   isAdmin: boolean;
+  isAsesor: boolean;
   canViewTeam: boolean;
+  canManageUsers: boolean;
+  canViewSettings: boolean;
   refetch: () => Promise<void>;
 }
 
@@ -53,7 +56,19 @@ export function useUserRole(): UseUserRoleReturn {
           throw error;
         }
       } else {
-        setProfile(data);
+        // Si el perfil existe pero el nombre está vacío, actualizarlo con los datos del registro
+        if (data && (!data.full_name || data.full_name === user.email?.split('@')[0]) && user.user_metadata?.full_name) {
+          const { data: updatedProfile } = await supabase
+            .from('user_profiles')
+            .update({ full_name: user.user_metadata.full_name })
+            .eq('id', user.id)
+            .select()
+            .single();
+          
+          setProfile(updatedProfile || data);
+        } else {
+          setProfile(data);
+        }
       }
     } catch (error) {
       console.error('Error fetching user profile:', error);
@@ -70,7 +85,10 @@ export function useUserRole(): UseUserRoleReturn {
   const role = profile?.role ?? null;
   const isSupervisor = role === 'supervisor';
   const isAdmin = role === 'admin';
+  const isAsesor = role === 'asesor';
   const canViewTeam = isSupervisor || isAdmin;
+  const canManageUsers = isSupervisor || isAdmin;
+  const canViewSettings = isSupervisor || isAdmin;
 
   return {
     profile,
@@ -78,7 +96,10 @@ export function useUserRole(): UseUserRoleReturn {
     isLoading,
     isSupervisor,
     isAdmin,
+    isAsesor,
+    canManageUsers,
     canViewTeam,
+    canViewSettings,
     refetch: fetchProfile
   };
 }

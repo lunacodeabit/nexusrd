@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { Database, GitBranch, Terminal, Webhook, Copy, Check } from 'lucide-react';
 import UserProfileSettings from './UserProfileSettings';
+import { useUserRole } from '../hooks/useUserRole';
 
 const ArchitectureInfo: React.FC = () => {
   const [copied, setCopied] = useState<string | null>(null);
+  const { canViewSettings } = useUserRole();
   
   const WEBHOOK_URL = 'https://n8n.srv806559.hstgr.cloud/webhook/nexus-lead';
   
@@ -15,11 +17,14 @@ const ArchitectureInfo: React.FC = () => {
 
   return (
     <div className="space-y-8 pb-20 max-w-4xl mx-auto">
-      {/* User Profile Settings */}
+      {/* User Profile Settings - Visible para TODOS */}
       <UserProfileSettings />
 
-      {/* Webhook Integration Card */}
-      <div className="bg-gradient-to-r from-green-500/10 to-emerald-500/10 p-6 rounded-xl border border-green-500/30">
+      {/* Webhook y Configuración técnica - Solo supervisores/admins */}
+      {canViewSettings && (
+        <>
+          {/* Webhook Integration Card */}
+          <div className="bg-gradient-to-r from-green-500/10 to-emerald-500/10 p-6 rounded-xl border border-green-500/30">
         <div className="flex items-center gap-3 mb-4">
           <div className="p-3 bg-green-500/20 rounded-lg">
             <Webhook className="text-green-400" size={24} />
@@ -157,6 +162,8 @@ Requisitos:
           </div>
         </section>
       </div>
+      </>
+      )}
     </div>
   );
 };

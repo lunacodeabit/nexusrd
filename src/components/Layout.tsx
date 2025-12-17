@@ -20,11 +20,12 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: Home },
     { id: 'leads', label: 'Leads Flow', icon: Users },
-    { id: 'automations', label: 'Auto', icon: Zap },
     { id: 'activities', label: 'Marketing', icon: ClipboardList },
     { id: 'inventory', label: 'Captaciones', icon: Building },
     { id: 'analytics', label: 'Métricas', icon: BarChart3 },
-    { id: 'architecture', label: 'Configuraciones', icon: Settings },
+    { id: 'automations', label: 'Auto', icon: Zap },
+    // Mi Perfil visible para todos (el contenido técnico se oculta dentro del componente)
+    { id: 'architecture', label: 'Mi Perfil', icon: Settings },
     // SuperAdmin only visible for supervisors/admins
     ...(canViewTeam ? [{ id: 'superadmin', label: 'SuperAdmin', icon: Shield }] : []),
   ];

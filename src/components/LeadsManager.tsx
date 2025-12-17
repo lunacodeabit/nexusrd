@@ -7,7 +7,6 @@ import LeadForm from './LeadForm';
 import LeadDetail from './LeadDetail';
 import { getScoreColor, getScoreEmoji, type LeadScore } from '../services/leadScoring';
 import type { LeadFollowUp } from '../types/activities';
-import { notificationSound } from '../services/notificationSound';
 
 // Configuración de columnas del Kanban
 const KANBAN_COLUMNS = [
@@ -45,39 +44,6 @@ const LeadsManager: React.FC<LeadsManagerProps> = ({ leads, addLead, updateLeadS
   };
 
   const scheduledTasks = useMemo(() => getScheduledTasks(), [leads]);
-
-  // ---------------------------------------------------------------------------
-  // WEBHOOK SIMULATION (Critical Requirement)
-  // ---------------------------------------------------------------------------
-  const simulateIncomingWebhook = () => {
-    const newLead: Lead = {
-      id: `l-${Date.now()}`,
-      name: 'Simulated Lead API',
-      email: 'api.lead@portal.com',
-      phone: '+34 600 000 000',
-      source: 'Webhook API',
-      status: LeadStatus.NEW,
-      budget: 0,
-      interestArea: 'Unknown',
-      createdAt: new Date().toISOString(),
-      nextFollowUpDate: new Date().toISOString(),
-      notes: 'Ingresado automáticamente via API v1 Endpoint'
-    };
-    addLead(newLead);
-    
-    // Play notification sound
-    notificationSound.playUrgent();
-    
-    // Show notification if available
-    if ('Notification' in window && Notification.permission === 'granted') {
-      new Notification('⚡ NEXUS CRM', {
-        body: 'Nuevo lead recibido via Webhook API',
-        icon: '/icons/icon.svg'
-      });
-    } else {
-      alert('⚡ WEBHOOK RECIBIDO: Lead inyectado automáticamente en la base de datos.');
-    }
-  };
 
   // Filtered leads with search
   const filteredLeads = useMemo(() => {
@@ -210,18 +176,11 @@ const LeadsManager: React.FC<LeadsManagerProps> = ({ leads, addLead, updateLeadS
               </button>
             </div>
             <button 
-                onClick={simulateIncomingWebhook}
-                className="flex items-center gap-2 bg-nexus-surface border border-nexus-accent text-nexus-accent px-4 py-2 rounded hover:bg-nexus-accent hover:text-nexus-base transition-colors text-sm"
-            >
-                <Plus size={16} />
-                <span className="hidden sm:inline">Simular Webhook</span>
-            </button>
-            <button 
                 onClick={() => setIsFormOpen(true)}
                 className="flex items-center gap-2 bg-nexus-accent text-nexus-base px-4 py-2 rounded font-bold hover:opacity-90 transition-opacity text-sm"
             >
                 <Plus size={16} />
-                Manual
+                Crear
             </button>
         </div>
       </div>

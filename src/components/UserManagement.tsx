@@ -16,7 +16,7 @@ import { useUserRole } from '../hooks/useUserRole';
 import type { UserProfile, UserRole } from '../types';
 
 export default function UserManagement() {
-  const { isAdmin, profile: currentUser } = useUserRole();
+  const { isAdmin, isSupervisor, canManageUsers, profile: currentUser } = useUserRole();
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -50,8 +50,21 @@ export default function UserManagement() {
   }, []);
 
   const updateUserRole = async (userId: string, newRole: UserRole) => {
-    if (!isAdmin) {
-      setError('Solo los administradores pueden cambiar roles');
+    if (!canManageUsers) {
+      setError('No tienes permisos para cambiar roles');
+      return;
+    }
+
+    // Supervisores solo pueden asignar rol de asesor
+    if (isSupervisor && !isAdmin && (newRole === 'supervisor' || newRole === 'admin')) {
+      setError('Solo los administradores pueden crear supervisores o admins');
+      return;
+    }
+
+    // No permitir que supervisores modifiquen a otros supervisores o admins
+    const targetUser = users.find(u => u.id === userId);
+    if (isSupervisor && !isAdmin && targetUser && (targetUser.role === 'supervisor' || targetUser.role === 'admin')) {
+      setError('No puedes modificar el rol de supervisores o administradores');
       return;
     }
 
@@ -90,8 +103,15 @@ export default function UserManagement() {
   };
 
   const toggleUserActive = async (userId: string, isActive: boolean) => {
-    if (!isAdmin) {
-      setError('Solo los administradores pueden activar/desactivar usuarios');
+    if (!canManageUsers) {
+      setError('No tienes permisos para activar/desactivar usuarios');
+      return;
+    }
+
+    // Supervisores no pueden desactivar otros supervisores o admins
+    const targetUser = users.find(u => u.id === userId);
+    if (isSupervisor && !isAdmin && targetUser && (targetUser.role === 'supervisor' || targetUser.role === 'admin')) {
+      setError('No puedes desactivar supervisores o administradores');
       return;
     }
 
@@ -157,12 +177,12 @@ export default function UserManagement() {
     }
   };
 
-  if (!isAdmin) {
+  if (!canManageUsers) {
     return (
       <div className="text-center py-12">
         <ShieldAlert className="w-16 h-16 mx-auto text-red-400 mb-4" />
         <h2 className="text-xl font-semibold text-white mb-2">Acceso Denegado</h2>
-        <p className="text-gray-400">Solo los administradores pueden gestionar usuarios.</p>
+        <p className="text-gray-400">Solo administradores y supervisores pueden gestionar usuarios.</p>
       </div>
     );
   }
@@ -296,16 +316,24 @@ export default function UserManagement() {
 
               {/* Role Selector */}
               <div className="flex items-center gap-2">
-                <select
-                  value={user.role}
-                  onChange={(e) => updateUserRole(user.id, e.target.value as UserRole)}
-                  disabled={updating === user.id || user.id === currentUser?.id}
-                  className={`bg-nexus-base border border-gray-700 rounded-lg px-3 py-2 text-sm ${getRoleColor(user.role).split(' ')[0]} focus:outline-none focus:border-nexus-accent disabled:opacity-50 disabled:cursor-not-allowed`}
-                >
-                  <option value="asesor">Asesor</option>
-                  <option value="supervisor">Supervisor</option>
-                  <option value="admin">Admin</option>
-                </select>
+                {/* Supervisores no pueden editar a otros supervisores/admins */}
+                {isSupervisor && !isAdmin && (user.role === 'supervisor' || user.role === 'admin') ? (
+                  <span className={`px-3 py-2 rounded-lg text-sm ${getRoleColor(user.role)}`}>
+                    {getRoleLabel(user.role)}
+                  </span>
+                ) : (
+                  <select
+                    value={user.role}
+                    onChange={(e) => updateUserRole(user.id, e.target.value as UserRole)}
+                    disabled={updating === user.id || user.id === currentUser?.id}
+                    className={`bg-nexus-base border border-gray-700 rounded-lg px-3 py-2 text-sm ${getRoleColor(user.role).split(' ')[0]} focus:outline-none focus:border-nexus-accent disabled:opacity-50 disabled:cursor-not-allowed`}
+                  >
+                    <option value="asesor">Asesor</option>
+                    {/* Solo admins pueden asignar supervisor o admin */}
+                    {isAdmin && <option value="supervisor">Supervisor</option>}
+                    {isAdmin && <option value="admin">Admin</option>}
+                  </select>
+                )}
 
                 {/* Active Toggle */}
                 {user.id !== currentUser?.id && (
@@ -334,17 +362,22 @@ export default function UserManagement() {
         <ul className="space-y-1">
           <li className="flex items-center gap-2">
             <Crown className="w-4 h-4 text-purple-400" />
-            <span><strong className="text-purple-400">Admin:</strong> Control total + gestión de usuarios</span>
+            <span><strong className="text-purple-400">Admin:</strong> Control total + crear supervisores y admins</span>
           </li>
           <li className="flex items-center gap-2">
             <ShieldCheck className="w-4 h-4 text-blue-400" />
-            <span><strong className="text-blue-400">Supervisor:</strong> Ve métricas de todo el equipo</span>
+            <span><strong className="text-blue-400">Supervisor:</strong> Ve todo el equipo + gestiona asesores</span>
           </li>
           <li className="flex items-center gap-2">
             <Users className="w-4 h-4 text-gray-400" />
             <span><strong className="text-gray-400">Asesor:</strong> Solo ve sus propios datos</span>
           </li>
         </ul>
+        {isSupervisor && !isAdmin && (
+          <p className="mt-3 text-amber-400/80 text-xs">
+            ⚠️ Como supervisor, puedes gestionar asesores pero no crear otros supervisores o admins.
+          </p>
+        )}
       </div>
     </div>
   );

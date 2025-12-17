@@ -95,7 +95,7 @@ const LeadForm: React.FC<LeadFormProps> = ({ onSave, onCancel }) => {
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm text-gray-400 mb-1">Email</label>
           <input
@@ -119,7 +119,7 @@ const LeadForm: React.FC<LeadFormProps> = ({ onSave, onCancel }) => {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm text-gray-400 mb-1">Fuente</label>
           <select
@@ -135,11 +135,11 @@ const LeadForm: React.FC<LeadFormProps> = ({ onSave, onCancel }) => {
         </div>
         <div>
           <label className="block text-sm text-gray-400 mb-1">Presupuesto</label>
-          <div className="flex gap-2">
+          <div className="flex gap-1 sm:gap-2">
             <select
               value={formData.currency}
               onChange={(e) => setFormData({ ...formData, currency: e.target.value as Currency })}
-              className="bg-nexus-base border border-white/10 rounded-lg px-3 py-2 text-nexus-accent font-bold focus:outline-none focus:border-nexus-accent"
+              className="bg-nexus-base border border-white/10 rounded-lg px-2 py-2 text-nexus-accent font-bold focus:outline-none focus:border-nexus-accent text-sm flex-shrink-0"
             >
               <option value="USD">US$</option>
               <option value="RD$">RD$</option>
@@ -151,7 +151,7 @@ const LeadForm: React.FC<LeadFormProps> = ({ onSave, onCancel }) => {
               value={formData.budgetDisplay}
               onChange={handleBudgetChange}
               onFocus={handleBudgetFocus}
-              className="flex-1 bg-nexus-base border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-nexus-accent text-right"
+              className="min-w-0 flex-1 bg-nexus-base border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-nexus-accent text-right"
               placeholder="250,000"
             />
           </div>
