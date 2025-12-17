@@ -27,6 +27,7 @@ const LEGACY_STORAGE_KEY = 'nexus_user_profile';
 // Get user profile from Supabase
 export const getUserProfileFromSupabase = async (userId: string): Promise<UserProfile | null> => {
   try {
+    console.log('📥 Fetching profile for user:', userId);
     const { data, error } = await supabase
       .from('user_profiles')
       .select('*')
@@ -34,13 +35,14 @@ export const getUserProfileFromSupabase = async (userId: string): Promise<UserPr
       .single();
     
     if (error) {
-      console.error('Error fetching profile:', error);
+      console.error('❌ Error fetching profile:', error);
       return null;
     }
     
+    console.log('✅ Profile loaded:', data);
     return data;
   } catch (error) {
-    console.error('Error in getUserProfileFromSupabase:', error);
+    console.error('❌ Error in getUserProfileFromSupabase:', error);
     return null;
   }
 };
@@ -51,6 +53,7 @@ export const saveUserProfileToSupabase = async (
   profile: Partial<UserProfile>
 ): Promise<UserProfile | null> => {
   try {
+    console.log('💾 Saving profile for user:', userId, profile);
     const { data, error } = await supabase
       .from('user_profiles')
       .update({
@@ -62,13 +65,14 @@ export const saveUserProfileToSupabase = async (
       .single();
     
     if (error) {
-      console.error('Error saving profile:', error);
+      console.error('❌ Error saving profile:', error);
       return null;
     }
     
+    console.log('✅ Profile saved:', data);
     return data;
   } catch (error) {
-    console.error('Error in saveUserProfileToSupabase:', error);
+    console.error('❌ Error in saveUserProfileToSupabase:', error);
     return null;
   }
 };

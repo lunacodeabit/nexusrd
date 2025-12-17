@@ -106,9 +106,13 @@ export function usePersonalTaskAlerts() {
 
   // Check for upcoming tasks
   const checkAlerts = useCallback(() => {
-    if (!userProfile) return;
+    if (!userProfile) {
+      console.log('⏰ Alert check: No user profile loaded yet');
+      return;
+    }
     
     const now = new Date();
+    console.log(`⏰ Checking alerts at ${now.toLocaleTimeString()}, Tasks today: ${todaysTasks.length}`);
     
     for (const task of todaysTasks) {
       // Skip if no time set, already completed, or already alerted
@@ -121,14 +125,23 @@ export function usePersonalTaskAlerts() {
       const taskTime = new Date();
       taskTime.setHours(hours, minutes, 0, 0);
 
-      // Calculate alert time
+      // Calculate alert time (when to send the alert)
       const alertTime = new Date(taskTime.getTime() - task.alert_minutes_before * 60 * 1000);
 
       // Check if it's time to alert
       const timeDiff = alertTime.getTime() - now.getTime();
+      const minutesUntilAlert = Math.round(timeDiff / 60000);
       
-      // Alert if within 1 minute window
-      if (timeDiff <= 60000 && timeDiff > -60000) {
+      console.log(`📋 Task "${task.title}": scheduled ${task.scheduled_time}, alert at ${alertTime.toLocaleTimeString()}, minutes until alert: ${minutesUntilAlert}`);
+      
+      // Alert if:
+      // - Up to 2 minutes BEFORE alert time (early trigger)
+      // - OR up to 30 minutes AFTER alert time (catch missed alerts)
+      // This ensures alerts are sent even if page wasn't open at exact time
+      const shouldAlert = timeDiff <= 120000 && timeDiff > -1800000; // 2 min before to 30 min after
+      
+      if (shouldAlert) {
+        console.log(`🔔 TRIGGERING ALERT for: ${task.title}`);
         alertedTasks.current.add(task.id);
         markAlertSent(task.id);
         
@@ -153,6 +166,7 @@ export function usePersonalTaskAlerts() {
         
         // Send Telegram alert if enabled (automatic!)
         if (userProfile.enable_telegram_alerts && userProfile.telegram_chat_id) {
+          console.log(`📱 Sending Telegram to ${userProfile.telegram_chat_id}`);
           const message = formatAlertMessage(
             task.title, 
             task.scheduled_time, 
@@ -160,6 +174,8 @@ export function usePersonalTaskAlerts() {
             task.category
           );
           sendTelegramAlert(userProfile.telegram_chat_id, message);
+        } else {
+          console.log(`📱 Telegram NOT sent: enabled=${userProfile.enable_telegram_alerts}, chatId=${userProfile.telegram_chat_id}`);
         }
       }
     }
@@ -172,10 +188,11 @@ export function usePersonalTaskAlerts() {
     }
   }, []);
 
-  // Check every minute
+  // Check every 30 seconds for better precision
   useEffect(() => {
+    console.log('⏰ Alert system initialized');
     checkAlerts(); // Initial check
-    const interval = setInterval(checkAlerts, 60000); // Every minute
+    const interval = setInterval(checkAlerts, 30000); // Every 30 seconds
     return () => clearInterval(interval);
   }, [checkAlerts]);
 

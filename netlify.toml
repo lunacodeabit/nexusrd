@@ -5,6 +5,10 @@
 [functions]
   directory = "netlify/functions"
 
+# Scheduled function - runs every minute to check for alerts
+[functions."scheduled-alerts"]
+  schedule = "* * * * *"
+
 [[redirects]]
   from = "/*"
   to = "/index.html"
