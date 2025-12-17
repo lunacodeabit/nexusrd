@@ -69,28 +69,42 @@ exports.handler = async (event, context) => {
     const currentHour = now.getHours();
     const currentMinute = now.getMinutes();
     
-    console.log(`Checking for alerts at ${currentHour}:${currentMinute} on ${today}`);
+    console.log(`🔔 Checking for alerts at ${currentHour}:${currentMinute} on ${today}`);
+    console.log(`Supabase URL: ${supabaseUrl ? 'SET' : 'MISSING'}`);
+    console.log(`Supabase Key: ${supabaseKey ? 'SET' : 'MISSING'}`);
 
-    // Get all tasks for today that haven't had alerts sent
+    // First, let's see ALL tasks for today (for debugging)
+    const { data: allTasks, error: allError } = await supabase
+      .from('personal_tasks')
+      .select('*')
+      .eq('scheduled_date', today);
+    
+    console.log(`📋 ALL tasks for today (${today}):`, JSON.stringify(allTasks, null, 2));
+    if (allError) console.log('All tasks error:', allError);
+
+    // Get tasks that need alerts
     const { data: tasks, error: tasksError } = await supabase
       .from('personal_tasks')
       .select('*')
       .eq('scheduled_date', today)
       .eq('is_completed', false)
-      .eq('alert_sent', false)
-      .not('scheduled_time', 'is', null)
-      .gt('alert_minutes_before', 0);
+      .eq('alert_sent', false);
 
     if (tasksError) {
       console.error('Error fetching tasks:', tasksError);
       return { statusCode: 500, body: JSON.stringify(tasksError) };
     }
 
-    console.log(`Found ${tasks?.length || 0} pending tasks with alerts`);
+    // Filter tasks that have alerts configured
+    const tasksWithAlerts = (tasks || []).filter(t => 
+      t.scheduled_time && t.alert_minutes_before && t.alert_minutes_before > 0
+    );
+
+    console.log(`📌 Tasks with alert config: ${tasksWithAlerts.length}`);
 
     let alertsSent = 0;
 
-    for (const task of tasks || []) {
+    for (const task of tasksWithAlerts) {
       // Parse task time
       const [taskHour, taskMinute] = task.scheduled_time.split(':').map(Number);
       
