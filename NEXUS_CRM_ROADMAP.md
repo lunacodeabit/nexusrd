@@ -1,10 +1,10 @@
-# 🏠 NEXUS CRM - Development Roadmap & Technical Log
+# 🏠 ALVEARE CRM - Development Roadmap & Technical Log
 
-> **Project:** NEXUS CRM - Real Estate Lead Management System  
+> **Project:** ALVEARE CRM - Real Estate Lead Management System  
 > **Owner:** Howard Luna  
 > **Start Date:** December 15, 2025  
-> **Last Updated:** December 15, 2025  
-> **Version:** 1.0.0-beta  
+> **Last Updated:** December 16, 2025  
+> **Version:** 2.0.0-beta  
 
 ---
 
@@ -426,6 +426,111 @@ NEXUSRD/
 
 ---
 
+## 🚀 LOGROS SESIÓN DEC 16, 2025
+
+### ✅ Completados Hoy
+
+| Feature | Descripción | Archivos |
+|---------|-------------|----------|
+| **Sistema de Automatizaciones** | Reglas configurables para seguimiento automático | `useAutomations.ts`, `useAutomationEngine.ts`, `AutomationsView.tsx` |
+| **Activity Logging** | Registro de llamadas, WhatsApp, emails, seguimientos | `useActivityLogger.ts`, integrado en `LeadDetail.tsx` |
+| **KPIs en Tiempo Real** | Dashboard conectado a `activity_logs` | `useTodayActivity.ts`, actualizado `Dashboard.tsx` |
+| **Notas Editables** | Historial de notas con timestamps | `LeadFollowUpTracker.tsx`, tipo `NoteEntry` |
+| **SuperAdmin Mejorado** | Métricas del equipo desde Supabase | `useTeamData.ts`, `SuperAdminDashboard.tsx` |
+| **SQL Migrations** | Esquemas organizados para Supabase | `004_automation_rules.sql`, `FULL_SCHEMA_CORRECTED.sql` |
+
+### 📁 Archivos Nuevos Creados
+```
+src/hooks/useAutomations.ts        - Hook para gestionar reglas de automatización
+src/hooks/useAutomationEngine.ts   - Motor que detecta leads inactivos
+src/hooks/useTodayActivity.ts      - Fetch de actividades de hoy para KPIs
+src/components/AutomationsView.tsx - UI completa de automatizaciones
+supabase/migrations/004_automation_rules.sql - SQL para tablas de automatización
+```
+
+### 🔧 Archivos Modificados
+```
+src/types.ts                       - +60 líneas: tipos de automatización
+src/App.tsx                        - Agregado AutomationsView
+src/components/Layout.tsx          - Nueva pestaña "Auto" con icono Zap
+src/components/Dashboard.tsx       - KPIs conectados a useTodayActivity
+src/components/LeadDetail.tsx      - Activity logging en botones Call/WhatsApp/Email
+src/hooks/useFollowUps.ts          - Logging en creación de follow-ups
+src/hooks/useLeads.ts              - Logging en creación/actualización de leads
+```
+
+---
+
+## ⏳ PENDIENTE PARA PRÓXIMA SESIÓN
+
+### Alta Prioridad
+| Feature | Descripción | Estimado |
+|---------|-------------|----------|
+| **Ejecutar SQL en Supabase** | Correr `004_automation_rules.sql` | 5 min |
+| **Meta Ads Webhook** | Leads de Facebook/Instagram automáticos | 2-3 horas |
+| **Dashboard ROI** | "Gastaste $X, generaste $Y en comisiones" | 2 horas |
+
+### Media Prioridad  
+| Feature | Descripción | Estimado |
+|---------|-------------|----------|
+| **WhatsApp Business API** | Mensajes automáticos reales | 3-4 horas |
+| **Notificaciones Push** | PWA push notifications | 2 horas |
+| **Calendario Integrado** | Vista de citas/visitas | 3 horas |
+
+### Baja Prioridad
+| Feature | Descripción | Estimado |
+|---------|-------------|----------|
+| **PDF Reports** | Exportar reportes en PDF | 2 horas |
+| **Multi-idioma** | Inglés/Español | 3 horas |
+| **Temas Dark/Light** | Toggle de tema | 1 hora |
+
+---
+
+## 🗄️ ESTADO DE SUPABASE
+
+### Tablas Existentes
+- ✅ `leads` - Leads con score, status, etc.
+- ✅ `follow_ups` - Seguimientos S1-S12
+- ✅ `user_profiles` - Perfiles con roles
+- ✅ `activity_logs` - Registro de actividades
+- ✅ `scheduled_tasks` - Tareas programadas
+- ✅ `captaciones` - Propiedades captadas
+
+### Tablas Pendientes (SQL ya creado)
+- ⏳ `automation_rules` - Reglas de automatización
+- ⏳ `automation_executions` - Historial de ejecuciones
+
+### URL y Keys
+```
+Supabase Project: lldhpidjcjyjldhpbjql
+URL: https://lldhpidjcjyjldhpbjql.supabase.co
+Anon Key: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+---
+
+## 🎯 CÓMO CONTINUAR
+
+### Paso 1: Ejecutar SQL pendiente
+```sql
+-- En Supabase SQL Editor, ejecutar:
+-- supabase/migrations/004_automation_rules.sql
+```
+
+### Paso 2: Probar Automatizaciones
+1. Ir a pestaña "Auto" en la app
+2. Verificar que aparecen las 4 reglas por defecto
+3. Probar crear una regla nueva
+4. Verificar que detecta leads sin contacto
+
+### Paso 3: Meta Ads Integration (Próximo)
+1. Crear webhook endpoint en Supabase Edge Functions
+2. Configurar Facebook Lead Ads webhook
+3. Agregar campo `source_campaign` a leads
+4. Crear dashboard de ROI
+
+---
+
 ## 📚 Lessons Learned
 
 ### Technical Lessons
@@ -434,6 +539,9 @@ NEXUSRD/
 3. **n8n Expressions:** Data path matters - `$json.body.name` vs `$json.name`
 4. **OAuth Tokens:** They expire - need refresh mechanism
 5. **Web Audio API:** Great for notification sounds without external files
+6. **Supabase RLS:** Row Level Security es crítico - sin políticas, las queries fallan silenciosamente
+7. **Activity Logging:** Implementar logging ANTES de usar el sistema, si no los datos históricos no existen
+8. **Hook Dependencies:** Pasar `user?.id` a useCallback deps para evitar stale closures
 
 ### Product Lessons
 1. **Start Simple:** MVP first, features later
@@ -441,25 +549,38 @@ NEXUSRD/
 3. **Mobile First:** Real estate agents are always on mobile
 4. **Notifications Matter:** Sound alerts increase engagement
 5. **Integrations > Features:** Webhook + n8n = infinite possibilities
+6. **Automatizaciones:** El seguimiento automático es el diferenciador clave vs otros CRMs
+7. **Dashboard Real:** KPIs hardcoded no sirven - conectar a datos reales desde el inicio
 
 ### Process Lessons
 1. **Incremental Development:** Small commits, test often
 2. **Documentation:** Log everything for future reference
 3. **User Feedback:** Build what users actually need
 4. **Flexibility:** Plans change, adapt quickly
+5. **Git Commits Frecuentes:** Siempre hacer push antes de terminar sesión
 
 ---
 
 ## 📞 Support & Contact
 
-**Developer Session:** December 15, 2025  
-**AI Assistant:** GitHub Copilot (Claude)  
+**Developer Session:** December 15-16, 2025  
+**AI Assistant:** GitHub Copilot (Claude Sonnet 4)  
 **User:** Howard Luna  
-**Project:** NEXUS CRM  
+**Project:** ALVEARE CRM  
 
 ---
 
 ## 📝 Changelog
+
+### v2.0.0-beta (December 16, 2025)
+- 🔄 **Rebranding:** NEXUS → ALVEARE CRM
+- 🤖 **Sistema de Automatizaciones** completo
+- 📊 **Activity Logging** para todas las acciones
+- 📈 **KPIs Dashboard** conectados a datos reales
+- 📝 **Notas editables** con historial de timestamps
+- 👥 **SuperAdmin Dashboard** con métricas de equipo
+- 🔐 **Supabase Auth** integrado con RLS
+- 🗄️ **SQL Migrations** organizadas
 
 ### v1.0.0-beta (December 15, 2025)
 - Initial release
