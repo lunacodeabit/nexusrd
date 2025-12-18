@@ -85,16 +85,16 @@ const Dashboard: React.FC<DashboardProps> = ({
 
     // 1. Alertas de automatizaciones (prioridad alta)
     for (const auto of pendingAutomations) {
-      if (auto.action === 'show_alert' || auto.action === 'notify_supervisor') {
-        const lead = leads.find(l => l.id === auto.leadId);
-        if (lead && !addedLeadIds.has(lead.id)) {
+      const actionType = auto.rule.action;
+      if (actionType === 'show_alert' || actionType === 'notify_supervisor') {
+        if (!addedLeadIds.has(auto.lead.id)) {
           alerts.push({
-            lead,
+            lead: auto.lead,
             type: 'AUTOMATION',
-            reason: auto.message || auto.ruleName,
-            automationName: auto.ruleName
+            reason: auto.suggestedMessage || auto.rule.name,
+            automationName: auto.rule.name
           });
-          addedLeadIds.add(lead.id);
+          addedLeadIds.add(auto.lead.id);
         }
       }
     }
@@ -308,19 +308,17 @@ const Dashboard: React.FC<DashboardProps> = ({
                 </button>
               </div>
               <div className="max-h-64 overflow-y-auto">
-                {urgentAlerts.length === 0 ? (
+                {criticalAlerts.length === 0 ? (
                   <p className="p-4 text-gray-500 text-sm text-center">Sin notificaciones pendientes</p>
                 ) : (
-                  urgentAlerts.map(lead => (
+                  criticalAlerts.map((alert, idx) => (
                     <div 
-                      key={lead.id} 
+                      key={`notif-${alert.lead.id}-${idx}`} 
                       className="p-3 border-b border-white/5 hover:bg-white/5 cursor-pointer"
-                      onClick={() => { setSelectedLead(lead); setShowNotifications(false); }}
+                      onClick={() => { setSelectedLead(alert.lead); setShowNotifications(false); }}
                     >
-                      <p className="text-sm font-medium text-white">{lead.name}</p>
-                      <p className="text-xs text-red-400">
-                        {lead.status === LeadStatus.NEW ? 'Nuevo sin contactar' : 'Seguimiento vencido'}
-                      </p>
+                      <p className="text-sm font-medium text-white">{alert.lead.name}</p>
+                      <p className="text-xs text-red-400">{alert.reason}</p>
                     </div>
                   ))
                 )}
