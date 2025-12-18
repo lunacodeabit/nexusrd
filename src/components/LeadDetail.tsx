@@ -5,6 +5,7 @@ import { Phone, MessageSquare, Mail, Calendar, Clock, ChevronRight, ClipboardChe
 import { getScoreColor, getScoreEmoji, type LeadScore } from '../services/leadScoring';
 import LeadQualification from './LeadQualification';
 import LeadFollowUpTracker from './LeadFollowUpTracker';
+import MoveToTrackingModal from './MoveToTrackingModal';
 import type { LeadFollowUp } from '../types/activities';
 import { useActivityLogger } from '../hooks/useActivityLogger';
 
@@ -37,6 +38,7 @@ const LeadDetail: React.FC<LeadDetailProps> = ({ lead, onClose, onUpdateStatus, 
   const [showStatusMenu, setShowStatusMenu] = useState(false);
   const [showQualification, setShowQualification] = useState(false);
   const [showFollowUps, setShowFollowUps] = useState(false);
+  const [showTrackingModal, setShowTrackingModal] = useState(false);
   const budgetInputRef = useRef<HTMLInputElement>(null);
   
   // Editable fields state
@@ -316,6 +318,19 @@ const LeadDetail: React.FC<LeadDetailProps> = ({ lead, onClose, onUpdateStatus, 
                 {status}
               </button>
             ))}
+            {/* Separator */}
+            <div className="border-t border-white/10 my-1"></div>
+            {/* Move to Tracking option */}
+            <button
+              onClick={() => {
+                setShowStatusMenu(false);
+                setShowTrackingModal(true);
+              }}
+              className="w-full text-left px-4 py-2 hover:bg-amber-500/10 transition-colors text-amber-400 flex items-center gap-2"
+            >
+              <Clock size={14} />
+              🕐 Mover a Seguimiento
+            </button>
           </div>
         )}
       </div>
@@ -676,6 +691,17 @@ const LeadDetail: React.FC<LeadDetailProps> = ({ lead, onClose, onUpdateStatus, 
       >
         Cerrar
       </button>
+
+      {/* Move to Tracking Modal */}
+      <MoveToTrackingModal
+        lead={lead}
+        isOpen={showTrackingModal}
+        onClose={() => setShowTrackingModal(false)}
+        onSuccess={() => {
+          setShowTrackingModal(false);
+          onClose(); // Close lead detail after moving to tracking
+        }}
+      />
     </div>
   );
 };
