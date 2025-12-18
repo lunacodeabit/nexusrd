@@ -36,6 +36,7 @@ const LeadsManager: React.FC<LeadsManagerProps> = ({ leads, addLead, updateLeadS
   const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban');
   const [draggedLead, setDraggedLead] = useState<Lead | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<LeadStatus | 'ALL'>('ALL');
 
   // Get scheduled tasks from localStorage
   const getScheduledTasks = () => {
@@ -45,16 +46,17 @@ const LeadsManager: React.FC<LeadsManagerProps> = ({ leads, addLead, updateLeadS
 
   const scheduledTasks = useMemo(() => getScheduledTasks(), [leads]);
 
-  // Filtered leads with search
+  // Filtered leads with search AND status filter
   const filteredLeads = useMemo(() => {
     return leads.filter(lead => {
       const matchesSearch = searchQuery === '' || 
         lead.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         lead.phone.includes(searchQuery) ||
         lead.email.toLowerCase().includes(searchQuery.toLowerCase());
-      return matchesSearch;
+      const matchesStatus = statusFilter === 'ALL' || lead.status === statusFilter;
+      return matchesSearch && matchesStatus;
     });
-  }, [leads, searchQuery]);
+  }, [leads, searchQuery, statusFilter]);
 
   // Group leads by status for Kanban view
   const leadsByStatus = useMemo(() => {
@@ -196,6 +198,36 @@ const LeadsManager: React.FC<LeadsManagerProps> = ({ leads, addLead, updateLeadS
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full bg-nexus-base border border-white/10 rounded-lg pl-10 pr-4 py-2 text-sm focus:outline-none focus:border-nexus-accent text-white"
           />
+        </div>
+        
+        {/* Status Filter - Mobile Only */}
+        <div className="lg:hidden mt-3 flex flex-wrap gap-2">
+          <button
+            onClick={() => setStatusFilter('ALL')}
+            className={`px-3 py-1 text-xs rounded-full border transition-colors ${
+              statusFilter === 'ALL' 
+                ? 'bg-nexus-accent text-nexus-base border-nexus-accent' 
+                : 'bg-transparent text-gray-400 border-white/20 hover:border-white/40'
+            }`}
+          >
+            Todos ({leads.length})
+          </button>
+          {KANBAN_COLUMNS.slice(0, 4).map(col => {
+            const count = leads.filter(l => l.status === col.status).length;
+            return (
+              <button
+                key={col.status}
+                onClick={() => setStatusFilter(col.status)}
+                className={`px-3 py-1 text-xs rounded-full border transition-colors ${
+                  statusFilter === col.status 
+                    ? `bg-${col.color}-500/30 text-${col.color}-300 border-${col.color}-500/50` 
+                    : 'bg-transparent text-gray-400 border-white/20 hover:border-white/40'
+                }`}
+              >
+                {col.label.split(' ')[0]} ({count})
+              </button>
+            );
+          })}
         </div>
       </div>
 

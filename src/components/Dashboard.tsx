@@ -220,6 +220,11 @@ const Dashboard: React.FC<DashboardProps> = ({
     window.open(`tel:${phone}`, '_self');
   };
 
+  const handleWhatsApp = (phone: string, name: string) => {
+    const message = encodeURIComponent(`Hola ${name}, te contacto de ALVEARE Inmobiliaria.`);
+    window.open(`https://wa.me/${phone.replace(/\D/g, '')}?text=${message}`, '_blank');
+  };
+
   const handleUpdateStatus = (leadId: string, newStatus: LeadStatus) => {
     if (onUpdateLeadStatus) {
       onUpdateLeadStatus(leadId, newStatus);
@@ -410,7 +415,14 @@ const Dashboard: React.FC<DashboardProps> = ({
             {urgentAlerts.length === 0 ? (
               <div className="p-8 text-center text-gray-500">Todo al día. ¡Buen trabajo!</div>
             ) : (
-              urgentAlerts.map(lead => (
+              urgentAlerts.map(lead => {
+                // Determinar la razón de la alerta
+                const leadFollowUps = followUps.filter(f => f.leadId === lead.id);
+                const hasFollowUps = leadFollowUps.length > 0;
+                const isNew = lead.status === LeadStatus.NEW && !hasFollowUps;
+                const reason = isNew ? 'SIN CONTACTAR' : 'SEGUIMIENTO VENCIDO';
+                
+                return (
                 <div key={lead.id} className="p-3 border-b border-white/5 hover:bg-white/5 transition-colors">
                   <div 
                     className="cursor-pointer"
@@ -418,24 +430,38 @@ const Dashboard: React.FC<DashboardProps> = ({
                   >
                     <div className="flex items-center gap-2 flex-wrap">
                        <span className="font-bold text-white text-sm">{lead.name}</span>
-                       <span className="text-xs px-1.5 py-0.5 rounded bg-red-500/20 text-red-400 border border-red-500/20">
-                         {lead.status === LeadStatus.NEW ? 'NUEVO' : 'VENCIDO'}
+                       <span className={`text-xs px-1.5 py-0.5 rounded border ${
+                         isNew 
+                           ? 'bg-blue-500/20 text-blue-400 border-blue-500/20' 
+                           : 'bg-red-500/20 text-red-400 border-red-500/20'
+                       }`}>
+                         {reason}
                        </span>
                     </div>
                     <p className="text-xs text-gray-400 mt-1 line-clamp-1">{lead.notes}</p>
-                    <p className="text-xs text-red-400 mt-1 flex items-center gap-1">
-                      <Clock size={10} />
-                      {new Date(lead.nextFollowUpDate).toLocaleDateString()}
+                    <p className="text-xs text-gray-500 mt-1">
+                      {hasFollowUps 
+                        ? `Último contacto: ${new Date(leadFollowUps[leadFollowUps.length-1].date).toLocaleDateString()}`
+                        : `Creado: ${new Date(lead.createdAt).toLocaleDateString()}`
+                      }
                     </p>
                   </div>
-                  <button 
-                    onClick={() => handleCall(lead.phone)}
-                    className="w-full mt-2 bg-nexus-accent text-nexus-base px-3 py-1.5 rounded font-bold text-xs hover:bg-orange-400"
-                  >
-                    Contactar
-                  </button>
+                  <div className="flex gap-2 mt-2">
+                    <button 
+                      onClick={() => handleCall(lead.phone)}
+                      className="flex-1 bg-green-600 text-white px-3 py-1.5 rounded font-bold text-xs hover:bg-green-500 flex items-center justify-center gap-1"
+                    >
+                      <Phone size={12} /> Llamar
+                    </button>
+                    <button 
+                      onClick={() => handleWhatsApp(lead.phone, lead.name)}
+                      className="flex-1 bg-nexus-accent text-nexus-base px-3 py-1.5 rounded font-bold text-xs hover:bg-orange-400 flex items-center justify-center gap-1"
+                    >
+                      <MessageSquare size={12} /> WhatsApp
+                    </button>
+                  </div>
                 </div>
-              ))
+              )})
             )}
           </div>
         </div>
