@@ -23,6 +23,7 @@ interface ScheduledTask {
   completed: boolean;
   alertMinutesBefore?: number;
   alertSent?: boolean;
+  overdueLabel?: string; // For displaying how overdue the task is
 }
 
 interface DashboardProps {
@@ -146,18 +147,67 @@ const Dashboard: React.FC<DashboardProps> = ({
      return leads.filter(l => l.status === LeadStatus.VISIT_SCHEDULED);
   }, [leads]);
 
-  // Get scheduled tasks from localStorage for today
-  const todaysScheduledTasks = useMemo(() => {
+  // Get scheduled tasks from localStorage for today - split into pending and overdue
+  const { todaysPendingTasks, todaysOverdueTasks } = useMemo(() => {
     const saved = localStorage.getItem('nexus_scheduled_tasks');
-    if (!saved) return [];
+    if (!saved) return { todaysPendingTasks: [], todaysOverdueTasks: [] };
     
     const allTasks: ScheduledTask[] = JSON.parse(saved);
     const today = new Date().toISOString().split('T')[0];
+    const now = new Date();
     
-    return allTasks
-      .filter(task => task.scheduledDate === today && !task.completed)
-      .sort((a, b) => a.scheduledTime.localeCompare(b.scheduledTime));
-  }, [leads, refreshKey]); // Re-run when leads change or refreshKey changes
+    const todayTasks = allTasks.filter(task => task.scheduledDate === today && !task.completed);
+    
+    const pending: ScheduledTask[] = [];
+    const overdue: ScheduledTask[] = [];
+    
+    for (const task of todayTasks) {
+      const [hours, minutes] = task.scheduledTime.split(':').map(Number);
+      const taskTime = new Date(today);
+      taskTime.setHours(hours, minutes, 0, 0);
+      
+      if (taskTime.getTime() < now.getTime()) {
+        // Calculate overdue time
+        const diffMs = now.getTime() - taskTime.getTime();
+        const diffMins = Math.floor(diffMs / 60000);
+        let overdueLabel = '';
+        
+        if (diffMins < 60) {
+          overdueLabel = `Hace ${diffMins} min`;
+        } else if (diffMins < 1440) {
+          const hours = Math.floor(diffMins / 60);
+          overdueLabel = `Hace ${hours}h`;
+        } else {
+          const days = Math.floor(diffMins / 1440);
+          overdueLabel = `Hace ${days} día${days > 1 ? 's' : ''}`;
+        }
+        
+        overdue.push({ ...task, overdueLabel } as ScheduledTask & { overdueLabel: string });
+      } else {
+        pending.push(task);
+      }
+    }
+    
+    // Also check tasks from previous days that weren't completed
+    const pastTasks = allTasks.filter(task => task.scheduledDate < today && !task.completed);
+    for (const task of pastTasks) {
+      const taskDate = new Date(task.scheduledDate);
+      const diffDays = Math.floor((now.getTime() - taskDate.getTime()) / (1000 * 60 * 60 * 24));
+      const overdueLabel = diffDays === 1 ? 'Hace 1 día' : `Hace ${diffDays} días`;
+      overdue.push({ ...task, overdueLabel } as ScheduledTask & { overdueLabel: string });
+    }
+    
+    return { 
+      todaysPendingTasks: pending.sort((a, b) => a.scheduledTime.localeCompare(b.scheduledTime)),
+      todaysOverdueTasks: overdue.sort((a, b) => {
+        // Sort by date first, then by time
+        if (a.scheduledDate !== b.scheduledDate) {
+          return a.scheduledDate.localeCompare(b.scheduledDate);
+        }
+        return a.scheduledTime.localeCompare(b.scheduledTime);
+      })
+    };
+  }, [leads, refreshKey]);
 
   const handleCompleteTask = (taskId: string) => {
     const saved = localStorage.getItem('nexus_scheduled_tasks');
@@ -348,102 +398,169 @@ const Dashboard: React.FC<DashboardProps> = ({
         ))}
       </div>
 
-      {/* ALERT SECTION */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* ALERT SECTION - 3 Equal Columns */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         
-        {/* Daily Tasks - Now Large on Left */}
-        <div className="lg:col-span-2 bg-nexus-surface rounded-xl border border-white/5">
+        {/* 1. Agenda Hoy - Pending Tasks */}
+        <div className="bg-nexus-surface rounded-xl border border-white/5 overflow-hidden">
           <div className="p-4 border-b border-white/10 flex items-center gap-2">
             <Clock size={18} className="text-nexus-accent" />
             <h3 className="font-bold text-nexus-text">Agenda Hoy</h3>
+            {(todaysPendingTasks.length + todaysTasks.length) > 0 && (
+              <span className="ml-auto text-xs bg-nexus-accent/20 text-nexus-accent px-2 py-0.5 rounded-full">
+                {todaysPendingTasks.length + todaysTasks.length}
+              </span>
+            )}
           </div>
-          <div className="p-4 space-y-3 max-h-[450px] overflow-y-auto">
-             {/* Scheduled Tasks for Today */}
-             {todaysScheduledTasks.length > 0 && (
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                 {todaysScheduledTasks.map(task => (
-                   <div 
-                     key={task.id} 
-                     className="flex gap-3 items-center p-3 bg-nexus-base rounded-lg border border-white/5 hover:border-nexus-accent/30 transition-all group"
-                   >
-                     <div className={`w-2 h-2 rounded-full ${getTaskColor(task.method)}`}></div>
-                     <div className="flex-1 min-w-0">
-                       <div className="flex items-center gap-2">
-                         {getTaskIcon(task.method)}
-                         <p className="text-sm font-medium text-white truncate">{task.leadName}</p>
-                       </div>
-                       <p className="text-xs text-gray-400">
-                         {task.scheduledTime} - {task.method}
-                         {task.notes && ` • ${task.notes}`}
-                       </p>
-                     </div>
-                     <div className="flex gap-1 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-                       <button
-                         onClick={() => handleEditTask(task)}
-                         className="p-1.5 rounded-lg bg-blue-500/20 text-blue-400 hover:bg-blue-500 hover:text-white"
-                         title="Editar tarea"
-                       >
-                         <Pencil size={14} />
-                       </button>
-                       <button
-                         onClick={() => handleCompleteTask(task.id)}
-                         className="p-1.5 rounded-lg bg-green-500/20 text-green-400 hover:bg-green-500 hover:text-white"
-                         title="Marcar como completada"
-                       >
-                         <CheckCircle2 size={14} />
-                       </button>
-                     </div>
-                   </div>
-                 ))}
-               </div>
-             )}
+          <div className="p-3 space-y-2 max-h-[380px] overflow-y-auto">
+            {/* Visits (leads with VISIT_SCHEDULED status) */}
+            {todaysTasks.map(task => (
+              <div 
+                key={task.id} 
+                className="flex gap-2 items-center p-2.5 bg-nexus-base rounded-lg border border-purple-500/20 cursor-pointer hover:border-purple-500/50 transition-all"
+                onClick={() => setSelectedLead(task)}
+              >
+                <div className="w-2 h-2 rounded-full bg-purple-400 flex-shrink-0"></div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <MapPin size={12} className="text-purple-400 flex-shrink-0" />
+                    <p className="text-sm font-medium text-white truncate">Visita: {task.name}</p>
+                  </div>
+                  <p className="text-xs text-gray-400 truncate">{task.interestArea}</p>
+                </div>
+              </div>
+            ))}
 
-             {/* Visits (leads with VISIT_SCHEDULED status) */}
-             {todaysTasks.length > 0 && (
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                 {todaysTasks.map(task => (
-                   <div 
-                     key={task.id} 
-                     className="flex gap-3 items-center p-3 bg-nexus-base rounded-lg border border-purple-500/20 cursor-pointer hover:border-purple-500/50 transition-all"
-                     onClick={() => setSelectedLead(task)}
-                   >
-                     <div className="w-2 h-2 rounded-full bg-purple-400"></div>
-                     <div className="flex-1">
-                       <div className="flex items-center gap-2">
-                         <MapPin size={14} className="text-purple-400" />
-                         <p className="text-sm font-medium text-white">Visita: {task.name}</p>
-                       </div>
-                       <p className="text-xs text-gray-400">{task.interestArea}</p>
-                     </div>
-                   </div>
-                 ))}
-               </div>
-             )}
+            {/* Scheduled Tasks for Today - Not yet overdue */}
+            {todaysPendingTasks.map(task => (
+              <div 
+                key={task.id} 
+                className="flex gap-2 items-center p-2.5 bg-nexus-base rounded-lg border border-white/5 hover:border-nexus-accent/30 transition-all group"
+              >
+                <div className={`w-2 h-2 rounded-full flex-shrink-0 ${getTaskColor(task.method)}`}></div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    {getTaskIcon(task.method)}
+                    <p className="text-sm font-medium text-white truncate">{task.leadName}</p>
+                  </div>
+                  <p className="text-xs text-gray-400 truncate">
+                    {task.scheduledTime} {task.notes && `• ${task.notes}`}
+                  </p>
+                </div>
+                <div className="flex gap-1 flex-shrink-0 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                  <button
+                    onClick={() => handleEditTask(task)}
+                    className="p-1.5 rounded-lg bg-blue-500/20 text-blue-400 hover:bg-blue-500 hover:text-white"
+                    title="Editar"
+                  >
+                    <Pencil size={12} />
+                  </button>
+                  <button
+                    onClick={() => handleCompleteTask(task.id)}
+                    className="p-1.5 rounded-lg bg-green-500/20 text-green-400 hover:bg-green-500 hover:text-white"
+                    title="Completar"
+                  >
+                    <CheckCircle2 size={12} />
+                  </button>
+                </div>
+              </div>
+            ))}
 
-             {/* Empty state */}
-             {todaysScheduledTasks.length === 0 && todaysTasks.length === 0 && (
-               <p className="text-sm text-gray-500 text-center py-4">No hay tareas de leads para hoy</p>
-             )}
+            {/* Empty state */}
+            {todaysPendingTasks.length === 0 && todaysTasks.length === 0 && (
+              <div className="text-center py-6">
+                <Clock size={24} className="text-gray-600 mx-auto mb-2" />
+                <p className="text-sm text-gray-500">Sin tareas pendientes hoy</p>
+              </div>
+            )}
 
-             {/* Personal Tasks Section - Integrated Planner */}
-             <div className="border-t border-white/10 pt-4 mt-4">
-               <DailyPlanner compact />
-             </div>
+            {/* Personal Tasks Section - Planner */}
+            <div className="border-t border-white/10 pt-3 mt-3">
+              <DailyPlanner compact />
+            </div>
           </div>
         </div>
 
-        {/* Critical Alerts Column - Now Small on Right */}
+        {/* 2. Acciones Vencidas - Overdue Tasks */}
+        <div className="bg-nexus-surface rounded-xl border border-amber-900/30 overflow-hidden">
+          <div className="p-4 border-b border-white/10 flex items-center gap-2 bg-amber-900/10">
+            <AlertTriangle size={18} className="text-amber-500" />
+            <h3 className="font-bold text-amber-100">Acciones Vencidas</h3>
+            {todaysOverdueTasks.length > 0 && (
+              <span className="ml-auto text-xs bg-amber-500 text-white px-2 py-0.5 rounded-full font-bold">
+                {todaysOverdueTasks.length}
+              </span>
+            )}
+          </div>
+          <div className="p-3 space-y-2 max-h-[380px] overflow-y-auto">
+            {todaysOverdueTasks.length === 0 ? (
+              <div className="text-center py-6">
+                <CheckCircle2 size={24} className="text-green-500/50 mx-auto mb-2" />
+                <p className="text-sm text-gray-500">¡Al día! Sin tareas vencidas</p>
+              </div>
+            ) : (
+              todaysOverdueTasks.map(task => (
+                <div 
+                  key={task.id} 
+                  className="p-2.5 bg-amber-950/30 rounded-lg border border-amber-500/20 hover:border-amber-500/40 transition-all group"
+                >
+                  <div className="flex gap-2 items-start">
+                    <div className={`w-2 h-2 rounded-full flex-shrink-0 mt-1.5 ${getTaskColor(task.method)}`}></div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        {getTaskIcon(task.method)}
+                        <p className="text-sm font-medium text-white truncate">{task.leadName}</p>
+                      </div>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-xs bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded">
+                          {task.overdueLabel}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          Era: {task.scheduledTime}
+                        </span>
+                      </div>
+                      {task.notes && (
+                        <p className="text-xs text-gray-400 mt-1 truncate">{task.notes}</p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex gap-1 mt-2">
+                    <button
+                      onClick={() => handleEditTask(task)}
+                      className="flex-1 p-1.5 rounded-lg bg-blue-500/20 text-blue-400 hover:bg-blue-500 hover:text-white text-xs font-medium"
+                    >
+                      Reprogramar
+                    </button>
+                    <button
+                      onClick={() => handleCompleteTask(task.id)}
+                      className="flex-1 p-1.5 rounded-lg bg-green-500/20 text-green-400 hover:bg-green-500 hover:text-white text-xs font-medium"
+                    >
+                      Completar
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* 3. Acciones Críticas - Leads sin contactar */}
         <div className="bg-nexus-surface rounded-xl border border-red-900/30 overflow-hidden">
           <div className="p-4 border-b border-white/10 flex items-center gap-2 bg-red-900/10">
             <AlertTriangle size={18} className="text-red-500" />
             <h3 className="font-bold text-red-100">Acciones Críticas</h3>
             {criticalAlerts.length > 0 && (
-              <span className="ml-auto text-xs bg-red-500 text-white px-2 py-0.5 rounded-full">{criticalAlerts.length}</span>
+              <span className="ml-auto text-xs bg-red-500 text-white px-2 py-0.5 rounded-full font-bold">
+                {criticalAlerts.length}
+              </span>
             )}
           </div>
-          <div className="p-0 max-h-[400px] overflow-y-auto">
+          <div className="p-0 max-h-[380px] overflow-y-auto">
             {criticalAlerts.length === 0 ? (
-              <div className="p-8 text-center text-gray-500">Todo al día. ¡Buen trabajo!</div>
+              <div className="p-6 text-center">
+                <CheckCircle2 size={24} className="text-green-500/50 mx-auto mb-2" />
+                <p className="text-sm text-gray-500">Todo al día. ¡Buen trabajo!</p>
+              </div>
             ) : (
               criticalAlerts.map((alert, idx) => {
                 const { lead, type, reason, automationName } = alert;
@@ -456,7 +573,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                     onClick={() => handleContactLead(lead)}
                   >
                     <div className="flex items-center gap-2 flex-wrap">
-                       <span className="font-bold text-white text-sm">{lead.name}</span>
+                       <span className="font-bold text-white text-sm truncate">{lead.name}</span>
                        <span className={`text-xs px-1.5 py-0.5 rounded border flex items-center gap-1 ${
                          type === 'AUTOMATION' 
                            ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/20' 
@@ -482,13 +599,13 @@ const Dashboard: React.FC<DashboardProps> = ({
                   <div className="flex gap-2 mt-2">
                     <button 
                       onClick={() => handleCall(lead.phone)}
-                      className="flex-1 bg-green-600 text-white px-3 py-1.5 rounded font-bold text-xs hover:bg-green-500 flex items-center justify-center gap-1"
+                      className="flex-1 bg-green-600 text-white px-2 py-1.5 rounded font-bold text-xs hover:bg-green-500 flex items-center justify-center gap-1"
                     >
                       <Phone size={12} /> Llamar
                     </button>
                     <button 
                       onClick={() => handleWhatsApp(lead.phone, lead.name)}
-                      className="flex-1 bg-nexus-accent text-nexus-base px-3 py-1.5 rounded font-bold text-xs hover:bg-orange-400 flex items-center justify-center gap-1"
+                      className="flex-1 bg-nexus-accent text-nexus-base px-2 py-1.5 rounded font-bold text-xs hover:bg-orange-400 flex items-center justify-center gap-1"
                     >
                       <MessageSquare size={12} /> WhatsApp
                     </button>
