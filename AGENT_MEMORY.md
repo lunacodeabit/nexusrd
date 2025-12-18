@@ -1,8 +1,20 @@
 # 🧠 ALVEARE CRM - Memoria del Agente
 
 > **Propósito:** Este documento sirve como memoria para continuar el desarrollo del CRM ALVEARE.  
-> **Última actualización:** 17 de Diciembre, 2025 - 4:00 PM  
-> **Sesión actual:** Implementación de alertas del servidor  
+> **Última actualización:** 18 de Diciembre, 2025  
+> **Documento de directivas:** Ver `DIRECTIVAS_DESARROLLO.md` para reglas completas  
+
+---
+
+## ⚡ DIRECTIVA PRINCIPAL
+
+> **EFICIENCIA PRIMERO:** Toda implementación debe ser lo más eficiente posible para economizar créditos, SIN sacrificar efectividad.
+
+### Relación de Trabajo
+- Claude/Copilot es un **SOCIO** en este proyecto
+- Tratar ALVEARE CRM como **proyecto propio**
+- Decisiones pensando en **éxito a largo plazo**
+- Howard Luna = Visión | Claude = Ejecución técnica experta
 
 ---
 
@@ -13,7 +25,7 @@ CRM especializado para **agentes inmobiliarios en República Dominicana**. Dise�
 
 ### Usuario Principal
 - **Nombre:** Howard Luna
-- **Rol:** Agente inmobiliario / Desarrollador
+- **Rol:** Agente inmobiliario / Desarrollador / Dueño del proyecto
 - **Telegram Chat ID:** 5087918257
 - **User ID (Supabase):** 82cfb6cd-0d39-437f-83dc-67c2de83023e
 
