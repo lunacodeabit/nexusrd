@@ -51,6 +51,7 @@ const FollowUpTrackingPage: React.FC<FollowUpTrackingPageProps> = ({
     { 
       id: 'waiting' as TrackingType, 
       label: 'En Espera', 
+      shortLabel: 'Espera',
       icon: Clock, 
       count: waitingLeads.length,
       color: 'text-amber-400',
@@ -60,6 +61,7 @@ const FollowUpTrackingPage: React.FC<FollowUpTrackingPageProps> = ({
     { 
       id: 'paused' as TrackingType, 
       label: 'Pausados', 
+      shortLabel: 'Pausados',
       icon: Pause, 
       count: pausedLeads.length,
       color: 'text-blue-400',
@@ -69,6 +71,7 @@ const FollowUpTrackingPage: React.FC<FollowUpTrackingPageProps> = ({
     { 
       id: 'searching' as TrackingType, 
       label: 'Búsquedas', 
+      shortLabel: 'Búsquedas',
       icon: Search, 
       count: searchingLeads.length,
       color: 'text-purple-400',
@@ -340,20 +343,20 @@ const FollowUpTrackingPage: React.FC<FollowUpTrackingPageProps> = ({
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
+      <div className="grid grid-cols-3 gap-2 mb-6">
         {tabs.map(tab => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-2 px-4 py-3 rounded-xl font-medium transition-all whitespace-nowrap ${
+            className={`flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-2 sm:px-4 py-2 sm:py-3 rounded-xl font-medium transition-all ${
               activeTab === tab.id
                 ? `${tab.bgColor} ${tab.color} border border-current`
                 : 'bg-slate-800 text-slate-400 hover:bg-slate-700 border border-transparent'
             }`}
           >
-            <tab.icon className="w-5 h-5" />
-            <span>{tab.label}</span>
-            <span className={`px-2 py-0.5 rounded-full text-xs ${
+            <tab.icon className="w-4 h-4 sm:w-5 sm:h-5" />
+            <span className="text-xs sm:text-sm">{tab.shortLabel}</span>
+            <span className={`px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-xs ${
               activeTab === tab.id ? 'bg-white/20' : 'bg-slate-700'
             }`}>
               {tab.count}

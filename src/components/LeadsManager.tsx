@@ -203,30 +203,37 @@ const LeadsManager: React.FC<LeadsManagerProps> = ({ leads, addLead, updateLeadS
         </div>
         
         {/* Status Filter - Mobile Only */}
-        <div className="lg:hidden mt-3 flex flex-wrap gap-2">
+        <div className="lg:hidden mt-3 grid grid-cols-3 gap-1.5">
           <button
             onClick={() => setStatusFilter('ALL')}
-            className={`px-3 py-1 text-xs rounded-full border transition-colors ${
+            className={`px-2 py-1.5 text-[11px] rounded-lg border transition-colors ${
               statusFilter === 'ALL' 
-                ? 'bg-nexus-accent text-nexus-base border-nexus-accent' 
+                ? 'bg-nexus-accent text-nexus-base border-nexus-accent font-semibold' 
                 : 'bg-transparent text-gray-400 border-white/20 hover:border-white/40'
             }`}
           >
             Todos ({leads.length})
           </button>
-          {KANBAN_COLUMNS.slice(0, 4).map(col => {
+          {KANBAN_COLUMNS.slice(0, 5).map(col => {
             const count = leads.filter(l => l.status === col.status).length;
+            const shortLabels: Record<string, string> = {
+              'Nuevos': 'Nuevos',
+              'Contactados': 'Contact.',
+              'Visita Agendada': 'Visita',
+              'Negociación': 'Negoc.',
+              'Cerrado ✓': 'Cerrado'
+            };
             return (
               <button
                 key={col.status}
                 onClick={() => setStatusFilter(col.status)}
-                className={`px-3 py-1 text-xs rounded-full border transition-colors ${
+                className={`px-2 py-1.5 text-[11px] rounded-lg border transition-colors ${
                   statusFilter === col.status 
-                    ? `bg-${col.color}-500/30 text-${col.color}-300 border-${col.color}-500/50` 
+                    ? `bg-${col.color}-500/30 text-${col.color}-300 border-${col.color}-500/50 font-semibold` 
                     : 'bg-transparent text-gray-400 border-white/20 hover:border-white/40'
                 }`}
               >
-                {col.label.split(' ')[0]} ({count})
+                {shortLabels[col.label] || col.label.split(' ')[0]} ({count})
               </button>
             );
           })}
