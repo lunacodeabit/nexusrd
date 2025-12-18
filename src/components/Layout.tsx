@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Home, Users, Building, BarChart3, Menu, Settings, X, ClipboardList, LogOut, Shield, Zap, Clock } from 'lucide-react';
+import { Home, Users, Building, BarChart3, Menu, Settings, X, ClipboardList, LogOut, Shield, Zap, Clock, Download } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useUserRole } from '../hooks/useUserRole';
 import { useFollowUpTracking } from '../hooks/useFollowUpTracking';
+import { usePWAInstall } from '../hooks/usePWAInstall';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -15,6 +16,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
   const { user, signOut } = useAuth();
   const { canViewTeam, role } = useUserRole();
   const { totalCount: trackingCount } = useFollowUpTracking();
+  const { isInstallable, installApp } = usePWAInstall();
   
   // Get agent name from user metadata
   const agentName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Agente';
@@ -86,6 +88,15 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
             
             {/* Mobile Logout Button */}
             <div className="p-4 border-t border-white/10">
+              {isInstallable && (
+                <button
+                  onClick={installApp}
+                  className="flex items-center w-full px-4 py-3 rounded-lg text-green-400 hover:bg-green-500/10 transition-colors mb-2"
+                >
+                  <Download size={20} className="mr-3" />
+                  Instalar App
+                </button>
+              )}
               <button
                 onClick={signOut}
                 className="flex items-center w-full px-4 py-3 rounded-lg text-red-400 hover:bg-red-500/10 transition-colors"
@@ -142,6 +153,15 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
           </nav>
 
           <div className="p-4 border-t border-white/10">
+            {isInstallable && (
+              <button
+                onClick={installApp}
+                className="flex items-center w-full px-3 py-2 mb-3 rounded-lg text-green-400 hover:bg-green-500/10 transition-colors text-sm"
+              >
+                <Download size={16} className="mr-2" />
+                Instalar App
+              </button>
+            )}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
@@ -175,22 +195,37 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
         </main>
       </div>
 
-      {/* Mobile Bottom Nav */}
-      <div className="md:hidden fixed bottom-0 w-full bg-nexus-surface border-t border-white/10 flex justify-around p-3 z-50 safe-area-pb">
-        {navItems.slice(0, 4).map((item) => {
-           const Icon = item.icon;
-           const isActive = activeTab === item.id;
-           return (
-             <button 
-                key={item.id}
-                onClick={() => setActiveTab(item.id)}
-                className={`flex flex-col items-center p-2 rounded-lg transition-colors ${isActive ? 'text-nexus-accent' : 'text-gray-500'}`}
-             >
-               <Icon size={24} />
-               <span className="text-[10px] mt-1">{item.label}</span>
-             </button>
-           )
-        })}
+      {/* Mobile Bottom Nav - Scrollable */}
+      <div className="md:hidden fixed bottom-0 w-full bg-nexus-surface border-t border-white/10 z-50 safe-area-pb">
+        <div className="flex overflow-x-auto scrollbar-hide px-2 py-2 gap-1">
+          {navItems.map((item) => {
+             const Icon = item.icon;
+             const isActive = activeTab === item.id;
+             return (
+               <button 
+                  key={item.id}
+                  onClick={() => setActiveTab(item.id)}
+                  className={`flex flex-col items-center min-w-[60px] p-2 rounded-lg transition-colors flex-shrink-0 ${isActive ? 'text-nexus-accent bg-nexus-accent/10' : 'text-gray-500'}`}
+               >
+                 <Icon size={20} />
+                 <span className="text-[9px] mt-1 whitespace-nowrap">{item.label}</span>
+                 {item.badge && (
+                   <span className="absolute -top-1 -right-1 w-4 h-4 bg-orange-500 text-white text-[8px] rounded-full flex items-center justify-center">
+                     {item.badge}
+                   </span>
+                 )}
+               </button>
+             )
+          })}
+          {/* Logout button in nav bar */}
+          <button 
+            onClick={signOut}
+            className="flex flex-col items-center min-w-[60px] p-2 rounded-lg transition-colors flex-shrink-0 text-red-400"
+          >
+            <LogOut size={20} />
+            <span className="text-[9px] mt-1 whitespace-nowrap">Salir</span>
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -80,29 +80,29 @@ export default function AsesorDetailModal({ asesor, onClose }: AsesorDetailModal
   }, {} as Record<string, number>);
 
   return (
-    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-      <div className="bg-nexus-surface rounded-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-2 md:p-4">
+      <div className="bg-nexus-surface rounded-xl w-full max-w-4xl max-h-[95vh] md:max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="p-6 border-b border-gray-700 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="w-14 h-14 bg-nexus-accent/20 rounded-full flex items-center justify-center">
-              <User className="w-7 h-7 text-nexus-accent" />
+        <div className="p-4 md:p-6 border-b border-gray-700 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-3 md:gap-4 min-w-0">
+            <div className="w-10 h-10 md:w-14 md:h-14 bg-nexus-accent/20 rounded-full flex items-center justify-center flex-shrink-0">
+              <User className="w-5 h-5 md:w-7 md:h-7 text-nexus-accent" />
             </div>
-            <div>
-              <h2 className="text-xl font-bold text-white">{asesor.full_name}</h2>
-              <p className="text-gray-400 text-sm">{asesor.email}</p>
+            <div className="min-w-0">
+              <h2 className="text-lg md:text-xl font-bold text-white truncate">{asesor.full_name}</h2>
+              <p className="text-gray-400 text-xs md:text-sm truncate">{asesor.email}</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
+            className="p-2 hover:bg-gray-700 rounded-lg transition-colors flex-shrink-0"
           >
             <X className="w-5 h-5 text-gray-400" />
           </button>
         </div>
 
-        {/* Tabs */}
-        <div className="flex border-b border-gray-700">
+        {/* Tabs - Scrollable on mobile */}
+        <div className="flex border-b border-gray-700 overflow-x-auto scrollbar-hide">
           {[
             { id: 'overview', label: 'Resumen', icon: TrendingUp },
             { id: 'leads', label: `Leads (${leads.length})`, icon: Target },
@@ -112,13 +112,14 @@ export default function AsesorDetailModal({ asesor, onClose }: AsesorDetailModal
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as typeof activeTab)}
-              className={`flex items-center gap-2 px-6 py-3 text-sm font-medium transition-colors
+              className={`flex items-center gap-2 px-4 md:px-6 py-3 text-sm font-medium transition-colors whitespace-nowrap flex-shrink-0
                 ${activeTab === tab.id 
                   ? 'text-nexus-accent border-b-2 border-nexus-accent' 
                   : 'text-gray-400 hover:text-white'}`}
             >
               <tab.icon className="w-4 h-4" />
-              {tab.label}
+              <span className="hidden sm:inline">{tab.label}</span>
+              <span className="sm:hidden">{tab.label.split(' ')[0]}</span>
             </button>
           ))}
         </div>
