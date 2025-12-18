@@ -286,3 +286,55 @@ export interface TaskFormData {
   is_recurring: boolean;
   recurrence_pattern?: 'daily' | 'weekly' | 'monthly';
 }
+
+// ---------------------------------------------------------------------------
+// FOLLOW-UP TRACKING (Seguimiento de Leads)
+// ---------------------------------------------------------------------------
+
+export type TrackingType = 'waiting' | 'paused' | 'searching';
+
+export interface SearchCriteria {
+  zones: string[];
+  bedroomsMin?: number;
+  bedroomsMax?: number;
+  budgetMin?: number;
+  budgetMax?: number;
+  propertyType?: string;
+  features?: string[];
+  notes?: string;
+}
+
+export interface FollowUpTracking {
+  id: string;
+  user_id: string;
+  lead_id: string;
+  tracking_type: TrackingType;
+  original_status: string;
+  reason: string;
+  notes?: string;
+  contact_date?: string; // YYYY-MM-DD
+  search_criteria?: SearchCriteria;
+  properties_sent: number;
+  is_active: boolean;
+  reactivated_at?: string;
+  created_at: string;
+  updated_at: string;
+  // Joined fields from lead
+  lead_name?: string;
+  lead_phone?: string;
+  lead_email?: string;
+  lead_budget?: number;
+  lead_currency?: Currency;
+  lead_source?: string;
+  lead_interest_area?: string;
+  days_until_contact?: number;
+  days_in_tracking?: number;
+}
+
+export interface TrackingFormData {
+  tracking_type: TrackingType;
+  reason: string;
+  notes?: string;
+  contact_date?: string;
+  search_criteria?: SearchCriteria;
+}

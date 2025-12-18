@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Home, Users, Building, BarChart3, Menu, Settings, X, ClipboardList, LogOut, Shield, Zap } from 'lucide-react';
+import { Home, Users, Building, BarChart3, Menu, Settings, X, ClipboardList, LogOut, Shield, Zap, Clock } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useUserRole } from '../hooks/useUserRole';
+import { useFollowUpTracking } from '../hooks/useFollowUpTracking';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -13,6 +14,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { user, signOut } = useAuth();
   const { canViewTeam, role } = useUserRole();
+  const { totalCount: trackingCount } = useFollowUpTracking();
   
   // Get agent name from user metadata
   const agentName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Agente';
@@ -20,6 +22,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: Home },
     { id: 'leads', label: 'Leads Flow', icon: Users },
+    { id: 'tracking', label: 'Seguimiento', icon: Clock, badge: trackingCount > 0 ? trackingCount : undefined },
     { id: 'activities', label: 'Marketing', icon: ClipboardList },
     { id: 'inventory', label: 'Captaciones', icon: Building },
     { id: 'analytics', label: 'Métricas', icon: BarChart3 },
@@ -124,6 +127,15 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
                 >
                   <Icon size={20} className={`mr-3 ${isActive ? 'text-nexus-base' : 'text-nexus-accent'}`} />
                   {item.label}
+                  {item.badge && (
+                    <span className={`ml-auto px-2 py-0.5 text-xs font-bold rounded-full ${
+                      isActive 
+                        ? 'bg-nexus-base text-nexus-accent' 
+                        : 'bg-orange-500/20 text-orange-400'
+                    }`}>
+                      {item.badge}
+                    </span>
+                  )}
                 </button>
               );
             })}

@@ -8,6 +8,7 @@ import ArchitectureInfo from './components/ArchitectureInfo';
 import DailyActivities from './components/DailyActivities';
 import SuperAdminDashboard from './components/SuperAdminDashboard';
 import AutomationsView from './components/AutomationsView';
+import FollowUpTrackingPage from './components/FollowUpTrackingPage';
 import { AuthScreen } from './components/Auth';
 import { useAuth } from './contexts/AuthContext';
 import { useLeads } from './hooks/useLeads';
@@ -143,6 +144,8 @@ const App: React.FC = () => {
           addFollowUp={addFollowUp}
           updateFollowUpNotes={updateFollowUpNotes}
         />;
+      case 'tracking':
+        return <FollowUpTrackingPage />;
       case 'inventory':
         return <CaptacionesView />;
       case 'automations':

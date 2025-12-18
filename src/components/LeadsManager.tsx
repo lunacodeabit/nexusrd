@@ -1,10 +1,11 @@
 import React, { useState, useMemo } from 'react';
 import type { Lead } from '../types';
 import { LeadStatus } from '../types';
-import { Search, Plus, Smartphone, MessageSquare, TrendingUp, CalendarClock, LayoutGrid, List } from 'lucide-react';
+import { Search, Plus, Smartphone, MessageSquare, TrendingUp, CalendarClock, LayoutGrid, List, Clock } from 'lucide-react';
 import Modal from './Modal';
 import LeadForm from './LeadForm';
 import LeadDetail from './LeadDetail';
+import MoveToTrackingModal from './MoveToTrackingModal';
 import { getScoreColor, getScoreEmoji, type LeadScore } from '../services/leadScoring';
 import type { LeadFollowUp } from '../types/activities';
 
@@ -37,6 +38,7 @@ const LeadsManager: React.FC<LeadsManagerProps> = ({ leads, addLead, updateLeadS
   const [draggedLead, setDraggedLead] = useState<Lead | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<LeadStatus | 'ALL'>('ALL');
+  const [trackingModalLead, setTrackingModalLead] = useState<Lead | null>(null);
 
   // Get scheduled tasks from localStorage
   const getScheduledTasks = () => {
@@ -336,6 +338,13 @@ const LeadsManager: React.FC<LeadsManagerProps> = ({ leads, addLead, updateLeadS
                           {/* Quick actions */}
                           <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
                             <button 
+                              onClick={() => setTrackingModalLead(lead)}
+                              className="p-1 bg-amber-900/30 text-amber-400 rounded hover:bg-amber-500 hover:text-white transition-colors"
+                              title="Mover a Seguimiento"
+                            >
+                              <Clock size={10} />
+                            </button>
+                            <button 
                               onClick={() => handleCall(lead.phone)}
                               className="p-1 bg-green-900/30 text-green-400 rounded hover:bg-green-500 hover:text-white transition-colors"
                             >
@@ -526,6 +535,19 @@ const LeadsManager: React.FC<LeadsManagerProps> = ({ leads, addLead, updateLeadS
           />
         )}
       </Modal>
+
+      {/* Modal: Move to Tracking */}
+      {trackingModalLead && (
+        <MoveToTrackingModal
+          lead={trackingModalLead}
+          isOpen={true}
+          onClose={() => setTrackingModalLead(null)}
+          onSuccess={() => {
+            setTrackingModalLead(null);
+            // Optionally refresh leads or show success message
+          }}
+        />
+      )}
     </div>
   );
 };
