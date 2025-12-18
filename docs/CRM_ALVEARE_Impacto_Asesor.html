@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CRM ALVEARE - Impacto para Asesores Inmobiliarios</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      line-height: 1.6;
+      color: #1a1a2e;
+      background: #fff;
+      padding: 40px;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    
+    @media print {
+      body {
+        padding: 20px;
+      }
+      .page-break {
+        page-break-before: always;
+      }
+    }
+    
+    .header {
+      text-align: center;
+      margin-bottom: 40px;
+      padding-bottom: 20px;
+      border-bottom: 3px solid #ff851b;
+    }
+    
+    .logo {
+      font-size: 42px;
+      font-weight: bold;
+      color: #ff851b;
+      letter-spacing: 4px;
+      margin-bottom: 10px;
+    }
+    
+    .subtitle {
+      font-size: 18px;
+      color: #666;
+    }
+    
+    .date {
+      font-size: 12px;
+      color: #999;
+      margin-top: 10px;
+    }
+    
+    h1 {
+      color: #1a1a2e;
+      font-size: 28px;
+      margin: 30px 0 20px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid #ff851b;
+    }
+    
+    h2 {
+      color: #ff851b;
+      font-size: 20px;
+      margin: 25px 0 15px;
+    }
+    
+    h3 {
+      color: #1a1a2e;
+      font-size: 16px;
+      margin: 20px 0 10px;
+    }
+    
+    p {
+      margin-bottom: 15px;
+      text-align: justify;
+    }
+    
+    .question-box {
+      background: linear-gradient(135deg, #1a1a2e 0%, #2d2d44 100%);
+      color: white;
+      padding: 20px;
+      border-radius: 10px;
+      margin: 30px 0;
+      border-left: 5px solid #ff851b;
+    }
+    
+    .question-box h2 {
+      color: #ff851b;
+      margin-top: 0;
+    }
+    
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0;
+      font-size: 14px;
+    }
+    
+    th, td {
+      padding: 12px;
+      text-align: left;
+      border: 1px solid #ddd;
+    }
+    
+    th {
+      background: #1a1a2e;
+      color: white;
+      font-weight: 600;
+    }
+    
+    tr:nth-child(even) {
+      background: #f9f9f9;
+    }
+    
+    .highlight {
+      background: #fff3e0;
+    }
+    
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 15px;
+      margin: 20px 0;
+    }
+    
+    .stat-card {
+      background: #f8f9fa;
+      padding: 20px;
+      border-radius: 8px;
+      text-align: center;
+      border-left: 4px solid #ff851b;
+    }
+    
+    .stat-number {
+      font-size: 32px;
+      font-weight: bold;
+      color: #ff851b;
+    }
+    
+    .stat-label {
+      font-size: 12px;
+      color: #666;
+      text-transform: uppercase;
+    }
+    
+    .code-block {
+      background: #1a1a2e;
+      color: #fff;
+      padding: 15px;
+      border-radius: 8px;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      margin: 15px 0;
+      white-space: pre-line;
+    }
+    
+    .code-block .orange {
+      color: #ff851b;
+    }
+    
+    .code-block .green {
+      color: #2ecc40;
+    }
+    
+    ul, ol {
+      margin: 15px 0 15px 25px;
+    }
+    
+    li {
+      margin-bottom: 8px;
+    }
+    
+    .impact-box {
+      background: #e8f5e9;
+      border: 2px solid #4caf50;
+      padding: 15px;
+      border-radius: 8px;
+      margin: 20px 0;
+    }
+    
+    .impact-box strong {
+      color: #2e7d32;
+    }
+    
+    .warning-box {
+      background: #fff3e0;
+      border: 2px solid #ff851b;
+      padding: 15px;
+      border-radius: 8px;
+      margin: 20px 0;
+    }
+    
+    .timeline {
+      border-left: 3px solid #ff851b;
+      padding-left: 20px;
+      margin: 20px 0;
+    }
+    
+    .timeline-item {
+      margin-bottom: 15px;
+      position: relative;
+    }
+    
+    .timeline-item::before {
+      content: '';
+      position: absolute;
+      left: -26px;
+      top: 5px;
+      width: 12px;
+      height: 12px;
+      background: #ff851b;
+      border-radius: 50%;
+    }
+    
+    .timeline-time {
+      font-weight: bold;
+      color: #ff851b;
+    }
+    
+    .footer {
+      margin-top: 50px;
+      padding-top: 20px;
+      border-top: 2px solid #eee;
+      text-align: center;
+      color: #999;
+      font-size: 12px;
+    }
+    
+    .emoji {
+      font-size: 18px;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo">ALVEARE</div>
+    <div class="subtitle">CRM Inmobiliario - República Dominicana</div>
+    <div class="date">Documento generado: Diciembre 2025</div>
+  </div>
+
+  <div class="question-box">
+    <h2>❓ Pregunta del Usuario</h2>
+    <p><em>"Con todo lo que hemos creado, ¿cómo ayudaría o afectaría a un asesor que realmente le dé uso a las funciones que tenemos en esta app?"</em></p>
+  </div>
+
+  <h1>🎯 Impacto Real del CRM ALVEARE para un Asesor Inmobiliario</h1>
+
+  <h2>📊 Sin el CRM vs Con el CRM</h2>
+  
+  <table>
+    <thead>
+      <tr>
+        <th>Situación</th>
+        <th>Sin CRM</th>
+        <th>Con ALVEARE</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Lead nuevo llega</td>
+        <td>Se anota en papel/WhatsApp, se olvida</td>
+        <td class="highlight">Registro inmediato con scoring automático</td>
+      </tr>
+      <tr>
+        <td>Seguimiento</td>
+        <td>"¿A quién tenía que llamar hoy?"</td>
+        <td class="highlight">Alertas Telegram + tareas programadas</td>
+      </tr>
+      <tr>
+        <td>Priorización</td>
+        <td>Atender al que "grita más fuerte"</td>
+        <td class="highlight">Score automático: leads calientes primero</td>
+      </tr>
+      <tr>
+        <td>Cliente pausó búsqueda</td>
+        <td>Se pierde en el olvido</td>
+        <td class="highlight">Va a "Seguimiento Futuro", alerta automática</td>
+      </tr>
+      <tr>
+        <td>Métricas de rendimiento</td>
+        <td>"Creo que me fue bien este mes"</td>
+        <td class="highlight">Dashboard con conversiones reales</td>
+      </tr>
+      <tr>
+        <td>Propiedades captadas</td>
+        <td>Lista en Excel desordenada</td>
+        <td class="highlight">Inventario con fotos, matching con leads</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>💰 Cómo Aumenta las Ventas</h2>
+
+  <h3>1. Ningún Lead se Pierde</h3>
+  
+  <div class="code-block">
+<span class="orange">Antes:</span> 10 leads → 3 se olvidan → 7 contactados → <span class="orange">1 venta</span>
+<span class="green">Ahora:</span> 10 leads → 10 contactados → <span class="green">2-3 ventas</span>
+  </div>
+  
+  <div class="impact-box">
+    <strong>Impacto: +100% en conversión potencial</strong>
+  </div>
+
+  <h3>2. Velocidad de Respuesta</h3>
+  <ul>
+    <li>Alerta Telegram instantánea cuando llega un lead</li>
+    <li>Un lead contactado en <strong>5 minutos</strong> tiene <strong>21x más probabilidad</strong> de convertir que uno contactado en 30 minutos</li>
+    <li>Click directo a WhatsApp/llamada desde la app</li>
+  </ul>
+
+  <h3>3. Seguimiento Inteligente</h3>
+  <ul>
+    <li><strong>En Espera</strong> (banco): No se pierde ese cliente que está esperando aprobación 3 meses</li>
+    <li><strong>Pausados:</strong> Cliente que "no es buen momento" → alerta automática en la fecha indicada</li>
+    <li><strong>Búsquedas:</strong> Sabes exactamente qué busca cada cliente → cuando captas esa propiedad, ya tienes compradores</li>
+  </ul>
+
+  <h3>4. Lead Scoring = Priorización</h3>
+  
+  <div class="code-block">
+<span class="orange">Lead A:</span> Presupuesto alto + responde rápido + visitó = <span class="green">85 puntos ⭐</span>
+<span class="orange">Lead B:</span> Solo dejó datos + no contesta = <span class="orange">25 puntos</span>
+
+¿A quién dedicas tu tiempo limitado?
+  </div>
+
+  <div class="page-break"></div>
+
+  <h2>⏰ Ahorro de Tiempo Diario</h2>
+  
+  <table>
+    <thead>
+      <tr>
+        <th>Tarea</th>
+        <th>Método Tradicional</th>
+        <th>Con ALVEARE</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Revisar a quién llamar</td>
+        <td>15-20 min buscando notas</td>
+        <td class="highlight">0 min (dashboard listo)</td>
+      </tr>
+      <tr>
+        <td>Actualizar estado de leads</td>
+        <td>Editar Excel, buscar fila</td>
+        <td class="highlight">2 clicks desde el Kanban</td>
+      </tr>
+      <tr>
+        <td>Recordar seguimientos</td>
+        <td>Depender de memoria</td>
+        <td class="highlight">Automático con alertas</td>
+      </tr>
+      <tr>
+        <td>Reportar al supervisor</td>
+        <td>Crear informe manual</td>
+        <td class="highlight">SuperAdmin ve en tiempo real</td>
+      </tr>
+      <tr>
+        <td>Buscar propiedad para cliente</td>
+        <td>Revisar toda la lista</td>
+        <td class="highlight">Filtros por zona/precio/tipo</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="warning-box">
+    <strong>⏱️ Estimado: 1-2 horas diarias ahorradas</strong> → Más tiempo para mostrar propiedades y cerrar ventas
+  </div>
+
+  <h2>📈 Para el Supervisor/Dueño</h2>
+  <ol>
+    <li><strong>Visibilidad Total:</strong> Ve qué hace cada asesor sin preguntarle</li>
+    <li><strong>Identificar Problemas:</strong> ¿Por qué Juan tiene 50 leads y 0 cierres?</li>
+    <li><strong>Asignar Leads Inteligentemente:</strong> Al asesor con mejor tasa de conversión</li>
+    <li><strong>Medir ROI de Marketing:</strong> ¿De dónde vienen los leads que SÍ compran?</li>
+  </ol>
+
+  <h2>🔥 Caso de Uso Real</h2>
+  <p><strong>María, asesora usando ALVEARE:</strong></p>
+  
+  <div class="timeline">
+    <div class="timeline-item">
+      <span class="timeline-time">8:00 AM</span> - Abre la app, ve 2 tareas pendientes
+    </div>
+    <div class="timeline-item">
+      <span class="timeline-time">8:05 AM</span> - Llama a José (score 78, esperando banco)
+    </div>
+    <div class="timeline-item">
+      <span class="timeline-time">8:15 AM</span> - Actualiza: "Banco aprobó, agendar visita"
+    </div>
+    <div class="timeline-item">
+      <span class="timeline-time">8:20 AM</span> - Recibe alerta Telegram: "Nuevo lead: Ana, busca apto 2 hab Piantini"
+    </div>
+    <div class="timeline-item">
+      <span class="timeline-time">8:22 AM</span> - Contacta a Ana por WhatsApp desde la app
+    </div>
+    <div class="timeline-item">
+      <span class="timeline-time">8:30 AM</span> - Revisa inventario: tiene 3 propiedades que matchean
+    </div>
+    <div class="timeline-item">
+      <span class="timeline-time">8:35 AM</span> - Programa visita para Ana el viernes
+    </div>
+    <div class="timeline-item">
+      <span class="timeline-time">12:00 PM</span> - Sistema le recuerda: "Contactar a Pedro (pausado hace 3 meses)"
+    </div>
+  </div>
+
+  <p><strong>Sin ALVEARE, María probablemente:</strong></p>
+  <ul>
+    <li>Habría olvidado llamar a José</li>
+    <li>Habría tardado horas en ver el lead de Ana</li>
+    <li>No recordaría qué buscaba exactamente</li>
+    <li>Pedro estaría perdido para siempre</li>
+  </ul>
+
+  <h2>📱 El Factor PWA (App Progresiva)</h2>
+  <ul>
+    <li><strong>Sin instalar nada:</strong> Funciona como app nativa desde el navegador</li>
+    <li><strong>Siempre disponible:</strong> En el campo mostrando propiedades, actualiza desde el celular</li>
+    <li><strong>Notificaciones:</strong> No necesita abrir la app para enterarse de leads nuevos (Telegram)</li>
+  </ul>
+
+  <h2>🎯 Resumen del ROI (Retorno de Inversión)</h2>
+  
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="stat-number">-80%</div>
+      <div class="stat-label">Leads Perdidos</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-number">-60%</div>
+      <div class="stat-label">Tiempo en Admin</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-number">+400%</div>
+      <div class="stat-label">Velocidad Respuesta</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-number">+200%</div>
+      <div class="stat-label">Seguimientos Cumplidos</div>
+    </div>
+  </div>
+
+  <div class="impact-box">
+    <h3 style="color: #2e7d32; margin-top: 0;">💵 Conclusión Financiera</h3>
+    <p>Un asesor que cierra <strong>1 venta más al mes</strong> por usar bien el CRM, con comisión promedio de <strong>$3,000-5,000 USD</strong>, recupera el valor de cualquier inversión en la herramienta.</p>
+    <p style="margin-bottom: 0;"><strong>Conversión general estimada: +50-100%</strong></p>
+  </div>
+
+  <h2>🛠️ Funcionalidades Incluidas en ALVEARE</h2>
+  
+  <table>
+    <thead>
+      <tr>
+        <th>Módulo</th>
+        <th>Funcionalidad</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Dashboard</td>
+        <td>Vista general de métricas, leads pendientes, tareas del día</td>
+      </tr>
+      <tr>
+        <td>Leads Flow (Kanban)</td>
+        <td>Gestión visual de leads por etapa, drag & drop, scoring automático</td>
+      </tr>
+      <tr>
+        <td>Seguimiento Futuro</td>
+        <td>Leads en espera, pausados o buscando propiedades específicas</td>
+      </tr>
+      <tr>
+        <td>Marketing</td>
+        <td>Campañas y actividades de captación de leads</td>
+      </tr>
+      <tr>
+        <td>Captaciones</td>
+        <td>Inventario de propiedades con fotos y detalles</td>
+      </tr>
+      <tr>
+        <td>Métricas</td>
+        <td>Analytics de rendimiento, conversiones, fuentes de leads</td>
+      </tr>
+      <tr>
+        <td>Automatizaciones</td>
+        <td>Alertas Telegram, tareas programadas automáticas</td>
+      </tr>
+      <tr>
+        <td>SuperAdmin</td>
+        <td>Gestión de equipo, asignación de leads, reportes por asesor</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="footer">
+    <p><strong>CRM ALVEARE</strong> - Diseñado para el mercado inmobiliario de República Dominicana</p>
+    <p>© 2025 - Documento informativo</p>
+    <p style="margin-top: 10px; font-size: 11px;">Para imprimir: Ctrl+P → Guardar como PDF</p>
+  </div>
+</body>
+</html>

@@ -26,7 +26,7 @@ const LeadForm: React.FC<LeadFormProps> = ({ onSave, onCancel }) => {
     name: '',
     email: '',
     phone: '',
-    source: 'Website' as Lead['source'],
+    source: 'Campaña Pagada' as Lead['source'],
     budget: 0,
     budgetDisplay: '',
     currency: 'USD' as Currency,
@@ -127,10 +127,21 @@ const LeadForm: React.FC<LeadFormProps> = ({ onSave, onCancel }) => {
             onChange={(e) => setFormData({ ...formData, source: e.target.value as Lead['source'] })}
             className="w-full bg-nexus-base border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-nexus-accent"
           >
-            <option value="Website">Website</option>
-            <option value="Idealista">Idealista</option>
-            <option value="Instagram">Instagram</option>
+            <option value="Campaña Pagada">Campaña Pagada</option>
+            <option value="ALVEARE - Facebook Lead">ALVEARE - Facebook Lead</option>
+            <option value="Alveare - Referido">Alveare - Referido</option>
+            <option value="Amigo">Amigo</option>
+            <option value="Familiar">Familiar</option>
             <option value="Referido">Referido</option>
+            <option value="Cliente Anterior">Cliente Anterior</option>
+            <option value="Instagram">Instagram</option>
+            <option value="Facebook">Facebook</option>
+            <option value="TikTok">TikTok</option>
+            <option value="YouTube">YouTube</option>
+            <option value="Letrero o Valla">Letrero o Valla</option>
+            <option value="Mail Masivo">Mail Masivo</option>
+            <option value="WhatsApp Masivo">WhatsApp Masivo</option>
+            <option value="Agente Externo">Agente Externo</option>
           </select>
         </div>
         <div>

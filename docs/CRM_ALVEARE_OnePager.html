@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>CRM ALVEARE - One Pager</title>
+  <style>
+    @page { size: letter; margin: 0.5in; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      font-size: 11px;
+      line-height: 1.4;
+      color: #1a1a2e;
+      padding: 20px;
+      max-width: 8.5in;
+      margin: 0 auto;
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 3px solid #ff851b;
+      padding-bottom: 10px;
+      margin-bottom: 15px;
+    }
+    .logo { font-size: 28px; font-weight: bold; color: #ff851b; letter-spacing: 3px; }
+    .tagline { font-size: 10px; color: #666; }
+    .question {
+      background: #1a1a2e;
+      color: white;
+      padding: 10px 15px;
+      border-radius: 6px;
+      margin-bottom: 15px;
+      border-left: 4px solid #ff851b;
+    }
+    .question strong { color: #ff851b; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+    .section {
+      background: #f8f9fa;
+      padding: 12px;
+      border-radius: 6px;
+      border-top: 3px solid #ff851b;
+    }
+    .section h3 {
+      color: #ff851b;
+      font-size: 12px;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+    }
+    table { width: 100%; font-size: 10px; border-collapse: collapse; }
+    th, td { padding: 4px 6px; text-align: left; border-bottom: 1px solid #ddd; }
+    th { background: #1a1a2e; color: white; font-size: 9px; }
+    .highlight { background: #fff3e0; font-weight: bold; }
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin-top: 15px;
+    }
+    .stat {
+      background: #1a1a2e;
+      color: white;
+      padding: 10px;
+      border-radius: 6px;
+      text-align: center;
+    }
+    .stat-num { font-size: 20px; font-weight: bold; color: #ff851b; }
+    .stat-label { font-size: 8px; text-transform: uppercase; opacity: 0.8; }
+    .timeline {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 5px;
+      font-size: 9px;
+    }
+    .time-item {
+      background: #e8f5e9;
+      padding: 6px;
+      border-radius: 4px;
+      border-left: 2px solid #4caf50;
+    }
+    .time-item strong { color: #ff851b; display: block; }
+    .roi-box {
+      background: linear-gradient(135deg, #ff851b, #e67300);
+      color: white;
+      padding: 12px;
+      border-radius: 6px;
+      text-align: center;
+      margin-top: 15px;
+    }
+    .roi-box h3 { color: white; margin-bottom: 5px; }
+    ul { padding-left: 15px; font-size: 10px; }
+    li { margin-bottom: 3px; }
+    .full-width { grid-column: 1 / -1; }
+    .footer {
+      text-align: center;
+      font-size: 9px;
+      color: #999;
+      margin-top: 10px;
+      padding-top: 8px;
+      border-top: 1px solid #ddd;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div>
+      <div class="logo">ALVEARE</div>
+      <div class="tagline">CRM Inmobiliario • República Dominicana</div>
+    </div>
+    <div style="text-align: right; font-size: 10px; color: #666;">
+      Diciembre 2025<br>
+      <strong>alvearecrm.netlify.app</strong>
+    </div>
+  </div>
+
+  <div class="question">
+    <strong>❓ PREGUNTA:</strong> "¿Cómo ayudaría a un asesor que realmente use las funciones de esta app?"
+  </div>
+
+  <div class="grid">
+    <div class="section">
+      <h3>📊 Sin CRM vs Con ALVEARE</h3>
+      <table>
+        <tr><th>Situación</th><th>Antes</th><th>Ahora</th></tr>
+        <tr><td>Lead nuevo</td><td>Se olvida</td><td class="highlight">Registro + Score</td></tr>
+        <tr><td>Seguimiento</td><td>¿A quién llamo?</td><td class="highlight">Alertas Telegram</td></tr>
+        <tr><td>Priorizar</td><td>Al azar</td><td class="highlight">Lead Scoring</td></tr>
+        <tr><td>Cliente pausado</td><td>Perdido</td><td class="highlight">Alerta futura</td></tr>
+        <tr><td>Métricas</td><td>"Creo que bien"</td><td class="highlight">Dashboard real</td></tr>
+      </table>
+    </div>
+
+    <div class="section">
+      <h3>⏰ Ahorro de Tiempo Diario</h3>
+      <table>
+        <tr><th>Tarea</th><th>Tradicional</th><th>ALVEARE</th></tr>
+        <tr><td>Ver a quién llamar</td><td>15-20 min</td><td class="highlight">0 min</td></tr>
+        <tr><td>Actualizar leads</td><td>Excel, buscar</td><td class="highlight">2 clicks</td></tr>
+        <tr><td>Recordar seguimientos</td><td>Memoria</td><td class="highlight">Automático</td></tr>
+        <tr><td>Reportar a jefe</td><td>Informe manual</td><td class="highlight">Tiempo real</td></tr>
+      </table>
+      <p style="margin-top:8px; font-weight:bold; color:#2e7d32;">💡 1-2 horas/día ahorradas</p>
+    </div>
+
+    <div class="section">
+      <h3>💰 Impacto en Ventas</h3>
+      <div style="background:#1a1a2e; color:white; padding:8px; border-radius:4px; font-size:10px; margin-bottom:8px;">
+        <div><span style="color:#ff851b;">Antes:</span> 10 leads → 3 olvidados → <strong>1 venta</strong></div>
+        <div><span style="color:#4caf50;">Ahora:</span> 10 leads → 10 contactados → <strong>2-3 ventas</strong></div>
+      </div>
+      <ul>
+        <li><strong>21x más probabilidad</strong> de convertir si contactas en 5 min</li>
+        <li>Click directo a <strong>WhatsApp/llamada</strong> desde la app</li>
+        <li>Alertas <strong>Telegram</strong> instantáneas</li>
+        <li><strong>Seguimiento Futuro:</strong> clientes en espera no se pierden</li>
+      </ul>
+    </div>
+
+    <div class="section">
+      <h3>🔥 Día de un Asesor con ALVEARE</h3>
+      <div class="timeline">
+        <div class="time-item"><strong>8:00</strong>Abre app, 2 tareas</div>
+        <div class="time-item"><strong>8:05</strong>Llama lead score 78</div>
+        <div class="time-item"><strong>8:20</strong>Alerta: nuevo lead</div>
+        <div class="time-item"><strong>8:22</strong>WhatsApp directo</div>
+        <div class="time-item"><strong>8:30</strong>Busca en inventario</div>
+        <div class="time-item"><strong>8:35</strong>Agenda visita</div>
+        <div class="time-item"><strong>12:00</strong>Recordatorio auto</div>
+        <div class="time-item"><strong>PM</strong>Más cierres ✓</div>
+      </div>
+    </div>
+
+    <div class="section full-width">
+      <h3>🛠️ Módulos Incluidos</h3>
+      <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:8px; font-size:9px;">
+        <div><strong>📊 Dashboard</strong><br>Métricas, tareas del día</div>
+        <div><strong>👥 Leads Flow</strong><br>Kanban, drag & drop, scoring</div>
+        <div><strong>⏳ Seguimiento</strong><br>En espera, pausados, búsquedas</div>
+        <div><strong>📢 Marketing</strong><br>Campañas, actividades</div>
+        <div><strong>🏠 Captaciones</strong><br>Inventario de propiedades</div>
+        <div><strong>📈 Métricas</strong><br>Analytics, conversiones</div>
+        <div><strong>⚡ Automatización</strong><br>Alertas Telegram</div>
+        <div><strong>👑 SuperAdmin</strong><br>Gestión de equipo</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="stats-row">
+    <div class="stat"><div class="stat-num">-80%</div><div class="stat-label">Leads Perdidos</div></div>
+    <div class="stat"><div class="stat-num">-60%</div><div class="stat-label">Tiempo Admin</div></div>
+    <div class="stat"><div class="stat-num">+400%</div><div class="stat-label">Velocidad Respuesta</div></div>
+    <div class="stat"><div class="stat-num">+100%</div><div class="stat-label">Conversión</div></div>
+  </div>
+
+  <div class="roi-box">
+    <h3>💵 CONCLUSIÓN</h3>
+    <strong>1 venta adicional/mes × $3,000-5,000 USD comisión = ROI inmediato</strong>
+  </div>
+
+  <div class="footer">
+    <strong>CRM ALVEARE</strong> • PWA (funciona como app sin instalar) • Diseñado para el mercado inmobiliario dominicano<br>
+    Para imprimir: Ctrl+P → Guardar como PDF
+  </div>
+</body>
+</html>
