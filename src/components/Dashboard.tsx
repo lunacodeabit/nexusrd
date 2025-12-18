@@ -499,47 +499,54 @@ const Dashboard: React.FC<DashboardProps> = ({
                 <p className="text-sm text-gray-500">¡Al día! Sin tareas vencidas</p>
               </div>
             ) : (
-              todaysOverdueTasks.map(task => (
-                <div 
-                  key={task.id} 
-                  className="p-2.5 bg-amber-950/30 rounded-lg border border-amber-500/20 hover:border-amber-500/40 transition-all group"
-                >
-                  <div className="flex gap-2 items-start">
-                    <div className={`w-2 h-2 rounded-full flex-shrink-0 mt-1.5 ${getTaskColor(task.method)}`}></div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        {getTaskIcon(task.method)}
-                        <p className="text-sm font-medium text-white truncate">{task.leadName}</p>
+              todaysOverdueTasks.map(task => {
+                // Find the lead associated with this task
+                const taskLead = leads.find(l => l.id === task.leadId);
+                return (
+                  <div 
+                    key={task.id} 
+                    className="p-2.5 bg-amber-950/30 rounded-lg border border-amber-500/20 hover:border-amber-500/40 transition-all group"
+                  >
+                    <div 
+                      className="flex gap-2 items-start cursor-pointer"
+                      onClick={() => taskLead && setSelectedLead(taskLead)}
+                    >
+                      <div className={`w-2 h-2 rounded-full flex-shrink-0 mt-1.5 ${getTaskColor(task.method)}`}></div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          {getTaskIcon(task.method)}
+                          <p className="text-sm font-medium text-white truncate hover:text-amber-400">{task.leadName}</p>
+                        </div>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-xs bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded">
+                            {task.overdueLabel}
+                          </span>
+                          <span className="text-xs text-gray-500">
+                            Era: {task.scheduledTime}
+                          </span>
+                        </div>
+                        {task.notes && (
+                          <p className="text-xs text-gray-400 mt-1 truncate">{task.notes}</p>
+                        )}
                       </div>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="text-xs bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded">
-                          {task.overdueLabel}
-                        </span>
-                        <span className="text-xs text-gray-500">
-                          Era: {task.scheduledTime}
-                        </span>
-                      </div>
-                      {task.notes && (
-                        <p className="text-xs text-gray-400 mt-1 truncate">{task.notes}</p>
-                      )}
+                    </div>
+                    <div className="flex gap-1 mt-2">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleEditTask(task); }}
+                        className="flex-1 p-1.5 rounded-lg bg-blue-500/20 text-blue-400 hover:bg-blue-500 hover:text-white text-xs font-medium"
+                      >
+                        Reprogramar
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleCompleteTask(task.id); }}
+                        className="flex-1 p-1.5 rounded-lg bg-green-500/20 text-green-400 hover:bg-green-500 hover:text-white text-xs font-medium"
+                      >
+                        Completar
+                      </button>
                     </div>
                   </div>
-                  <div className="flex gap-1 mt-2">
-                    <button
-                      onClick={() => handleEditTask(task)}
-                      className="flex-1 p-1.5 rounded-lg bg-blue-500/20 text-blue-400 hover:bg-blue-500 hover:text-white text-xs font-medium"
-                    >
-                      Reprogramar
-                    </button>
-                    <button
-                      onClick={() => handleCompleteTask(task.id)}
-                      className="flex-1 p-1.5 rounded-lg bg-green-500/20 text-green-400 hover:bg-green-500 hover:text-white text-xs font-medium"
-                    >
-                      Completar
-                    </button>
-                  </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>

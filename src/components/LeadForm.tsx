@@ -2,9 +2,25 @@ import React, { useState, useRef } from 'react';
 import type { Lead, Currency } from '../types';
 import { LeadStatus } from '../types';
 
-// Format phone number as xxx-xxx-xxxx
+// Format phone number - supports international format with + prefix
+// Allows: +1 809-555-1234, +34 612 345 678, +18095551234, etc.
 const formatPhoneNumber = (value: string): string => {
-  const numbers = value.replace(/\D/g, '');
+  // Keep the + if it exists at the start
+  const hasPlus = value.startsWith('+');
+  // Remove all non-digits except the leading +
+  const cleaned = value.replace(/[^\d+]/g, '').replace(/(?!^)\+/g, '');
+  
+  if (hasPlus || cleaned.startsWith('+')) {
+    // International format - just clean it up, don't force specific format
+    const digits = cleaned.replace('+', '');
+    if (digits.length <= 3) return '+' + digits;
+    if (digits.length <= 6) return '+' + digits.slice(0, 3) + ' ' + digits.slice(3);
+    if (digits.length <= 10) return '+' + digits.slice(0, 3) + ' ' + digits.slice(3, 6) + '-' + digits.slice(6);
+    return '+' + digits.slice(0, 3) + ' ' + digits.slice(3, 6) + '-' + digits.slice(6, 10) + digits.slice(10);
+  }
+  
+  // Local format (no +) - use xxx-xxx-xxxx
+  const numbers = cleaned.replace(/\D/g, '');
   if (numbers.length <= 3) return numbers;
   if (numbers.length <= 6) return `${numbers.slice(0, 3)}-${numbers.slice(3)}`;
   return `${numbers.slice(0, 3)}-${numbers.slice(3, 6)}-${numbers.slice(6, 10)}`;
