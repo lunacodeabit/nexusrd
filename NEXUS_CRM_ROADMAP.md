@@ -389,7 +389,7 @@ NEXUSRD/
 
 ## 🗺 Roadmap & Next Steps
 
-### Week 1 (Current)
+### ✅ Completado (Diciembre 2025)
 - [x] Core app development
 - [x] Lead qualification system
 - [x] Daily activities tracker
@@ -397,32 +397,32 @@ NEXUSRD/
 - [x] Analytics dashboard
 - [x] n8n webhook integration
 - [x] Email notifications
-- [ ] Google Sheets integration
-- [ ] WhatsApp Business API
+- [x] Backend Supabase con RLS
+- [x] User authentication
+- [x] Data persistence
+- [x] Alertas Telegram para tareas
+- [x] Alertas Telegram para leads nuevos
+- [x] Sistema de Automatizaciones
+- [x] SuperAdmin Dashboard
+- [x] Seguimiento Futuro (En Espera, Pausados, Búsquedas)
+- [x] Dashboard 3 columnas (Agenda, Vencidas, Críticas)
+- [x] Alertas críticas escalonadas (2h, 24h)
 
-### Week 2
-- [ ] Backend setup (Supabase)
-- [ ] User authentication
-- [ ] Data persistence
-- [ ] Real lead import from portals
+### 🔜 Próximas Funcionalidades
+- [ ] **Integración AlterEstate/WhatsApp:** Recibir leads desde otros CRMs via webhook
+  - Parser de mensajes de WhatsApp con formato estructurado
+  - Webhook endpoint para recibir leads externos
+  - n8n flow para automatizar el proceso
+- [ ] **Matching Propiedades-Leads:** Cuando una propiedad cumple criterios de búsqueda
+- [ ] Google Sheets export/import
+- [ ] WhatsApp Business API directo
+- [ ] Reportes PDF automáticos
 
-### Week 3
-- [ ] Production deployment
-- [ ] Custom domain
-- [ ] SSL certificate
-- [ ] Performance optimization
-
-### Month 2
-- [ ] Beta testing with real users
-- [ ] Feedback collection
-- [ ] Bug fixes and improvements
-- [ ] Mobile app consideration
-
-### Month 3+
-- [ ] White-label preparation
-- [ ] Marketing website
-- [ ] Documentation
-- [ ] First paying customers?
+### 🚀 Futuro
+- [ ] App móvil nativa (React Native)
+- [ ] White-label para inmobiliarias
+- [ ] Integración con portales (Idealista, SuperCasas, Corotos)
+- [ ] IA para sugerencias de respuestas
 
 ---
 
