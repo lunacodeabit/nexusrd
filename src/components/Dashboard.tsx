@@ -1,13 +1,15 @@
 import React, { useMemo, useState } from 'react';
 import type { Lead } from '../types';
 import { LeadStatus } from '../types';
-import { AlertTriangle, Clock, Phone, TrendingUp, Bell, X, MessageSquare, Mail, MapPin, MoreHorizontal, CheckCircle2, Pencil, CalendarPlus } from 'lucide-react';
+import { AlertTriangle, Clock, Phone, TrendingUp, Bell, X, MessageSquare, Mail, MapPin, MoreHorizontal, CheckCircle2, Pencil, CalendarPlus, Zap } from 'lucide-react';
 import Modal from './Modal';
 import LeadDetail from './LeadDetail';
 import DailyPlanner from './DailyPlanner';
 import type { LeadScore } from '../services/leadScoring';
 import type { LeadFollowUp } from '../types/activities';
 import { useTodayActivity } from '../hooks/useTodayActivity';
+import { useAutomations } from '../hooks/useAutomations';
+import { useAutomationEngine } from '../hooks/useAutomationEngine';
 
 // Interface for scheduled tasks (same as in LeadFollowUpTracker)
 interface ScheduledTask {
@@ -43,6 +45,8 @@ const Dashboard: React.FC<DashboardProps> = ({
   onUpdateFollowUpNotes
 }) => {
   const { counts: todayActivity } = useTodayActivity();
+  const { rules } = useAutomations();
+  const { pendingAutomations } = useAutomationEngine({ leads, rules });
   const [showNotifications, setShowNotifications] = useState(false);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [editingTask, setEditingTask] = useState<ScheduledTask | null>(null);
@@ -66,51 +70,76 @@ const Dashboard: React.FC<DashboardProps> = ({
   // LOGICA DE ALERTAS INTELIGENTE ("El Flow Lógico")
   // ---------------------------------------------------------------------------
   
-  const urgentAlerts = useMemo(() => {
-    const now = new Date();
-    return leads.filter(lead => {
-      // Excluir leads cerrados (ganados o perdidos)
-      if (lead.status === LeadStatus.CLOSED_WON || lead.status === LeadStatus.CLOSED_LOST) {
-        return false;
-      }
+  // Tipo unificado para alertas críticas
+  type CriticalAlert = {
+    lead: Lead;
+    type: 'NEW' | 'OVERDUE' | 'AUTOMATION';
+    reason: string;
+    automationName?: string;
+  };
 
-      // Verificar si el lead tiene seguimientos registrados
+  const criticalAlerts = useMemo((): CriticalAlert[] => {
+    const now = new Date();
+    const alerts: CriticalAlert[] = [];
+    const addedLeadIds = new Set<string>();
+
+    // 1. Alertas de automatizaciones (prioridad alta)
+    for (const auto of pendingAutomations) {
+      if (auto.action === 'show_alert' || auto.action === 'notify_supervisor') {
+        const lead = leads.find(l => l.id === auto.leadId);
+        if (lead && !addedLeadIds.has(lead.id)) {
+          alerts.push({
+            lead,
+            type: 'AUTOMATION',
+            reason: auto.message || auto.ruleName,
+            automationName: auto.ruleName
+          });
+          addedLeadIds.add(lead.id);
+        }
+      }
+    }
+
+    // 2. Alertas manuales (leads sin contactar o vencidos)
+    for (const lead of leads) {
+      if (addedLeadIds.has(lead.id)) continue;
+      if (lead.status === LeadStatus.CLOSED_WON || lead.status === LeadStatus.CLOSED_LOST) continue;
+
       const leadFollowUps = followUps.filter(f => f.leadId === lead.id);
       const hasFollowUps = leadFollowUps.length > 0;
-      
-      // Si tiene seguimientos, obtener la fecha del último
       const lastFollowUpDate = hasFollowUps 
         ? Math.max(...leadFollowUps.map(f => new Date(f.date).getTime()))
         : null;
 
-      // Regla 1: Lead NUEVO sin contactar por > 2 horas Y sin seguimientos
       const createdTime = new Date(lead.createdAt).getTime();
       const isNewAndOld = lead.status === LeadStatus.NEW && 
                           !hasFollowUps && 
                           (now.getTime() - createdTime > 1000 * 60 * 60 * 2);
 
-      // Regla 2: Seguimiento vencido (nextFollowUpDate ya pasó)
       const followUp = new Date(lead.nextFollowUpDate).getTime();
       const isOverdue = followUp < now.getTime();
 
-      // Si fue contactado recientemente (últimas 2 horas), no mostrar como alerta
-      // Considerar tanto lastContactDate como el último seguimiento
-      const lastContactTime = lead.lastContactDate 
-        ? new Date(lead.lastContactDate).getTime() 
-        : null;
-      const mostRecentContact = Math.max(
-        lastContactTime || 0, 
-        lastFollowUpDate || 0
-      );
+      const lastContactTime = lead.lastContactDate ? new Date(lead.lastContactDate).getTime() : null;
+      const mostRecentContact = Math.max(lastContactTime || 0, lastFollowUpDate || 0);
       
       if (mostRecentContact > 0) {
         const recentlyContacted = (now.getTime() - mostRecentContact) < 1000 * 60 * 60 * 2;
-        if (recentlyContacted) return false;
+        if (recentlyContacted) continue;
       }
 
-      return isNewAndOld || isOverdue;
-    });
-  }, [leads, followUps]);
+      if (isNewAndOld) {
+        alerts.push({ lead, type: 'NEW', reason: 'SIN CONTACTAR' });
+        addedLeadIds.add(lead.id);
+      } else if (isOverdue) {
+        alerts.push({ lead, type: 'OVERDUE', reason: 'SEGUIMIENTO VENCIDO' });
+        addedLeadIds.add(lead.id);
+      }
+    }
+
+    return alerts;
+  }, [leads, followUps, pendingAutomations]);
+
+  // Para compatibilidad con el conteo de KPIs
+  const urgentAlerts = criticalAlerts;
 
   const todaysTasks = useMemo(() => {
      // Visitas programadas (leads con status VISIT_SCHEDULED)
@@ -410,37 +439,43 @@ const Dashboard: React.FC<DashboardProps> = ({
           <div className="p-4 border-b border-white/10 flex items-center gap-2 bg-red-900/10">
             <AlertTriangle size={18} className="text-red-500" />
             <h3 className="font-bold text-red-100">Acciones Críticas</h3>
+            {criticalAlerts.length > 0 && (
+              <span className="ml-auto text-xs bg-red-500 text-white px-2 py-0.5 rounded-full">{criticalAlerts.length}</span>
+            )}
           </div>
           <div className="p-0 max-h-[400px] overflow-y-auto">
-            {urgentAlerts.length === 0 ? (
+            {criticalAlerts.length === 0 ? (
               <div className="p-8 text-center text-gray-500">Todo al día. ¡Buen trabajo!</div>
             ) : (
-              urgentAlerts.map(lead => {
-                // Determinar la razón de la alerta
+              criticalAlerts.map((alert, idx) => {
+                const { lead, type, reason, automationName } = alert;
                 const leadFollowUps = followUps.filter(f => f.leadId === lead.id);
-                const hasFollowUps = leadFollowUps.length > 0;
-                const isNew = lead.status === LeadStatus.NEW && !hasFollowUps;
-                const reason = isNew ? 'SIN CONTACTAR' : 'SEGUIMIENTO VENCIDO';
                 
                 return (
-                <div key={lead.id} className="p-3 border-b border-white/5 hover:bg-white/5 transition-colors">
+                <div key={`${lead.id}-${idx}`} className="p-3 border-b border-white/5 hover:bg-white/5 transition-colors">
                   <div 
                     className="cursor-pointer"
                     onClick={() => handleContactLead(lead)}
                   >
                     <div className="flex items-center gap-2 flex-wrap">
                        <span className="font-bold text-white text-sm">{lead.name}</span>
-                       <span className={`text-xs px-1.5 py-0.5 rounded border ${
-                         isNew 
+                       <span className={`text-xs px-1.5 py-0.5 rounded border flex items-center gap-1 ${
+                         type === 'AUTOMATION' 
+                           ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/20' 
+                           : type === 'NEW'
                            ? 'bg-blue-500/20 text-blue-400 border-blue-500/20' 
                            : 'bg-red-500/20 text-red-400 border-red-500/20'
                        }`}>
+                         {type === 'AUTOMATION' && <Zap size={10} />}
                          {reason}
                        </span>
                     </div>
+                    {automationName && (
+                      <p className="text-xs text-yellow-400/70 mt-1">⚡ Regla: {automationName}</p>
+                    )}
                     <p className="text-xs text-gray-400 mt-1 line-clamp-1">{lead.notes}</p>
                     <p className="text-xs text-gray-500 mt-1">
-                      {hasFollowUps 
+                      {leadFollowUps.length > 0
                         ? `Último contacto: ${new Date(leadFollowUps[leadFollowUps.length-1].date).toLocaleDateString()}`
                         : `Creado: ${new Date(lead.createdAt).toLocaleDateString()}`
                       }
