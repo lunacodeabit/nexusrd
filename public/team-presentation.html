@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ALVEARE CRM - Presentación para el Equipo</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary: #FF851B;
+            --bg-dark: #0a192f;
+            --bg-surface: #112240;
+            --text-white: #e6f1ff;
+            --text-gray: #8892b0;
+            --green: #64ffda;
+            --red: #ff6b6b;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-white);
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+        
+        /* Hero Section */
+        .hero {
+            text-align: center;
+            padding: 60px 20px;
+            background: linear-gradient(135deg, var(--bg-dark), var(--bg-surface));
+            border-bottom: 3px solid var(--primary);
+        }
+        
+        .hero h1 {
+            font-size: 3rem;
+            margin-bottom: 10px;
+        }
+        
+        .hero h1 span {
+            color: var(--primary);
+        }
+        
+        .hero p {
+            color: var(--text-gray);
+            font-size: 1.3rem;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
+        /* Section Styles */
+        section {
+            padding: 60px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        h2 {
+            font-size: 2rem;
+            margin-bottom: 30px;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        h3 {
+            font-size: 1.4rem;
+            margin: 20px 0 15px;
+            color: var(--text-white);
+        }
+        
+        p {
+            color: var(--text-gray);
+            margin-bottom: 15px;
+        }
+        
+        /* Cards Grid */
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 25px;
+            margin-top: 30px;
+        }
+        
+        .card {
+            background: var(--bg-surface);
+            border-radius: 12px;
+            padding: 25px;
+            border: 1px solid rgba(255,255,255,0.1);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        
+        .card-icon {
+            font-size: 2.5rem;
+            margin-bottom: 15px;
+        }
+        
+        .card h4 {
+            color: var(--text-white);
+            font-size: 1.2rem;
+            margin-bottom: 10px;
+        }
+        
+        .card p {
+            font-size: 0.95rem;
+        }
+        
+        /* Chart Containers */
+        .chart-container {
+            background: var(--bg-surface);
+            border-radius: 12px;
+            padding: 30px;
+            margin: 30px 0;
+        }
+        
+        .chart-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 30px;
+        }
+        
+        /* Comparison Table */
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 30px 0;
+            background: var(--bg-surface);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        
+        .comparison-table th,
+        .comparison-table td {
+            padding: 15px 20px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .comparison-table th {
+            background: rgba(255,133,27,0.2);
+            color: var(--primary);
+            font-weight: 600;
+        }
+        
+        .comparison-table tr:hover {
+            background: rgba(255,255,255,0.05);
+        }
+        
+        .check {
+            color: var(--green);
+            font-size: 1.2rem;
+        }
+        
+        .cross {
+            color: var(--red);
+            font-size: 1.2rem;
+        }
+        
+        .partial {
+            color: #ffd93d;
+            font-size: 1.2rem;
+        }
+        
+        /* Stats Row */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+        
+        .stat-box {
+            background: var(--bg-surface);
+            border-radius: 12px;
+            padding: 25px;
+            text-align: center;
+            border-left: 4px solid var(--primary);
+        }
+        
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: var(--primary);
+        }
+        
+        .stat-label {
+            color: var(--text-gray);
+            font-size: 0.9rem;
+            margin-top: 5px;
+        }
+        
+        /* Pros/Cons */
+        .pros-cons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin: 30px 0;
+        }
+        
+        .pros, .cons {
+            background: var(--bg-surface);
+            border-radius: 12px;
+            padding: 25px;
+        }
+        
+        .pros {
+            border-top: 4px solid var(--green);
+        }
+        
+        .cons {
+            border-top: 4px solid var(--red);
+        }
+        
+        .pros h4 {
+            color: var(--green);
+        }
+        
+        .cons h4 {
+            color: var(--red);
+        }
+        
+        ul {
+            list-style: none;
+            margin-top: 15px;
+        }
+        
+        ul li {
+            padding: 8px 0;
+            color: var(--text-gray);
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+        }
+        
+        ul li::before {
+            content: "→";
+            color: var(--primary);
+        }
+        
+        /* Quote Box */
+        .quote-box {
+            background: linear-gradient(135deg, rgba(255,133,27,0.1), rgba(100,255,218,0.05));
+            border-left: 4px solid var(--primary);
+            padding: 30px;
+            border-radius: 12px;
+            margin: 30px 0;
+            font-style: italic;
+            font-size: 1.1rem;
+        }
+        
+        /* Footer */
+        footer {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-gray);
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .hero h1 {
+                font-size: 2rem;
+            }
+            
+            .pros-cons {
+                grid-template-columns: 1fr;
+            }
+            
+            .chart-row {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Hero -->
+    <header class="hero">
+        <h1>🏠 <span>ALVEARE</span> CRM</h1>
+        <p>Sistema de gestión de leads diseñado específicamente para agentes inmobiliarios en República Dominicana</p>
+    </header>
+
+    <div class="container">
+        <!-- Problema que Resolvemos -->
+        <section>
+            <h2>🎯 El Problema que Resolvemos</h2>
+            <p>La mayoría de agentes inmobiliarios en RD gestionan sus leads de forma desorganizada:</p>
+            
+            <div class="cards">
+                <div class="card">
+                    <div class="card-icon">📊</div>
+                    <h4>Excel y Hojas de Cálculo</h4>
+                    <p>Difíciles de mantener, sin alertas automáticas, se pierden leads por olvido de seguimiento.</p>
+                </div>
+                <div class="card">
+                    <div class="card-icon">📱</div>
+                    <h4>WhatsApp Sin Control</h4>
+                    <p>Conversaciones dispersas, sin historial centralizado, sin métricas de conversión.</p>
+                </div>
+                <div class="card">
+                    <div class="card-icon">💸</div>
+                    <h4>CRMs Costosos</h4>
+                    <p>Follow Up Boss ($69-499/mes), LionDesk ($25-99/mes) - demasiado costosos para el mercado local.</p>
+                </div>
+                <div class="card">
+                    <div class="card-icon">🌎</div>
+                    <h4>Sin Enfoque Local</h4>
+                    <p>CRMs genéricos en inglés, sin entender el flujo de trabajo del mercado dominicano.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Impacto en Ventas -->
+        <section>
+            <h2>📈 Impacto Real en el Potencial de Ventas</h2>
+            
+            <p><strong>Datos basados en estudios de la industria inmobiliaria:</strong></p>
+            
+            <div class="stats-row">
+                <div class="stat-box">
+                    <div class="stat-number">78%</div>
+                    <div class="stat-label">de leads se pierden por falta de seguimiento oportuno</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-number">5-8</div>
+                    <div class="stat-label">seguimientos promedio para cerrar una venta</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-number">2 hrs</div>
+                    <div class="stat-label">tiempo crítico para contactar un lead nuevo</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-number">35%</div>
+                    <div class="stat-label">aumento en conversión con CRM bien implementado</div>
+                </div>
+            </div>
+
+            <div class="chart-container">
+                <h3>Proyección de Impacto: Sin CRM vs Con ALVEARE</h3>
+                <canvas id="impactChart" height="100"></canvas>
+            </div>
+            
+            <div class="quote-box">
+                💡 <strong>Realidad:</strong> ALVEARE CRM no garantiza ventas automáticas. Su valor está en <strong>eliminar la fricción</strong> del seguimiento, <strong>recordar tareas</strong> a tiempo, y dar <strong>visibilidad clara</strong> del pipeline. El éxito depende del uso consistente del equipo.
+            </div>
+        </section>
+
+        <!-- Features Clave -->
+        <section>
+            <h2>⚡ Características Clave de ALVEARE</h2>
+            
+            <div class="cards">
+                <div class="card">
+                    <div class="card-icon">🔔</div>
+                    <h4>Alertas Automáticas</h4>
+                    <p>Telegram y notificaciones browser. Funciona 24/7 aunque no tengas la app abierta.</p>
+                </div>
+                <div class="card">
+                    <div class="card-icon">📊</div>
+                    <h4>Sistema S1-S12</h4>
+                    <p>Metodología de 12 seguimientos estructurados para maximizar conversión.</p>
+                </div>
+                <div class="card">
+                    <div class="card-icon">🎯</div>
+                    <h4>Lead Scoring</h4>
+                    <p>Calificación automática HOT/WARM/COLD basada en 10 criterios específicos.</p>
+                </div>
+                <div class="card">
+                    <div class="card-icon">📱</div>
+                    <h4>PWA Móvil</h4>
+                    <p>Instalable en celular como app nativa. Funciona offline parcialmente.</p>
+                </div>
+                <div class="card">
+                    <div class="card-icon">👥</div>
+                    <h4>SuperAdmin Dashboard</h4>
+                    <p>Supervisores ven métricas de todo el equipo, identifican asesores inactivos.</p>
+                </div>
+                <div class="card">
+                    <div class="card-icon">🤖</div>
+                    <h4>Automatizaciones</h4>
+                    <p>Alertas escalonadas (2h, 24h) para leads sin contactar.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Comparación Competitiva -->
+        <section>
+            <h2>🏆 Comparación Honesta con Competidores</h2>
+            
+            <table class="comparison-table">
+                <thead>
+                    <tr>
+                        <th>Característica</th>
+                        <th>ALVEARE CRM</th>
+                        <th>Follow Up Boss</th>
+                        <th>LionDesk</th>
+                        <th>HubSpot Free</th>
+                        <th>Excel/WhatsApp</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Precio mensual</td>
+                        <td><strong style="color: var(--green);">$0-10*</strong></td>
+                        <td>$69-499</td>
+                        <td>$25-99</td>
+                        <td>$0-1200</td>
+                        <td>$0</td>
+                    </tr>
+                    <tr>
+                        <td>Idioma español nativo</td>
+                        <td><span class="check">✓</span></td>
+                        <td><span class="partial">◐</span></td>
+                        <td><span class="partial">◐</span></td>
+                        <td><span class="check">✓</span></td>
+                        <td><span class="check">✓</span></td>
+                    </tr>
+                    <tr>
+                        <td>Enfoque inmobiliario</td>
+                        <td><span class="check">✓</span></td>
+                        <td><span class="check">✓</span></td>
+                        <td><span class="check">✓</span></td>
+                        <td><span class="cross">✗</span></td>
+                        <td><span class="cross">✗</span></td>
+                    </tr>
+                    <tr>
+                        <td>Alertas Telegram</td>
+                        <td><span class="check">✓</span></td>
+                        <td><span class="cross">✗</span></td>
+                        <td><span class="cross">✗</span></td>
+                        <td><span class="cross">✗</span></td>
+                        <td><span class="cross">✗</span></td>
+                    </tr>
+                    <tr>
+                        <td>Sistema S1-S12</td>
+                        <td><span class="check">✓</span></td>
+                        <td><span class="cross">✗</span></td>
+                        <td><span class="cross">✗</span></td>
+                        <td><span class="cross">✗</span></td>
+                        <td><span class="cross">✗</span></td>
+                    </tr>
+                    <tr>
+                        <td>Lead scoring</td>
+                        <td><span class="check">✓</span></td>
+                        <td><span class="check">✓</span></td>
+                        <td><span class="check">✓</span></td>
+                        <td><span class="partial">◐</span></td>
+                        <td><span class="cross">✗</span></td>
+                    </tr>
+                    <tr>
+                        <td>Integraciones avanzadas</td>
+                        <td><span class="partial">◐</span></td>
+                        <td><span class="check">✓</span></td>
+                        <td><span class="check">✓</span></td>
+                        <td><span class="check">✓</span></td>
+                        <td><span class="cross">✗</span></td>
+                    </tr>
+                    <tr>
+                        <td>App móvil nativa</td>
+                        <td><span class="partial">◐ PWA</span></td>
+                        <td><span class="check">✓</span></td>
+                        <td><span class="check">✓</span></td>
+                        <td><span class="check">✓</span></td>
+                        <td><span class="cross">✗</span></td>
+                    </tr>
+                    <tr>
+                        <td>Personalizable</td>
+                        <td><span class="check">✓ 100%</span></td>
+                        <td><span class="partial">◐</span></td>
+                        <td><span class="partial">◐</span></td>
+                        <td><span class="partial">◐</span></td>
+                        <td><span class="check">✓</span></td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <p style="font-size: 0.9rem;">* Costo de hosting Supabase + Netlify en plan gratuito. Plan Pro estimado ~$10/mes.</p>
+
+            <div class="chart-row">
+                <div class="chart-container">
+                    <h3>Costo Anual Comparativo</h3>
+                    <canvas id="costChart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <h3>Funcionalidades por CRM</h3>
+                    <canvas id="featuresChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <!-- Evaluación Honesta -->
+        <section>
+            <h2>⚖️ Evaluación Honesta: Fortalezas y Limitaciones</h2>
+            
+            <div class="pros-cons">
+                <div class="pros">
+                    <h4>✅ Fortalezas de ALVEARE</h4>
+                    <ul>
+                        <li>Costo cero o muy bajo vs competidores</li>
+                        <li>100% en español, diseñado para RD</li>
+                        <li>Sistema S1-S12 único en el mercado</li>
+                        <li>Alertas Telegram funcionan 24/7</li>
+                        <li>Código propio = personalizable sin límites</li>
+                        <li>Dashboard de supervisión para jefes</li>
+                        <li>PWA instalable en móvil</li>
+                        <li>Lead scoring automático</li>
+                    </ul>
+                </div>
+                <div class="cons">
+                    <h4>⚠️ Limitaciones Actuales</h4>
+                    <ul>
+                        <li>No tiene app nativa (solo PWA)</li>
+                        <li>Menos integraciones que CRMs enterprise</li>
+                        <li>Requiere configuración inicial técnica</li>
+                        <li>Sin soporte telefónico 24/7</li>
+                        <li>Algunas features aún en desarrollo</li>
+                        <li>No tiene video email como LionDesk</li>
+                        <li>Power dialer no incluido</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- Cuándo Usar ALVEARE -->
+        <section>
+            <h2>🎯 ¿Para Quién es ALVEARE CRM?</h2>
+            
+            <div class="cards">
+                <div class="card" style="border-left: 4px solid var(--green);">
+                    <h4 style="color: var(--green);">✅ Ideal Para:</h4>
+                    <ul>
+                        <li>Agentes individuales con presupuesto limitado</li>
+                        <li>Equipos pequeños (2-20 personas)</li>
+                        <li>Quienes ya usan Telegram</li>
+                        <li>Mercado dominicano/latinoamericano</li>
+                        <li>Quienes valoran personalización</li>
+                    </ul>
+                </div>
+                <div class="card" style="border-left: 4px solid var(--red);">
+                    <h4 style="color: var(--red);">❌ No Ideal Para:</h4>
+                    <ul>
+                        <li>Empresas que requieren 100+ integraciones</li>
+                        <li>Necesidad de power dialer integrado</li>
+                        <li>Equipos que prefieren soporte enterprise</li>
+                        <li>Quienes no pueden dedicar tiempo a aprender</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- ROI Estimado -->
+        <section>
+            <h2>💰 ROI Estimado (Escenario Realista)</h2>
+            
+            <div class="chart-container">
+                <canvas id="roiChart" height="100"></canvas>
+            </div>
+            
+            <div class="stats-row">
+                <div class="stat-box">
+                    <div class="stat-number">1</div>
+                    <div class="stat-label">venta adicional/mes justifica el esfuerzo de implementación</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-number">$828</div>
+                    <div class="stat-label">ahorro anual vs Follow Up Boss básico ($69/mes)</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-number">15-25%</div>
+                    <div class="stat-label">mejora esperada en tasa de seguimiento</div>
+                </div>
+            </div>
+            
+            <div class="quote-box">
+                📊 <strong>Ejemplo concreto:</strong> Si actualmente contactas 60% de tus leads dentro de 24 horas, con las alertas automáticas puedes subir a 80-90%. Ese 20-30% adicional de leads contactados a tiempo representa oportunidades que antes se perdían.
+            </div>
+        </section>
+
+        <!-- Call to Action -->
+        <section style="text-align: center; border: none;">
+            <h2 style="justify-content: center;">🚀 Próximos Pasos</h2>
+            
+            <div class="cards" style="max-width: 800px; margin: 30px auto;">
+                <div class="card">
+                    <div class="card-icon">1️⃣</div>
+                    <h4>Configurar Perfil</h4>
+                    <p>Agregar número de Telegram para recibir alertas automáticas.</p>
+                </div>
+                <div class="card">
+                    <div class="card-icon">2️⃣</div>
+                    <h4>Migrar Leads</h4>
+                    <p>Importar leads existentes al sistema para empezar a trackear.</p>
+                </div>
+                <div class="card">
+                    <div class="card-icon">3️⃣</div>
+                    <h4>Usar Consistentemente</h4>
+                    <p>El sistema funciona si lo usamos. 5 minutos diarios bastan.</p>
+                </div>
+            </div>
+            
+            <p style="font-size: 1.3rem; color: var(--text-white); margin-top: 40px;">
+                <strong>ALVEARE CRM</strong> es una herramienta poderosa, pero el éxito depende de <span style="color: var(--primary);">nuestro compromiso de usarla</span>.
+            </p>
+        </section>
+    </div>
+
+    <footer>
+        <p>ALVEARE CRM © 2025 | Desarrollado para el equipo de ventas inmobiliarias</p>
+        <p style="margin-top: 10px; font-size: 0.9rem;">Presentación generada el 19 de Diciembre, 2025</p>
+    </footer>
+
+    <script>
+        // Impact Chart
+        const impactCtx = document.getElementById('impactChart').getContext('2d');
+        new Chart(impactCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Leads Contactados <2h', 'Seguimientos Completados', 'Leads con Score', 'Visibilidad Pipeline'],
+                datasets: [{
+                    label: 'Sin CRM (%)',
+                    data: [30, 40, 0, 20],
+                    backgroundColor: 'rgba(255, 107, 107, 0.7)',
+                    borderColor: '#ff6b6b',
+                    borderWidth: 2
+                }, {
+                    label: 'Con ALVEARE (%)',
+                    data: [85, 75, 100, 95],
+                    backgroundColor: 'rgba(100, 255, 218, 0.7)',
+                    borderColor: '#64ffda',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        ticks: { color: '#8892b0' },
+                        grid: { color: 'rgba(255,255,255,0.1)' }
+                    },
+                    x: {
+                        ticks: { color: '#8892b0' },
+                        grid: { display: false }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        labels: { color: '#e6f1ff' }
+                    }
+                }
+            }
+        });
+
+        // Cost Chart
+        const costCtx = document.getElementById('costChart').getContext('2d');
+        new Chart(costCtx, {
+            type: 'bar',
+            data: {
+                labels: ['ALVEARE', 'LionDesk', 'Follow Up Boss', 'HubSpot Pro'],
+                datasets: [{
+                    label: 'Costo Anual (USD)',
+                    data: [0, 300, 828, 5400],
+                    backgroundColor: [
+                        'rgba(100, 255, 218, 0.8)',
+                        'rgba(255, 217, 61, 0.8)',
+                        'rgba(255, 133, 27, 0.8)',
+                        'rgba(255, 107, 107, 0.8)'
+                    ],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                indexAxis: 'y',
+                scales: {
+                    x: {
+                        ticks: { color: '#8892b0', callback: v => '$' + v },
+                        grid: { color: 'rgba(255,255,255,0.1)' }
+                    },
+                    y: {
+                        ticks: { color: '#8892b0' },
+                        grid: { display: false }
+                    }
+                },
+                plugins: {
+                    legend: { display: false }
+                }
+            }
+        });
+
+        // Features Chart
+        const featuresCtx = document.getElementById('featuresChart').getContext('2d');
+        new Chart(featuresCtx, {
+            type: 'radar',
+            data: {
+                labels: ['Lead Scoring', 'Alertas', 'Móvil', 'Integraciones', 'Español', 'Precio', 'Personalización'],
+                datasets: [{
+                    label: 'ALVEARE CRM',
+                    data: [9, 10, 7, 5, 10, 10, 10],
+                    borderColor: '#64ffda',
+                    backgroundColor: 'rgba(100, 255, 218, 0.2)',
+                    borderWidth: 2
+                }, {
+                    label: 'Follow Up Boss',
+                    data: [9, 7, 9, 10, 6, 3, 5],
+                    borderColor: '#FF851B',
+                    backgroundColor: 'rgba(255, 133, 27, 0.2)',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    r: {
+                        beginAtZero: true,
+                        max: 10,
+                        ticks: { color: '#8892b0', stepSize: 2 },
+                        grid: { color: 'rgba(255,255,255,0.1)' },
+                        pointLabels: { color: '#e6f1ff' }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        labels: { color: '#e6f1ff' }
+                    }
+                }
+            }
+        });
+
+        // ROI Chart
+        const roiCtx = document.getElementById('roiChart').getContext('2d');
+        new Chart(roiCtx, {
+            type: 'line',
+            data: {
+                labels: ['Mes 1', 'Mes 2', 'Mes 3', 'Mes 4', 'Mes 5', 'Mes 6'],
+                datasets: [{
+                    label: 'Leads Contactados a Tiempo',
+                    data: [50, 65, 75, 82, 85, 88],
+                    borderColor: '#64ffda',
+                    backgroundColor: 'rgba(100, 255, 218, 0.1)',
+                    fill: true,
+                    tension: 0.4
+                }, {
+                    label: 'Tasa de Conversión (%)',
+                    data: [8, 10, 12, 14, 15, 16],
+                    borderColor: '#FF851B',
+                    backgroundColor: 'rgba(255, 133, 27, 0.1)',
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { color: '#8892b0' },
+                        grid: { color: 'rgba(255,255,255,0.1)' }
+                    },
+                    x: {
+                        ticks: { color: '#8892b0' },
+                        grid: { display: false }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        labels: { color: '#e6f1ff' }
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>

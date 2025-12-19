@@ -77,12 +77,26 @@ const handler: Handler = async (event) => {
         }
 
         const apiKey = process.env.GEMINI_API_KEY;
+
+        // Log API key status (never log the actual key!)
+        console.log('🔑 API Key status:', apiKey ? `Configured (${apiKey.length} chars)` : 'MISSING');
+
         if (!apiKey) {
             console.error('GEMINI_API_KEY not configured');
             return {
                 statusCode: 500,
                 headers,
                 body: JSON.stringify({ error: 'API key not configured' }),
+            };
+        }
+
+        // Validate API key format (should start with "AI" and be ~39 chars)
+        if (apiKey.length < 30 || apiKey.length > 50) {
+            console.error('GEMINI_API_KEY appears malformed, length:', apiKey.length);
+            return {
+                statusCode: 500,
+                headers,
+                body: JSON.stringify({ error: 'API key appears malformed' }),
             };
         }
 
@@ -93,6 +107,8 @@ const handler: Handler = async (event) => {
 
         const prompt = SYSTEM_PROMPT
             .replace('{TODAY}', `${todayStr} (${dayOfWeek})`);
+
+        console.log('📤 Calling Gemini API for transcript:', transcript.substring(0, 50) + '...');
 
         // Call Gemini API
         const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
@@ -115,13 +131,19 @@ const handler: Handler = async (event) => {
             }),
         });
 
+        console.log('📥 Gemini API response status:', response.status);
+
         if (!response.ok) {
             const errorText = await response.text();
-            console.error('Gemini API error:', errorText);
+            console.error('Gemini API error:', response.status, errorText);
             return {
                 statusCode: 500,
                 headers,
-                body: JSON.stringify({ error: 'Failed to process command', details: errorText }),
+                body: JSON.stringify({
+                    error: 'Failed to process command',
+                    details: `Gemini API returned ${response.status}`,
+                    hint: response.status === 400 ? 'API Key may be invalid' : 'Check Gemini API status'
+                }),
             };
         }
 

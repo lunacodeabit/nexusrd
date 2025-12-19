@@ -69,17 +69,25 @@ export default function VoiceAssistant() {
         setError(null);
 
         try {
+            console.log('🎤 Processing transcript:', text);
+
             const response = await fetch('/.netlify/functions/parse-voice-command', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ transcript: text }),
             });
 
+            const responseData = await response.json();
+            console.log('🎤 API Response:', responseData);
+
             if (!response.ok) {
-                throw new Error('Error al procesar el comando');
+                // Show specific error from API
+                const errorMsg = responseData.error || responseData.details || 'Error del servidor';
+                console.error('🎤 API Error:', errorMsg);
+                throw new Error(errorMsg);
             }
 
-            const parsed: ParsedCommand = await response.json();
+            const parsed: ParsedCommand = responseData;
 
             if (parsed.error || parsed.action === 'unknown') {
                 setError(parsed.error || 'No entendí el comando. Intenta de nuevo.');
@@ -105,8 +113,9 @@ export default function VoiceAssistant() {
 
             setState('confirming');
         } catch (err) {
-            console.error('Error processing command:', err);
-            setError('Error al procesar. Intenta de nuevo.');
+            console.error('🎤 Error processing command:', err);
+            const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
+            setError(`Error: ${errorMessage}`);
             setState('error');
         }
     };
