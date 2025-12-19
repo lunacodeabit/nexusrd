@@ -1,19 +1,5 @@
-import { Handler } from '@netlify/functions';
-
 // Gemini API endpoint
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
-
-interface ParsedCommand {
-    action: 'create_appointment' | 'create_task' | 'search_lead' | 'unknown';
-    lead_name: string | null;
-    date: string | null;
-    time: string | null;
-    appointment_type: 'virtual' | 'in_person' | null;
-    task_type: 'call' | 'whatsapp' | 'visit' | 'email' | 'other';
-    notes: string | null;
-    confidence: number;
-    error?: string;
-}
 
 const SYSTEM_PROMPT = `Eres un asistente de CRM inmobiliario. Tu tarea es extraer información estructurada de comandos de voz en español.
 
@@ -43,7 +29,7 @@ Responde SOLO con JSON válido, sin explicaciones:
   "confidence": 0.0-1.0
 }`;
 
-const handler: Handler = async (event) => {
+exports.handler = async (event) => {
     // CORS headers
     const headers = {
         'Access-Control-Allow-Origin': '*',
@@ -90,23 +76,12 @@ const handler: Handler = async (event) => {
             };
         }
 
-        // Validate API key format (should start with "AI" and be ~39 chars)
-        if (apiKey.length < 30 || apiKey.length > 50) {
-            console.error('GEMINI_API_KEY appears malformed, length:', apiKey.length);
-            return {
-                statusCode: 500,
-                headers,
-                body: JSON.stringify({ error: 'API key appears malformed' }),
-            };
-        }
-
         // Get today's date for context
         const today = new Date();
         const todayStr = today.toISOString().split('T')[0];
         const dayOfWeek = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'][today.getDay()];
 
-        const prompt = SYSTEM_PROMPT
-            .replace('{TODAY}', `${todayStr} (${dayOfWeek})`);
+        const prompt = SYSTEM_PROMPT.replace('{TODAY}', `${todayStr} (${dayOfWeek})`);
 
         console.log('📤 Calling Gemini API for transcript:', transcript.substring(0, 50) + '...');
 
@@ -153,6 +128,7 @@ const handler: Handler = async (event) => {
         const textResponse = data.candidates?.[0]?.content?.parts?.[0]?.text;
 
         if (!textResponse) {
+            console.error('No text response from Gemini:', JSON.stringify(data));
             return {
                 statusCode: 500,
                 headers,
@@ -160,8 +136,10 @@ const handler: Handler = async (event) => {
             };
         }
 
+        console.log('✅ Gemini response received, parsing JSON...');
+
         // Parse JSON from response (handle markdown code blocks)
-        let parsed: ParsedCommand;
+        let parsed;
         try {
             // Remove markdown code blocks if present
             const jsonStr = textResponse
@@ -189,6 +167,8 @@ const handler: Handler = async (event) => {
             };
         }
 
+        console.log('✅ Command parsed successfully:', parsed.action);
+
         return {
             statusCode: 200,
             headers,
@@ -202,10 +182,8 @@ const handler: Handler = async (event) => {
             headers,
             body: JSON.stringify({
                 error: 'Internal server error',
-                details: error instanceof Error ? error.message : 'Unknown error'
+                details: error.message || 'Unknown error'
             }),
         };
     }
 };
-
-export { handler };
