@@ -3,8 +3,8 @@
 > **Project:** ALVEARE CRM - Real Estate Lead Management System  
 > **Owner:** Howard Luna  
 > **Start Date:** December 15, 2025  
-> **Last Updated:** December 16, 2025  
-> **Version:** 2.0.0-beta  
+> **Last Updated:** December 19, 2025  
+> **Version:** 2.1.0-beta  
 
 ---
 
@@ -407,6 +407,9 @@ NEXUSRD/
 - [x] Seguimiento Futuro (En Espera, Pausados, Búsquedas)
 - [x] Dashboard 3 columnas (Agenda, Vencidas, Críticas)
 - [x] Alertas críticas escalonadas (2h, 24h)
+- [x] **Métricas de Citas** (Virtual/Presencial) - Dec 19
+- [x] **Asistente de Voz AI** (Gemini + Web Speech API) - Dec 19
+- [x] **Fix Timezone Alertas** (UTC → AST) - Dec 19
 
 ### 🔜 Próximas Funcionalidades
 - [ ] **Integración AlterEstate/WhatsApp:** Recibir leads desde otros CRMs via webhook
@@ -423,6 +426,44 @@ NEXUSRD/
 - [ ] White-label para inmobiliarias
 - [ ] Integración con portales (Idealista, SuperCasas, Corotos)
 - [ ] IA para sugerencias de respuestas
+
+---
+
+## 🚀 LOGROS SESIÓN DEC 19, 2025
+
+### ✅ Completados Hoy
+
+| Feature | Descripción | Archivos |
+|---------|-------------|----------|
+| **Métricas de Citas** | Virtual/Presencial tracking para scheduled_tasks | `useAppointmentMetrics.ts`, `009_appointment_metrics.sql` |
+| **Asistente de Voz AI** | Comandos de voz en español con Gemini | `VoiceAssistant.tsx`, `useVoiceRecognition.ts`, `parse-voice-command.ts` |
+| **Fix Timezone Alertas** | Conversión UTC→AST para alertas puntuales | `scheduled-alerts.js` |
+| **Alertas Exactas** | Permitir alert_minutes_before = 0 | `scheduled-alerts.js` |
+
+### 📁 Archivos Nuevos Creados
+```
+src/hooks/useVoiceRecognition.ts       - Web Speech API hook
+src/hooks/useAppointmentMetrics.ts     - Métricas de citas
+src/components/VoiceAssistant.tsx      - UI completa del asistente
+netlify/functions/parse-voice-command.ts - Gemini API integration
+supabase/migrations/009_appointment_metrics.sql - Schema para métricas
+```
+
+### 🔧 Archivos Modificados
+```
+src/App.tsx                           - VoiceAssistant integrado
+src/types.ts                          - Tipos AppointmentType, AppointmentMetrics
+src/components/LeadFollowUpTracker.tsx - Selector Virtual/Presencial
+src/components/Dashboard.tsx          - Tarjeta "Citas del Mes"
+src/components/SuperAdminDashboard.tsx - Tarjeta "Citas del Equipo", fix teamMetrics
+netlify/functions/scheduled-alerts.js - Fix timezone UTC→AST, alertas exactas
+```
+
+### ⏳ Pendiente de Probar
+- [ ] VoiceAssistant con comandos de voz reales (usuario no podía hablar)
+
+### 📝 Próximo Feature Planeado
+- [ ] **Calculadora de Plan de Pagos** - Usuario tiene diseño ya creado
 
 ---
 

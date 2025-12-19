@@ -172,10 +172,12 @@ const App: React.FC = () => {
   };
 
   return (
-    <Layout activeTab={activeTab} setActiveTab={setActiveTab}>
-      {renderContent()}
+    <>
+      <Layout activeTab={activeTab} setActiveTab={setActiveTab}>
+        {renderContent()}
+      </Layout>
       <VoiceAssistant />
-    </Layout>
+    </>
   );
 };
 

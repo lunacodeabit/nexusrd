@@ -1,7 +1,7 @@
 # 🧠 ALVEARE CRM - Memoria del Agente
 
 > **Propósito:** Este documento sirve como memoria para continuar el desarrollo del CRM ALVEARE.  
-> **Última actualización:** 18 de Diciembre, 2025  
+> **Última actualización:** 19 de Diciembre, 2025  
 > **Documento de directivas:** Ver `DIRECTIVAS_DESARROLLO.md` para reglas completas  
 
 ---
@@ -38,6 +38,7 @@ Frontend:     React 19 + TypeScript + Vite 7.3 + Tailwind CSS
 Backend:      Supabase (PostgreSQL + Auth + Storage)
 Hosting:      Netlify (con Functions serverless)
 Alertas:      Telegram Bot API + Netlify Scheduled Functions
+AI:           Google Gemini API (para Voice Assistant)
 ```
 
 ### URLs Importantes
@@ -51,49 +52,65 @@ Alertas:      Telegram Bot API + Netlify Scheduled Functions
 - `VITE_SUPABASE_ANON_KEY` - Clave pública de Supabase
 - `SUPABASE_SERVICE_KEY` - Clave de servicio (acceso total, bypassea RLS)
 - `TELEGRAM_BOT_TOKEN` - Token del bot @alveare_crm_bot
+- `GEMINI_API_KEY` - API key para Google Gemini (Voice Assistant)
 
 ---
 
 ## 📅 Historial de Sesiones
 
-### Sesión 17 Dic 2025 (HOY)
-**Problema inicial:** Los datos del perfil y las tareas se borraban al cerrar el navegador.
+### Sesión 19 Dic 2025 (HOY)
+**Objetivo:** Implementar métricas de citas y asistente de voz AI.
 
-**Causa raíz:** Se estaba usando `localStorage` en lugar de Supabase.
+**Logros:**
 
-**Soluciones implementadas:**
-1. Creamos columnas nuevas en `user_profiles`:
-   - telegram_chat_id, whatsapp_number
-   - enable_telegram_alerts, enable_whatsapp_alerts
-   - enable_sound_alerts, enable_browser_notifications
-   - default_alert_time
+1. **Métricas de Citas (Virtual/Presencial):**
+   - Añadido campo `appointment_type` a `scheduled_tasks`
+   - Hook `useAppointmentMetrics.ts` para obtener métricas
+   - Tarjeta "Citas del Mes" en Dashboard (agentes)
+   - Tarjeta "Citas del Equipo" en SuperAdmin Dashboard
+   - Selector Virtual/Presencial en `LeadFollowUpTracker.tsx`
 
-2. Creamos tabla `personal_tasks` para el planner:
-   - Con campo `alert_sent` para trackear alertas enviadas
-   - RLS habilitado para seguridad
+2. **Asistente de Voz AI:**
+   - Hook `useVoiceRecognition.ts` - Web Speech API
+   - Función `parse-voice-command.ts` - Integración Gemini API
+   - Componente `VoiceAssistant.tsx` - UI completa con estados
+   - Botón flotante morado 🎤 en esquina inferior derecha
+   - Crea tareas/citas mediante comandos de voz en español
 
-3. Creamos `userProfileService.ts`:
-   - Funciones para leer/escribir perfil en Supabase
-   - Migración automática de localStorage a Supabase
+3. **Fix Crítico - Alertas Telegram:**
+   - **Problema:** Alertas llegaban 11 minutos tarde
+   - **Causa:** Netlify corre en UTC, tareas guardadas en hora local (AST = UTC-4)
+   - **Solución:** Agregada conversión de timezone en `scheduled-alerts.js`
+   - También habilitado `alert_minutes_before = 0` para alertas exactas
 
-4. Creamos `useUserProfile.ts`:
-   - Hook de React para manejar el perfil
-   - Cache local para evitar queries repetidos
+4. **Fix TypeScript:**
+   - Removido `teamMetrics` no usado en `SuperAdminDashboard.tsx`
 
-5. **GRAN LOGRO:** Implementamos `scheduled-alerts.js`:
-   - Función de Netlify que corre cada minuto
-   - Lee tareas de `personal_tasks` donde alert_sent = false
-   - Calcula si es hora de enviar alerta
-   - Envía mensaje a Telegram
-   - Marca alert_sent = true
-   - **¡FUNCIONA SIN NAVEGADOR ABIERTO!**
+**Archivos Nuevos:**
+```
+src/hooks/useVoiceRecognition.ts
+src/hooks/useAppointmentMetrics.ts
+src/components/VoiceAssistant.tsx
+netlify/functions/parse-voice-command.ts
+supabase/migrations/009_appointment_metrics.sql
+```
 
-**Bugs encontrados y resueltos:**
-- Follow-ups no actualizaban fecha de último contacto → Agregamos update al guardar follow-up
-- Telegram no funcionaba en localhost → Agregamos llamada directa a API para dev
-- Scheduled function no encontraba tareas → El formato de fecha/hora era correcto, pero la tabla estaba vacía inicialmente
+**Archivos Modificados:**
+```
+src/App.tsx - VoiceAssistant integrado (fuera de Layout)
+src/types.ts - tipos AppointmentType, AppointmentMetrics
+src/components/LeadFollowUpTracker.tsx - selector Virtual/Presencial
+src/components/Dashboard.tsx - tarjeta Citas del Mes
+src/components/SuperAdminDashboard.tsx - tarjeta Citas del Equipo
+netlify/functions/scheduled-alerts.js - fix timezone UTC→AST
+```
+
+**Pendiente de probar:**
+- VoiceAssistant con comandos de voz (usuario no podía hablar)
 
 ---
+
+### Sesión 17 Dic 2025
 
 ## 🗂 Estructura de Archivos Relevantes
 

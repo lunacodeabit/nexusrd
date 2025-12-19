@@ -36,6 +36,11 @@ export default function VoiceAssistant() {
     const [matchedLead, setMatchedLead] = useState<MatchedLead | null>(null);
     const [error, setError] = useState<string | null>(null);
 
+    // Don't render if not logged in
+    if (!user) {
+        return null;
+    }
+
     // Handle listening state changes
     useEffect(() => {
         if (isListening) {
@@ -211,23 +216,21 @@ export default function VoiceAssistant() {
             {/* Floating Action Button */}
             <button
                 onClick={handleOpen}
-                className="fixed bottom-24 right-6 z-40 w-14 h-14 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-full shadow-lg flex items-center justify-center hover:scale-110 transition-transform group"
+                className="fixed bottom-24 right-6 z-50 w-14 h-14 bg-purple-600 rounded-full shadow-lg flex items-center justify-center hover:scale-110 transition-transform"
                 title="Asistente de voz"
+                style={{ backgroundColor: '#9333ea' }}
             >
                 <Mic className="w-6 h-6 text-white" />
-                <span className="absolute -top-8 right-0 bg-black/80 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                    Asistente de voz
-                </span>
             </button>
 
             {/* Modal */}
             {isOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-                    <div className="bg-nexus-surface rounded-2xl w-full max-w-md shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+                    <div className="bg-gray-800 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
                         {/* Header */}
                         <div className="flex items-center justify-between p-4 border-b border-white/10">
                             <div className="flex items-center gap-2">
-                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center">
+                                <div className="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center">
                                     <Mic className="w-4 h-4 text-white" />
                                 </div>
                                 <span className="font-bold text-white">Asistente ALVEARE</span>
@@ -255,7 +258,7 @@ export default function VoiceAssistant() {
                                 <div className="text-center space-y-4">
                                     <button
                                         onClick={handleStartListening}
-                                        className="w-24 h-24 mx-auto rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center hover:scale-110 transition-transform shadow-lg shadow-purple-500/30"
+                                        className="w-24 h-24 mx-auto rounded-full bg-purple-600 flex items-center justify-center hover:scale-110 transition-transform shadow-lg"
                                     >
                                         <Mic className="w-10 h-10 text-white" />
                                     </button>
@@ -274,13 +277,11 @@ export default function VoiceAssistant() {
                                     <div className="relative w-24 h-24 mx-auto">
                                         <button
                                             onClick={stop}
-                                            className="w-full h-full rounded-full bg-red-500 flex items-center justify-center animate-pulse shadow-lg shadow-red-500/30"
+                                            className="w-full h-full rounded-full bg-red-500 flex items-center justify-center animate-pulse shadow-lg"
                                         >
                                             <MicOff className="w-10 h-10 text-white" />
                                         </button>
-                                        {/* Pulse rings */}
                                         <div className="absolute inset-0 rounded-full border-4 border-red-500 animate-ping opacity-30" />
-                                        <div className="absolute inset-0 rounded-full border-4 border-red-500 animate-ping opacity-20" style={{ animationDelay: '0.2s' }} />
                                     </div>
                                     <p className="text-white font-medium">Escuchando...</p>
                                     <p className="text-gray-400 text-sm min-h-[3rem]">
@@ -305,7 +306,7 @@ export default function VoiceAssistant() {
                                 <div className="space-y-4">
                                     <p className="text-center text-gray-400 text-sm mb-4">¿Crear esta tarea?</p>
 
-                                    <div className="bg-nexus-base rounded-xl p-4 space-y-3">
+                                    <div className="bg-gray-900 rounded-xl p-4 space-y-3">
                                         {/* Lead */}
                                         <div className="flex items-center gap-3">
                                             <User className="w-5 h-5 text-blue-400" />
@@ -363,7 +364,7 @@ export default function VoiceAssistant() {
                                         </button>
                                         <button
                                             onClick={handleConfirm}
-                                            className="flex-1 py-3 rounded-xl bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
+                                            className="flex-1 py-3 rounded-xl bg-green-600 text-white font-bold hover:bg-green-500 transition-colors flex items-center justify-center gap-2"
                                         >
                                             <Check className="w-4 h-4" />
                                             Confirmar
