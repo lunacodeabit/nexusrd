@@ -35,46 +35,34 @@ export function useFollowUpTracking(): UseFollowUpTrackingReturn {
 
     try {
       setIsLoading(true);
-      
-      // Try to use the view first, fallback to manual join
+
+      // Try to fetch trackings - use simple query without JOIN to avoid column errors
       const { data, error: fetchError } = await supabase
         .from('follow_up_tracking')
-        .select(`
-          *,
-          leads:lead_id (
-            name,
-            phone,
-            email,
-            budget,
-            currency,
-            source,
-            interest_area
-          )
-        `)
+        .select('*')
         .eq('user_id', user.id)
         .eq('is_active', true)
         .order('created_at', { ascending: false });
 
       if (fetchError) {
-        console.error('Error fetching trackings:', fetchError);
-        setError(new Error(fetchError.message));
-        setTrackings([]);
+        // Table likely doesn't exist - this is OK, just use empty state
+        if (fetchError.code === '42P01' || fetchError.message?.includes('does not exist')) {
+          console.log('follow_up_tracking table not found, using empty state');
+          setTrackings([]);
+          setError(null);
+        } else {
+          console.error('Error fetching trackings:', fetchError);
+          setError(new Error(fetchError.message));
+          setTrackings([]);
+        }
       } else {
-        // Transform data to flatten lead info
+        // Transform data - no JOIN so lead info will be fetched separately when needed
         const transformed = (data || []).map(t => ({
           ...t,
-          lead_name: t.leads?.name,
-          lead_phone: t.leads?.phone,
-          lead_email: t.leads?.email,
-          lead_budget: t.leads?.budget,
-          lead_currency: t.leads?.currency,
-          lead_source: t.leads?.source,
-          lead_interest_area: t.leads?.interest_area,
-          days_until_contact: t.contact_date 
+          days_until_contact: t.contact_date
             ? Math.ceil((new Date(t.contact_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
             : null,
           days_in_tracking: Math.ceil((Date.now() - new Date(t.created_at).getTime()) / (1000 * 60 * 60 * 24)),
-          leads: undefined // Remove nested object
         }));
         setTrackings(transformed);
       }
@@ -165,7 +153,7 @@ export function useFollowUpTracking(): UseFollowUpTrackingReturn {
       if (updateError) throw new Error(updateError.message);
 
       // Update local state
-      setTrackings(prev => prev.map(t => 
+      setTrackings(prev => prev.map(t =>
         t.id === id ? { ...t, ...updates } : t
       ));
     } catch (err) {
@@ -185,17 +173,17 @@ export function useFollowUpTracking(): UseFollowUpTrackingReturn {
       // Deactivate tracking
       await supabase
         .from('follow_up_tracking')
-        .update({ 
-          is_active: false, 
+        .update({
+          is_active: false,
           reactivated_at: new Date().toISOString(),
-          updated_at: new Date().toISOString() 
+          updated_at: new Date().toISOString()
         })
         .eq('id', trackingId);
 
       // Restore lead to original status
       await supabase
         .from('leads')
-        .update({ 
+        .update({
           status: tracking.original_status,
           updated_at: new Date().toISOString()
         })
@@ -216,9 +204,9 @@ export function useFollowUpTracking(): UseFollowUpTrackingReturn {
     try {
       await supabase
         .from('follow_up_tracking')
-        .update({ 
+        .update({
           is_active: false,
-          updated_at: new Date().toISOString() 
+          updated_at: new Date().toISOString()
         })
         .eq('id', trackingId);
 

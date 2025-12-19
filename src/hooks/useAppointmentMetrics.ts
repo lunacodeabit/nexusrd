@@ -65,62 +65,74 @@ export function useAppointmentMetrics(): UseAppointmentMetricsReturn {
 
             // If supervisor/admin, fetch team metrics
             if (canViewTeam) {
-                // Get all appointments with user info
-                const { data: allAppointments, error: teamError } = await supabase
-                    .from('scheduled_tasks')
-                    .select(`
-            *,
-            user_profiles:user_id (full_name, email)
-          `)
-                    .eq('task_type', 'visit')
-                    .gte('scheduled_date', monthStart);
+                try {
+                    // Get all appointments (without JOIN to avoid relationship errors)
+                    const { data: allAppointments, error: teamError } = await supabase
+                        .from('scheduled_tasks')
+                        .select('*')
+                        .eq('task_type', 'visit')
+                        .gte('scheduled_date', monthStart);
 
-                if (teamError) throw teamError;
+                    if (teamError) throw teamError;
 
-                // Group by user
-                const userMetricsMap = new Map<string, AppointmentMetrics>();
+                    // Get user profiles separately
+                    const userIds = [...new Set((allAppointments || []).map(a => a.user_id))];
+                    const { data: profiles } = await supabase
+                        .from('user_profiles')
+                        .select('id, full_name, email')
+                        .in('id', userIds);
 
-                (allAppointments || []).forEach(apt => {
-                    const userId = apt.user_id;
-                    const existing = userMetricsMap.get(userId) || {
-                        user_id: userId,
-                        full_name: apt.user_profiles?.full_name || 'Sin nombre',
-                        email: apt.user_profiles?.email || '',
-                        month: monthStart,
-                        virtual_appointments: 0,
-                        in_person_appointments: 0,
-                        total_appointments: 0,
-                        completed_appointments: 0,
-                        completed_virtual: 0,
-                        completed_in_person: 0,
+                    const profileMap = new Map((profiles || []).map(p => [p.id, p]));
+
+                    // Group by user
+                    const userMetricsMap = new Map<string, AppointmentMetrics>();
+
+                    (allAppointments || []).forEach(apt => {
+                        const userId = apt.user_id;
+                        const profile = profileMap.get(userId);
+                        const existing = userMetricsMap.get(userId) || {
+                            user_id: userId,
+                            full_name: profile?.full_name || 'Sin nombre',
+                            email: profile?.email || '',
+                            month: monthStart,
+                            virtual_appointments: 0,
+                            in_person_appointments: 0,
+                            total_appointments: 0,
+                            completed_appointments: 0,
+                            completed_virtual: 0,
+                            completed_in_person: 0,
+                        };
+
+                        existing.total_appointments++;
+                        if (apt.appointment_type === 'virtual') existing.virtual_appointments++;
+                        if (apt.appointment_type === 'in_person') existing.in_person_appointments++;
+                        if (apt.is_completed) {
+                            existing.completed_appointments++;
+                            if (apt.appointment_type === 'virtual') existing.completed_virtual++;
+                            if (apt.appointment_type === 'in_person') existing.completed_in_person++;
+                        }
+
+                        userMetricsMap.set(userId, existing);
+                    });
+
+                    const teamData = Array.from(userMetricsMap.values())
+                        .sort((a, b) => b.total_appointments - a.total_appointments);
+
+                    setTeamMetrics(teamData);
+
+                    // Calculate team summary
+                    const summary: TeamAppointmentSummary = {
+                        total_virtual: teamData.reduce((sum, m) => sum + m.virtual_appointments, 0),
+                        total_in_person: teamData.reduce((sum, m) => sum + m.in_person_appointments, 0),
+                        total_appointments: teamData.reduce((sum, m) => sum + m.total_appointments, 0),
+                        total_completed: teamData.reduce((sum, m) => sum + m.completed_appointments, 0),
+                        asesores_with_appointments: teamData.filter(m => m.total_appointments > 0).length,
                     };
-
-                    existing.total_appointments++;
-                    if (apt.appointment_type === 'virtual') existing.virtual_appointments++;
-                    if (apt.appointment_type === 'in_person') existing.in_person_appointments++;
-                    if (apt.is_completed) {
-                        existing.completed_appointments++;
-                        if (apt.appointment_type === 'virtual') existing.completed_virtual++;
-                        if (apt.appointment_type === 'in_person') existing.completed_in_person++;
-                    }
-
-                    userMetricsMap.set(userId, existing);
-                });
-
-                const teamData = Array.from(userMetricsMap.values())
-                    .sort((a, b) => b.total_appointments - a.total_appointments);
-
-                setTeamMetrics(teamData);
-
-                // Calculate team summary
-                const summary: TeamAppointmentSummary = {
-                    total_virtual: teamData.reduce((sum, m) => sum + m.virtual_appointments, 0),
-                    total_in_person: teamData.reduce((sum, m) => sum + m.in_person_appointments, 0),
-                    total_appointments: teamData.reduce((sum, m) => sum + m.total_appointments, 0),
-                    total_completed: teamData.reduce((sum, m) => sum + m.completed_appointments, 0),
-                    asesores_with_appointments: teamData.filter(m => m.total_appointments > 0).length,
-                };
-                setTeamSummary(summary);
+                    setTeamSummary(summary);
+                } catch (teamErr) {
+                    console.error('Error fetching team appointment metrics:', teamErr);
+                    // Don't fail the whole fetch, just log the error
+                }
             }
         } catch (err) {
             console.error('Error fetching appointment metrics:', err);

@@ -28,7 +28,7 @@ interface MatchedLead {
 
 export default function VoiceAssistant() {
     const { user } = useAuth();
-    const { isListening, transcript, interimTranscript, error: voiceError, isSupported, start, stop, reset } = useVoiceRecognition();
+    const { isListening, isSpeaking, transcript, interimTranscript, error: voiceError, isSupported, start, stop, reset, retry } = useVoiceRecognition();
 
     const [state, setState] = useState<AssistantState>('idle');
     const [isOpen, setIsOpen] = useState(false);
@@ -189,14 +189,16 @@ export default function VoiceAssistant() {
         start();
     }, [start, reset]);
 
-    // Retry
+    // Retry - uses intelligent retry from hook
     const handleRetry = useCallback(() => {
         reset();
         setParsedCommand(null);
         setMatchedLead(null);
         setError(null);
         setState('idle');
-    }, [reset]);
+        // Use retry from hook if we're retrying from an error
+        retry();
+    }, [reset, retry]);
 
     // Format date for display
     const formatDate = (dateStr: string) => {
@@ -286,15 +288,38 @@ export default function VoiceAssistant() {
                                     <div className="relative w-24 h-24 mx-auto">
                                         <button
                                             onClick={stop}
-                                            className="w-full h-full rounded-full bg-red-500 flex items-center justify-center animate-pulse shadow-lg"
+                                            className={`w-full h-full rounded-full flex items-center justify-center shadow-lg transition-all ${isSpeaking
+                                                ? 'bg-green-500 scale-110'
+                                                : 'bg-red-500 animate-pulse'
+                                                }`}
                                         >
-                                            <MicOff className="w-10 h-10 text-white" />
+                                            {isSpeaking ? (
+                                                <Mic className="w-10 h-10 text-white animate-bounce" />
+                                            ) : (
+                                                <MicOff className="w-10 h-10 text-white" />
+                                            )}
                                         </button>
-                                        <div className="absolute inset-0 rounded-full border-4 border-red-500 animate-ping opacity-30" />
+                                        <div className={`absolute inset-0 rounded-full border-4 animate-ping opacity-30 ${isSpeaking ? 'border-green-500' : 'border-red-500'
+                                            }`} />
+                                        {/* Audio wave animation when speaking */}
+                                        {isSpeaking && (
+                                            <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 flex gap-1">
+                                                <div className="w-1 h-4 bg-green-400 rounded animate-pulse" style={{ animationDelay: '0ms' }} />
+                                                <div className="w-1 h-6 bg-green-400 rounded animate-pulse" style={{ animationDelay: '100ms' }} />
+                                                <div className="w-1 h-8 bg-green-400 rounded animate-pulse" style={{ animationDelay: '200ms' }} />
+                                                <div className="w-1 h-6 bg-green-400 rounded animate-pulse" style={{ animationDelay: '300ms' }} />
+                                                <div className="w-1 h-4 bg-green-400 rounded animate-pulse" style={{ animationDelay: '400ms' }} />
+                                            </div>
+                                        )}
                                     </div>
-                                    <p className="text-white font-medium">Escuchando...</p>
+                                    <p className={`font-medium ${isSpeaking ? 'text-green-400' : 'text-white'}`}>
+                                        {isSpeaking ? '🎙️ Te escucho...' : 'Escuchando...'}
+                                    </p>
                                     <p className="text-gray-400 text-sm min-h-[3rem]">
-                                        {interimTranscript || transcript || 'Di tu comando...'}
+                                        {interimTranscript || transcript || (isSpeaking ? '' : 'Habla ahora...')}
+                                    </p>
+                                    <p className="text-gray-500 text-xs">
+                                        Toca el micrófono para detener
                                     </p>
                                 </div>
                             )}
