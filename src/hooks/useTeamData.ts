@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { useUserRole } from './useUserRole';
-import type { 
-  TeamMemberPerformance, 
-  DailyActivitySummary, 
+import type {
+  TeamMemberPerformance,
+  DailyActivitySummary,
   UserProfile,
   Lead,
-  ScheduledTask 
+  ScheduledTask
 } from '../types';
 
 interface TeamStats {
@@ -28,6 +28,7 @@ interface UseTeamDataReturn {
   getAsesorLeads: (userId: string) => Promise<Lead[]>;
   getAsesorTasks: (userId: string) => Promise<ScheduledTask[]>;
   getAsesorActivity: (userId: string, days?: number) => Promise<DailyActivitySummary[]>;
+  getAsesorAppointments: (userId: string) => Promise<ScheduledTask[]>;
 }
 
 export function useTeamData(): UseTeamDataReturn {
@@ -103,9 +104,9 @@ export function useTeamData(): UseTeamDataReturn {
         const userTasks = tasks.filter(t => t.user_id === profile.id);
         const userActivity = activities.filter(a => a.user_id === profile.id);
         const userFollowUps = followUps.filter(f => f.user_id === profile.id);
-        
+
         const lastActivity = userActivity.length > 0 ? userActivity[0].created_at : null;
-        
+
         // Count leads from this week
         const oneWeekAgo = new Date();
         oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
@@ -115,26 +116,26 @@ export function useTeamData(): UseTeamDataReturn {
         const hotLeads = userLeads.filter(l => l.score_category === 'HOT').length;
         const warmLeads = userLeads.filter(l => l.score_category === 'WARM').length;
         const coldLeads = userLeads.filter(l => l.score_category === 'COLD').length;
-        
+
         // Active leads (not closed)
-        const activeLeads = userLeads.filter(l => 
+        const activeLeads = userLeads.filter(l =>
           !['CERRADO_GANADO', 'CERRADO_PERDIDO'].includes(l.status)
         ).length;
-        
+
         // Follow-up metrics
         const totalFollowUps = userFollowUps.length;
         const leadsWithFollowUps = new Set(userFollowUps.map(f => f.lead_id)).size;
-        const avgFollowUps = leadsWithFollowUps > 0 
-          ? Math.round((totalFollowUps / leadsWithFollowUps) * 10) / 10 
+        const avgFollowUps = leadsWithFollowUps > 0
+          ? Math.round((totalFollowUps / leadsWithFollowUps) * 10) / 10
           : 0;
-        
+
         // Conversion rate (closed won / total closed)
-        const closedLeads = userLeads.filter(l => 
+        const closedLeads = userLeads.filter(l =>
           ['CERRADO_GANADO', 'CERRADO_PERDIDO'].includes(l.status)
         ).length;
         const leadsWon = userLeads.filter(l => l.status === 'CERRADO_GANADO').length;
-        const conversionRate = closedLeads > 0 
-          ? Math.round((leadsWon / closedLeads) * 100) 
+        const conversionRate = closedLeads > 0
+          ? Math.round((leadsWon / closedLeads) * 100)
           : 0;
 
         return {
@@ -281,7 +282,7 @@ export function useTeamData(): UseTeamDataReturn {
 
     // Group by date and summarize
     const byDate: Record<string, DailyActivitySummary> = {};
-    
+
     (data || []).forEach(log => {
       const date = log.created_at.split('T')[0];
       if (!byDate[date]) {
@@ -296,7 +297,7 @@ export function useTeamData(): UseTeamDataReturn {
           whatsapp_sent: 0
         };
       }
-      
+
       byDate[date].total_actions++;
       if (log.action_type === 'lead_created') byDate[date].leads_created++;
       if (log.action_type === 'lead_updated') byDate[date].leads_updated++;
@@ -305,9 +306,28 @@ export function useTeamData(): UseTeamDataReturn {
       if (log.action_type === 'whatsapp_sent') byDate[date].whatsapp_sent++;
     });
 
-    return Object.values(byDate).sort((a, b) => 
+    return Object.values(byDate).sort((a, b) =>
       b.activity_date.localeCompare(a.activity_date)
     );
+  }, [canViewTeam]);
+
+  // Get specific asesor's appointments (visits - virtual or in-person)
+  const getAsesorAppointments = useCallback(async (userId: string): Promise<ScheduledTask[]> => {
+    if (!canViewTeam) return [];
+
+    const { data, error } = await supabase
+      .from('scheduled_tasks')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('task_type', 'visit')
+      .order('scheduled_date', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching asesor appointments:', error);
+      return [];
+    }
+
+    return data || [];
   }, [canViewTeam]);
 
   return {
@@ -318,6 +338,7 @@ export function useTeamData(): UseTeamDataReturn {
     refetch: fetchTeamData,
     getAsesorLeads,
     getAsesorTasks,
-    getAsesorActivity
+    getAsesorActivity,
+    getAsesorAppointments
   };
 }

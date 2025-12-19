@@ -25,12 +25,13 @@ interface AsesorDetailModalProps {
 }
 
 export default function AsesorDetailModal({ asesor, onClose }: AsesorDetailModalProps) {
-  const { getAsesorLeads, getAsesorTasks, getAsesorActivity } = useTeamData();
+  const { getAsesorLeads, getAsesorTasks, getAsesorActivity, getAsesorAppointments } = useTeamData();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [tasks, setTasks] = useState<ScheduledTask[]>([]);
+  const [appointments, setAppointments] = useState<ScheduledTask[]>([]);
   const [activity, setActivity] = useState<DailyActivitySummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'overview' | 'leads' | 'tasks' | 'activity'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'leads' | 'tasks' | 'appointments' | 'activity'>('overview');
   const [expandedLead, setExpandedLead] = useState<string | null>(null);
 
   useEffect(() => {
@@ -39,15 +40,17 @@ export default function AsesorDetailModal({ asesor, onClose }: AsesorDetailModal
       if (!asesor.user_id) return;
       setIsLoading(true);
       try {
-        const [leadsData, tasksData, activityData] = await Promise.all([
+        const [leadsData, tasksData, activityData, appointmentsData] = await Promise.all([
           getAsesorLeads(asesor.user_id),
           getAsesorTasks(asesor.user_id),
-          getAsesorActivity(asesor.user_id, 30)
+          getAsesorActivity(asesor.user_id, 30),
+          getAsesorAppointments ? getAsesorAppointments(asesor.user_id) : Promise.resolve([])
         ]);
         if (isMounted) {
           setLeads(leadsData);
           setTasks(tasksData);
           setActivity(activityData);
+          setAppointments(appointmentsData || []);
         }
       } catch (err) {
         console.error('Error fetching asesor data:', err);
@@ -62,7 +65,7 @@ export default function AsesorDetailModal({ asesor, onClose }: AsesorDetailModal
   }, [asesor.user_id]); // Solo depende del user_id, no de las funciones
 
   // Calculate stats
-  const conversionRate = asesor.total_leads > 0 
+  const conversionRate = asesor.total_leads > 0
     ? ((asesor.leads_won / asesor.total_leads) * 100).toFixed(1)
     : '0';
 
@@ -107,14 +110,15 @@ export default function AsesorDetailModal({ asesor, onClose }: AsesorDetailModal
             { id: 'overview', label: 'Resumen', icon: TrendingUp },
             { id: 'leads', label: `Leads (${leads.length})`, icon: Target },
             { id: 'tasks', label: `Tareas (${pendingTasks.length})`, icon: CheckCircle2 },
+            { id: 'appointments', label: `Citas (${appointments.length})`, icon: Calendar },
             { id: 'activity', label: 'Actividad', icon: Activity }
           ].map(tab => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as typeof activeTab)}
               className={`flex items-center gap-2 px-4 md:px-6 py-3 text-sm font-medium transition-colors whitespace-nowrap flex-shrink-0
-                ${activeTab === tab.id 
-                  ? 'text-nexus-accent border-b-2 border-nexus-accent' 
+                ${activeTab === tab.id
+                  ? 'text-nexus-accent border-b-2 border-nexus-accent'
                   : 'text-gray-400 hover:text-white'}`}
             >
               <tab.icon className="w-4 h-4" />
@@ -125,7 +129,7 @@ export default function AsesorDetailModal({ asesor, onClose }: AsesorDetailModal
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-4 md:p-6 pb-20">
           {isLoading ? (
             <div className="flex items-center justify-center py-12">
               <div className="animate-spin w-8 h-8 border-2 border-nexus-accent border-t-transparent rounded-full" />
@@ -137,27 +141,27 @@ export default function AsesorDetailModal({ asesor, onClose }: AsesorDetailModal
                 <div className="space-y-6">
                   {/* KPI Cards - Main Stats */}
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <KPICard 
-                      label="Total Leads" 
-                      value={asesor.total_leads} 
+                    <KPICard
+                      label="Total Leads"
+                      value={asesor.total_leads}
                       icon={<Target className="w-5 h-5" />}
                       color="blue"
                     />
-                    <KPICard 
-                      label="Ventas Cerradas" 
-                      value={asesor.leads_won} 
+                    <KPICard
+                      label="Ventas Cerradas"
+                      value={asesor.leads_won}
                       icon={<CheckCircle2 className="w-5 h-5" />}
                       color="green"
                     />
-                    <KPICard 
-                      label="Perdidos" 
-                      value={asesor.leads_lost} 
+                    <KPICard
+                      label="Perdidos"
+                      value={asesor.leads_lost}
                       icon={<XCircle className="w-5 h-5" />}
                       color="red"
                     />
-                    <KPICard 
-                      label="Conversión" 
-                      value={`${asesor.conversion_rate ?? conversionRate}%`} 
+                    <KPICard
+                      label="Conversión"
+                      value={`${asesor.conversion_rate ?? conversionRate}%`}
                       icon={<TrendingUp className="w-5 h-5" />}
                       color="orange"
                     />
@@ -214,15 +218,15 @@ export default function AsesorDetailModal({ asesor, onClose }: AsesorDetailModal
                           <span className="text-nexus-accent font-semibold">{asesor.avg_follow_ups || 0}</span>
                         </div>
                         <div className="h-2 bg-gray-700 rounded-full overflow-hidden mt-2">
-                          <div 
+                          <div
                             className="h-full bg-gradient-to-r from-cyan-500 to-nexus-accent rounded-full transition-all"
                             style={{ width: `${Math.min((asesor.avg_follow_ups || 0) * 20, 100)}%` }}
                           />
                         </div>
                         <p className="text-gray-500 text-xs text-center">
-                          {(asesor.avg_follow_ups || 0) >= 4 ? '¡Excelente seguimiento!' : 
-                           (asesor.avg_follow_ups || 0) >= 2 ? 'Buen seguimiento' : 
-                           'Puede mejorar seguimientos'}
+                          {(asesor.avg_follow_ups || 0) >= 4 ? '¡Excelente seguimiento!' :
+                            (asesor.avg_follow_ups || 0) >= 2 ? 'Buen seguimiento' :
+                              'Puede mejorar seguimientos'}
                         </p>
                       </div>
                     </div>
@@ -245,18 +249,17 @@ export default function AsesorDetailModal({ asesor, onClose }: AsesorDetailModal
                           <span className="text-white font-semibold">+{asesor.leads_this_week} leads</span>
                         </div>
                         <div className="h-2 bg-gray-700 rounded-full overflow-hidden mt-2">
-                          <div 
-                            className={`h-full rounded-full transition-all ${
-                              (asesor.conversion_rate || 0) >= 30 ? 'bg-green-500' : 
+                          <div
+                            className={`h-full rounded-full transition-all ${(asesor.conversion_rate || 0) >= 30 ? 'bg-green-500' :
                               (asesor.conversion_rate || 0) >= 15 ? 'bg-yellow-500' : 'bg-red-500'
-                            }`}
+                              }`}
                             style={{ width: `${Math.min(asesor.conversion_rate || 0, 100)}%` }}
                           />
                         </div>
                         <p className="text-gray-500 text-xs text-center">
-                          {(asesor.conversion_rate || 0) >= 30 ? '¡Excelente rendimiento!' : 
-                           (asesor.conversion_rate || 0) >= 15 ? 'Buen rendimiento' : 
-                           'Necesita mejorar conversiones'}
+                          {(asesor.conversion_rate || 0) >= 30 ? '¡Excelente rendimiento!' :
+                            (asesor.conversion_rate || 0) >= 15 ? 'Buen rendimiento' :
+                              'Necesita mejorar conversiones'}
                         </p>
                       </div>
                     </div>
@@ -271,7 +274,7 @@ export default function AsesorDetailModal({ asesor, onClose }: AsesorDetailModal
                         Última Actividad
                       </h3>
                       <p className="text-gray-400">
-                        {asesor.last_activity 
+                        {asesor.last_activity
                           ? formatDate(asesor.last_activity)
                           : 'Sin actividad registrada'}
                       </p>
@@ -299,7 +302,7 @@ export default function AsesorDetailModal({ asesor, onClose }: AsesorDetailModal
                             <span className="text-white">{taskCompletionRate}%</span>
                           </div>
                           <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
-                            <div 
+                            <div
                               className="h-full bg-green-500 rounded-full transition-all"
                               style={{ width: `${taskCompletionRate}%` }}
                             />
@@ -335,11 +338,11 @@ export default function AsesorDetailModal({ asesor, onClose }: AsesorDetailModal
                     <p className="text-gray-400 text-center py-8">No hay leads registrados</p>
                   ) : (
                     leads.map(lead => (
-                      <div 
-                        key={lead.id} 
+                      <div
+                        key={lead.id}
                         className="bg-nexus-base rounded-lg overflow-hidden"
                       >
-                        <div 
+                        <div
                           className="p-4 flex items-center justify-between cursor-pointer hover:bg-nexus-base/80"
                           onClick={() => setExpandedLead(expandedLead === lead.id ? null : lead.id)}
                         >
@@ -367,7 +370,7 @@ export default function AsesorDetailModal({ asesor, onClose }: AsesorDetailModal
                             )}
                           </div>
                         </div>
-                        
+
                         {expandedLead === lead.id && (
                           <div className="px-4 pb-4 border-t border-gray-700 pt-3 space-y-2 text-sm">
                             <div className="flex items-center gap-2 text-gray-400">
@@ -437,6 +440,66 @@ export default function AsesorDetailModal({ asesor, onClose }: AsesorDetailModal
                 </div>
               )}
 
+              {/* Appointments Tab */}
+              {activeTab === 'appointments' && (
+                <div className="space-y-4">
+                  {appointments.length === 0 ? (
+                    <p className="text-gray-400 text-center py-8">No hay citas programadas</p>
+                  ) : (
+                    <>
+                      {/* Summary */}
+                      <div className="grid grid-cols-2 gap-4 mb-4">
+                        <div className="bg-nexus-base rounded-lg p-4 text-center">
+                          <div className="text-3xl mb-1">🖥️</div>
+                          <p className="text-2xl font-bold text-purple-400">
+                            {appointments.filter(a => a.appointment_type === 'virtual').length}
+                          </p>
+                          <p className="text-gray-500 text-xs">Virtuales</p>
+                        </div>
+                        <div className="bg-nexus-base rounded-lg p-4 text-center">
+                          <div className="text-3xl mb-1">🏠</div>
+                          <p className="text-2xl font-bold text-green-400">
+                            {appointments.filter(a => a.appointment_type === 'in_person').length}
+                          </p>
+                          <p className="text-gray-500 text-xs">Presenciales</p>
+                        </div>
+                      </div>
+
+                      {/* Appointments List */}
+                      <div className="space-y-2">
+                        {appointments.map(apt => (
+                          <div
+                            key={apt.id}
+                            className={`p-4 rounded-lg flex items-center gap-3 ${apt.is_completed ? 'bg-green-500/10' : 'bg-nexus-base'}`}
+                          >
+                            <div className={`p-2 rounded-lg ${apt.appointment_type === 'virtual' ? 'bg-purple-500/20 text-purple-400' : 'bg-green-500/20 text-green-400'}`}>
+                              {apt.appointment_type === 'virtual' ? '🖥️' : '🏠'}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-white font-medium truncate">{apt.lead_name}</p>
+                              <p className="text-gray-500 text-xs">
+                                {apt.scheduled_date} a las {apt.scheduled_time}
+                              </p>
+                              {apt.notes && (
+                                <p className="text-gray-400 text-xs mt-1 truncate">{apt.notes}</p>
+                              )}
+                            </div>
+                            <div className="flex flex-col items-end">
+                              <span className={`text-xs px-2 py-1 rounded ${apt.appointment_type === 'virtual' ? 'bg-purple-500/20 text-purple-400' : 'bg-green-500/20 text-green-400'}`}>
+                                {apt.appointment_type === 'virtual' ? 'Virtual' : 'Presencial'}
+                              </span>
+                              {apt.is_completed && (
+                                <CheckCircle2 className="w-4 h-4 text-green-400 mt-1" />
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+
               {/* Activity Tab */}
               {activeTab === 'activity' && (
                 <div className="space-y-4">
@@ -470,9 +533,9 @@ export default function AsesorDetailModal({ asesor, onClose }: AsesorDetailModal
 }
 
 // Helper Components
-function KPICard({ label, value, icon, color }: { 
-  label: string; 
-  value: number | string; 
+function KPICard({ label, value, icon, color }: {
+  label: string;
+  value: number | string;
   icon: React.ReactNode;
   color: 'blue' | 'green' | 'red' | 'orange';
 }) {
