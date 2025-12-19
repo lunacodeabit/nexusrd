@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { 
+import {
   Phone, MessageSquare, Mail, MapPin, MoreHorizontal,
   Plus, CheckCircle2, Clock, AlertCircle,
   TrendingUp, CalendarPlus, Bell, X, Pencil, Check
@@ -19,12 +19,16 @@ const ALERT_TIME_OPTIONS = [
   { value: 120, label: '2 horas antes' },
 ];
 
+// Appointment type for visits
+type AppointmentType = 'virtual' | 'in_person';
+
 // Scheduled Task Interface
 interface ScheduledTask {
   id: string;
   leadId: string;
   leadName: string;
   method: LeadFollowUp['method'];
+  appointmentType?: AppointmentType; // Only for VISITA method
   scheduledDate: string;
   scheduledTime: string;
   notes: string;
@@ -48,8 +52,8 @@ const formatTime12h = (time24: string): string => {
   return `${hours12}:${minutes.toString().padStart(2, '0')} ${period}`;
 };
 
-const LeadFollowUpTracker: React.FC<LeadFollowUpTrackerProps> = ({ 
-  lead, 
+const LeadFollowUpTracker: React.FC<LeadFollowUpTrackerProps> = ({
+  lead,
   followUps,
   onAddFollowUp,
   onUpdateFollowUpNotes
@@ -71,6 +75,7 @@ const LeadFollowUpTracker: React.FC<LeadFollowUpTrackerProps> = ({
   });
   const [scheduledTask, setScheduledTask] = useState({
     method: 'LLAMADA' as LeadFollowUp['method'],
+    appointmentType: undefined as AppointmentType | undefined,
     date: '',
     time: '',
     notes: '',
@@ -100,21 +105,21 @@ const LeadFollowUpTracker: React.FC<LeadFollowUpTrackerProps> = ({
 
     const checkReminders = () => {
       const now = new Date();
-      
+
       scheduledTasks.forEach(task => {
         if (task.completed || task.alertSent) return;
-        
+
         const taskDateTime = new Date(`${task.scheduledDate}T${task.scheduledTime}`);
         const diffMinutes = (taskDateTime.getTime() - now.getTime()) / (1000 * 60);
         const alertTime = task.alertMinutesBefore || 15;
-        
+
         // Check if it's time to send alert (within 1 minute of alert time)
         if (diffMinutes > 0 && diffMinutes <= alertTime && diffMinutes >= alertTime - 1) {
           // Play sound alert
           if (userProfile.enable_sound_alerts) {
             notificationSound.playNotification();
           }
-          
+
           // Browser notification
           if (userProfile.enable_browser_notifications && Notification.permission === 'granted') {
             new Notification(`⏰ Recordatorio: ${task.method}`, {
@@ -122,7 +127,7 @@ const LeadFollowUpTracker: React.FC<LeadFollowUpTrackerProps> = ({
               icon: '/icons/icon-192x192.png'
             });
           }
-          
+
           // WhatsApp alert
           if (userProfile.enable_whatsapp_alerts && userProfile.whatsapp_number) {
             sendWhatsAppAlert(
@@ -133,9 +138,9 @@ const LeadFollowUpTracker: React.FC<LeadFollowUpTrackerProps> = ({
               alertTime
             );
           }
-          
+
           // Mark alert as sent
-          setScheduledTasks(prev => 
+          setScheduledTasks(prev =>
             prev.map(t => t.id === task.id ? { ...t, alertSent: true } : t)
           );
         }
@@ -166,7 +171,7 @@ const LeadFollowUpTracker: React.FC<LeadFollowUpTrackerProps> = ({
 
   const handleSubmitFollowUp = () => {
     notificationSound.playNotification();
-    
+
     onAddFollowUp({
       leadId: lead.id,
       followUpNumber: nextFollowUpNumber,
@@ -181,12 +186,13 @@ const LeadFollowUpTracker: React.FC<LeadFollowUpTrackerProps> = ({
 
   const handleScheduleTask = () => {
     if (!scheduledTask.date || !scheduledTask.time) return;
-    
+
     const newTask: ScheduledTask = {
       id: `task-${Date.now()}`,
       leadId: lead.id,
       leadName: lead.name,
       method: scheduledTask.method,
+      appointmentType: scheduledTask.method === 'VISITA' ? scheduledTask.appointmentType : undefined,
       scheduledDate: scheduledTask.date,
       scheduledTime: scheduledTask.time,
       notes: scheduledTask.notes,
@@ -194,15 +200,15 @@ const LeadFollowUpTracker: React.FC<LeadFollowUpTrackerProps> = ({
       alertMinutesBefore: scheduledTask.alertMinutesBefore,
       alertSent: false
     };
-    
+
     setScheduledTasks(prev => [...prev, newTask]);
-    setScheduledTask({ method: 'LLAMADA', date: '', time: '', notes: '', alertMinutesBefore: 15 });
+    setScheduledTask({ method: 'LLAMADA', appointmentType: undefined, date: '', time: '', notes: '', alertMinutesBefore: 15 });
     setIsScheduling(false);
     notificationSound.playSuccess();
   };
 
   const handleCompleteTask = (taskId: string) => {
-    setScheduledTasks(prev => prev.map(t => 
+    setScheduledTasks(prev => prev.map(t =>
       t.id === taskId ? { ...t, completed: true } : t
     ));
   };
@@ -215,6 +221,7 @@ const LeadFollowUpTracker: React.FC<LeadFollowUpTrackerProps> = ({
     setEditingTask(task);
     setScheduledTask({
       method: task.method,
+      appointmentType: task.appointmentType,
       date: task.scheduledDate,
       time: task.scheduledTime,
       notes: task.notes,
@@ -225,29 +232,30 @@ const LeadFollowUpTracker: React.FC<LeadFollowUpTrackerProps> = ({
 
   const handleSaveEditTask = () => {
     if (!editingTask || !scheduledTask.date || !scheduledTask.time) return;
-    
-    setScheduledTasks(prev => prev.map(t => 
-      t.id === editingTask.id 
+
+    setScheduledTasks(prev => prev.map(t =>
+      t.id === editingTask.id
         ? {
-            ...t,
-            method: scheduledTask.method,
-            scheduledDate: scheduledTask.date,
-            scheduledTime: scheduledTask.time,
-            notes: scheduledTask.notes,
-            alertMinutesBefore: scheduledTask.alertMinutesBefore,
-            alertSent: false // Reset alert if time changed
-          }
+          ...t,
+          method: scheduledTask.method,
+          appointmentType: scheduledTask.method === 'VISITA' ? scheduledTask.appointmentType : undefined,
+          scheduledDate: scheduledTask.date,
+          scheduledTime: scheduledTask.time,
+          notes: scheduledTask.notes,
+          alertMinutesBefore: scheduledTask.alertMinutesBefore,
+          alertSent: false // Reset alert if time changed
+        }
         : t
     ));
     setEditingTask(null);
-    setScheduledTask({ method: 'LLAMADA', date: '', time: '', notes: '', alertMinutesBefore: 15 });
+    setScheduledTask({ method: 'LLAMADA', appointmentType: undefined, date: '', time: '', notes: '', alertMinutesBefore: 15 });
     setIsScheduling(false);
     notificationSound.playSuccess();
   };
 
   const handleCancelScheduling = () => {
     setEditingTask(null);
-    setScheduledTask({ method: 'LLAMADA', date: '', time: '', notes: '', alertMinutesBefore: 15 });
+    setScheduledTask({ method: 'LLAMADA', appointmentType: undefined, date: '', time: '', notes: '', alertMinutesBefore: 15 });
     setIsScheduling(false);
   };
 
@@ -312,20 +320,19 @@ const LeadFollowUpTracker: React.FC<LeadFollowUpTrackerProps> = ({
           {Array.from({ length: 12 }, (_, i) => i + 1).map((num) => (
             <div
               key={num}
-              className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
-                num <= currentFollowUpNumber
-                  ? 'bg-nexus-accent text-nexus-base'
-                  : num === nextFollowUpNumber
+              className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-all ${num <= currentFollowUpNumber
+                ? 'bg-nexus-accent text-nexus-base'
+                : num === nextFollowUpNumber
                   ? 'bg-nexus-accent/30 text-nexus-accent border-2 border-nexus-accent border-dashed'
                   : 'bg-gray-700 text-gray-500'
-              }`}
+                }`}
             >
               {num}
             </div>
           ))}
         </div>
         <div className="h-1 bg-gray-700 rounded-full">
-          <div 
+          <div
             className="h-full bg-nexus-accent rounded-full transition-all duration-500"
             style={{ width: `${(currentFollowUpNumber / 12) * 100}%` }}
           />
@@ -336,7 +343,7 @@ const LeadFollowUpTracker: React.FC<LeadFollowUpTrackerProps> = ({
       {leadFollowUps.length > 0 && (
         <div className="space-y-2 max-h-64 overflow-y-auto">
           {leadFollowUps.map((followUp) => (
-            <div 
+            <div
               key={followUp.id}
               className="p-3 bg-nexus-base rounded-lg border border-white/5"
             >
@@ -348,9 +355,9 @@ const LeadFollowUpTracker: React.FC<LeadFollowUpTrackerProps> = ({
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-bold text-white text-sm">S{followUp.followUpNumber}</span>
                     <span className="text-xs text-gray-500">
-                      {new Date(followUp.date).toLocaleDateString('es-ES', { 
-                        day: '2-digit', 
-                        month: '2-digit', 
+                      {new Date(followUp.date).toLocaleDateString('es-ES', {
+                        day: '2-digit',
+                        month: '2-digit',
                         year: 'numeric',
                         hour: '2-digit',
                         minute: '2-digit'
@@ -361,7 +368,7 @@ const LeadFollowUpTracker: React.FC<LeadFollowUpTrackerProps> = ({
                       <span className="text-xs text-gray-400">{getResponseLabel(followUp.response)}</span>
                     </div>
                   </div>
-                  
+
                   {/* Notes Section - Editable */}
                   {editingFollowUpId === followUp.id ? (
                     <div className="mt-2 space-y-2">
@@ -449,11 +456,10 @@ const LeadFollowUpTracker: React.FC<LeadFollowUpTrackerProps> = ({
                 <button
                   key={method}
                   onClick={() => setNewFollowUp(prev => ({ ...prev, method }))}
-                  className={`p-2 rounded-lg flex flex-col items-center gap-1 transition-all ${
-                    newFollowUp.method === method
-                      ? getMethodColor(method)
-                      : 'bg-nexus-surface border border-white/10 text-gray-400'
-                  }`}
+                  className={`p-2 rounded-lg flex flex-col items-center gap-1 transition-all ${newFollowUp.method === method
+                    ? getMethodColor(method)
+                    : 'bg-nexus-surface border border-white/10 text-gray-400'
+                    }`}
                 >
                   {getMethodIcon(method)}
                   <span className="text-[10px]">{method}</span>
@@ -470,14 +476,13 @@ const LeadFollowUpTracker: React.FC<LeadFollowUpTrackerProps> = ({
                 <button
                   key={response}
                   onClick={() => setNewFollowUp(prev => ({ ...prev, response }))}
-                  className={`p-2 rounded-lg flex items-center justify-center gap-1 text-xs transition-all ${
-                    newFollowUp.response === response
-                      ? response === 'POSITIVA' ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                  className={`p-2 rounded-lg flex items-center justify-center gap-1 text-xs transition-all ${newFollowUp.response === response
+                    ? response === 'POSITIVA' ? 'bg-green-500/20 text-green-400 border border-green-500/30'
                       : response === 'NEGATIVA' ? 'bg-red-500/20 text-red-400 border border-red-500/30'
-                      : response === 'SIN_RESPUESTA' ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
-                      : 'bg-gray-500/20 text-gray-400 border border-gray-500/30'
-                      : 'bg-nexus-surface border border-white/10 text-gray-400'
-                  }`}
+                        : response === 'SIN_RESPUESTA' ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
+                          : 'bg-gray-500/20 text-gray-400 border border-gray-500/30'
+                    : 'bg-nexus-surface border border-white/10 text-gray-400'
+                    }`}
                 >
                   {getResponseIcon(response)}
                   <span className="hidden md:inline">{getResponseLabel(response)}</span>
@@ -518,15 +523,14 @@ const LeadFollowUpTracker: React.FC<LeadFollowUpTrackerProps> = ({
         <button
           onClick={() => setIsAddingFollowUp(true)}
           disabled={currentFollowUpNumber >= 12}
-          className={`w-full flex items-center justify-center gap-2 p-3 rounded-lg font-bold transition-all ${
-            currentFollowUpNumber >= 12
-              ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
-              : 'bg-gradient-to-r from-nexus-accent to-orange-400 text-nexus-base hover:opacity-90'
-          }`}
+          className={`w-full flex items-center justify-center gap-2 p-3 rounded-lg font-bold transition-all ${currentFollowUpNumber >= 12
+            ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
+            : 'bg-gradient-to-r from-nexus-accent to-orange-400 text-nexus-base hover:opacity-90'
+            }`}
         >
           <Plus size={18} />
-          {currentFollowUpNumber >= 12 
-            ? 'Máximo de seguimientos alcanzado' 
+          {currentFollowUpNumber >= 12
+            ? 'Máximo de seguimientos alcanzado'
             : `Registrar Seguimiento S${nextFollowUpNumber}`
           }
         </button>
@@ -579,15 +583,14 @@ const LeadFollowUpTracker: React.FC<LeadFollowUpTrackerProps> = ({
               const taskDate = new Date(`${task.scheduledDate}T${task.scheduledTime}`);
               const isPast = taskDate < new Date();
               const isToday = task.scheduledDate === new Date().toISOString().split('T')[0];
-              
+
               return (
-                <div 
+                <div
                   key={task.id}
-                  className={`flex items-center gap-3 p-3 rounded-lg border ${
-                    isPast ? 'bg-red-500/10 border-red-500/30' :
+                  className={`flex items-center gap-3 p-3 rounded-lg border ${isPast ? 'bg-red-500/10 border-red-500/30' :
                     isToday ? 'bg-yellow-500/10 border-yellow-500/30' :
-                    'bg-nexus-base border-white/10'
-                  }`}
+                      'bg-nexus-base border-white/10'
+                    }`}
                 >
                   <div className={`p-1.5 rounded ${getMethodColor(task.method)}`}>
                     {getMethodIcon(task.method)}
@@ -658,12 +661,11 @@ const LeadFollowUpTracker: React.FC<LeadFollowUpTrackerProps> = ({
                 {(['LLAMADA', 'WHATSAPP', 'EMAIL', 'VISITA', 'OTRO'] as const).map((method) => (
                   <button
                     key={method}
-                    onClick={() => setScheduledTask(prev => ({ ...prev, method }))}
-                    className={`p-2 rounded-lg flex flex-col items-center gap-1 transition-all ${
-                      scheduledTask.method === method
-                        ? getMethodColor(method)
-                        : 'bg-nexus-surface border border-white/10 text-gray-400'
-                    }`}
+                    onClick={() => setScheduledTask(prev => ({ ...prev, method, appointmentType: method === 'VISITA' ? prev.appointmentType : undefined }))}
+                    className={`p-2 rounded-lg flex flex-col items-center gap-1 transition-all ${scheduledTask.method === method
+                      ? getMethodColor(method)
+                      : 'bg-nexus-surface border border-white/10 text-gray-400'
+                      }`}
                   >
                     {getMethodIcon(method)}
                     <span className="text-[10px]">{method}</span>
@@ -671,6 +673,33 @@ const LeadFollowUpTracker: React.FC<LeadFollowUpTrackerProps> = ({
                 ))}
               </div>
             </div>
+
+            {/* Appointment Type - Only show for VISITA */}
+            {scheduledTask.method === 'VISITA' && (
+              <div>
+                <label className="text-xs text-gray-500 block mb-2">📍 Tipo de Cita</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    onClick={() => setScheduledTask(prev => ({ ...prev, appointmentType: 'virtual' }))}
+                    className={`p-3 rounded-lg flex items-center justify-center gap-2 transition-all ${scheduledTask.appointmentType === 'virtual'
+                        ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30 font-bold'
+                        : 'bg-nexus-surface border border-white/10 text-gray-400 hover:border-white/30'
+                      }`}
+                  >
+                    🖥️ Virtual
+                  </button>
+                  <button
+                    onClick={() => setScheduledTask(prev => ({ ...prev, appointmentType: 'in_person' }))}
+                    className={`p-3 rounded-lg flex items-center justify-center gap-2 transition-all ${scheduledTask.appointmentType === 'in_person'
+                        ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30 font-bold'
+                        : 'bg-nexus-surface border border-white/10 text-gray-400 hover:border-white/30'
+                      }`}
+                  >
+                    🏠 Presencial
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Date & Time */}
             <div className="grid grid-cols-2 gap-3">
@@ -703,13 +732,12 @@ const LeadFollowUpTracker: React.FC<LeadFollowUpTrackerProps> = ({
                   <button
                     key={option.value}
                     onClick={() => setScheduledTask(prev => ({ ...prev, alertMinutesBefore: option.value }))}
-                    className={`p-2 rounded-lg text-xs transition-all ${
-                      scheduledTask.alertMinutesBefore === option.value
-                        ? 'bg-nexus-accent text-nexus-base font-bold'
-                        : 'bg-nexus-surface border border-white/10 text-gray-400 hover:border-white/30'
-                    }`}
+                    className={`p-2 rounded-lg text-xs transition-all ${scheduledTask.alertMinutesBefore === option.value
+                      ? 'bg-nexus-accent text-nexus-base font-bold'
+                      : 'bg-nexus-surface border border-white/10 text-gray-400 hover:border-white/30'
+                      }`}
                   >
-                    {option.value >= 60 ? `${option.value/60}h` : `${option.value}m`}
+                    {option.value >= 60 ? `${option.value / 60}h` : `${option.value}m`}
                   </button>
                 ))}
               </div>

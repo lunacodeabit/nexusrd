@@ -111,6 +111,9 @@ export interface UserProfile {
   updated_at: string;
 }
 
+// Appointment type for visits/meetings
+export type AppointmentType = 'virtual' | 'in_person';
+
 export interface ScheduledTask {
   id: string;
   user_id: string;
@@ -118,6 +121,7 @@ export interface ScheduledTask {
   lead_name: string;
   lead_phone: string | null;
   task_type: 'call' | 'whatsapp' | 'visit' | 'email' | 'other';
+  appointment_type?: AppointmentType; // Only for task_type = 'visit'
   scheduled_date: string;
   scheduled_time: string;
   notes: string | null;
@@ -128,14 +132,37 @@ export interface ScheduledTask {
   updated_at: string;
 }
 
-export type ActivityType = 
-  | 'lead_created' 
-  | 'lead_updated' 
+// Appointment Metrics for dashboard
+export interface AppointmentMetrics {
+  user_id: string;
+  full_name: string;
+  email: string;
+  month: string;
+  virtual_appointments: number;
+  in_person_appointments: number;
+  total_appointments: number;
+  completed_appointments: number;
+  completed_virtual: number;
+  completed_in_person: number;
+}
+
+// Team appointment summary
+export interface TeamAppointmentSummary {
+  total_virtual: number;
+  total_in_person: number;
+  total_appointments: number;
+  total_completed: number;
+  asesores_with_appointments: number;
+}
+
+export type ActivityType =
+  | 'lead_created'
+  | 'lead_updated'
   | 'lead_status_changed'
   | 'follow_up_created'
   | 'task_created'
-  | 'task_completed' 
-  | 'call_made' 
+  | 'task_completed'
+  | 'call_made'
   | 'whatsapp_sent'
   | 'visit_completed'
   | 'login'
@@ -191,7 +218,7 @@ export interface DailyActivitySummary {
 // AUTOMATIZACIONES
 // ---------------------------------------------------------------------------
 
-export type AutomationTrigger = 
+export type AutomationTrigger =
   | 'days_without_contact'      // Lead sin contacto por X días
   | 'days_in_status'            // Lead estancado en un status por X días
   | 'follow_up_overdue'         // Seguimiento programado vencido

@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { 
-  Users, 
-  TrendingUp, 
-  AlertTriangle, 
+import {
+  Users,
+  TrendingUp,
+  AlertTriangle,
   Trophy,
   Activity,
   Target,
@@ -11,10 +11,12 @@ import {
   UserX,
   CheckCircle2,
   UserCog,
-  BarChart3
+  BarChart3,
+  Calendar
 } from 'lucide-react';
 import { useTeamData } from '../hooks/useTeamData';
 import { useUserRole } from '../hooks/useUserRole';
+import { useAppointmentMetrics } from '../hooks/useAppointmentMetrics';
 import type { TeamMemberPerformance } from '../types';
 import AsesorDetailModal from './AsesorDetailModal';
 import UserManagement from './UserManagement';
@@ -24,6 +26,7 @@ type TabView = 'dashboard' | 'users';
 export default function SuperAdminDashboard() {
   const { canViewTeam, isAdmin, role } = useUserRole();
   const { teamMembers, teamStats, isLoading, refetch } = useTeamData();
+  const { teamSummary } = useAppointmentMetrics();
   const [selectedAsesor, setSelectedAsesor] = useState<TeamMemberPerformance | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [activeView, setActiveView] = useState<TabView>('dashboard');
@@ -52,11 +55,10 @@ export default function SuperAdminDashboard() {
     <div className="flex gap-2 mb-6">
       <button
         onClick={() => setActiveView('dashboard')}
-        className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
-          activeView === 'dashboard'
-            ? 'bg-nexus-accent text-black'
-            : 'bg-nexus-surface text-gray-400 hover:text-white'
-        }`}
+        className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${activeView === 'dashboard'
+          ? 'bg-nexus-accent text-black'
+          : 'bg-nexus-surface text-gray-400 hover:text-white'
+          }`}
       >
         <BarChart3 className="w-4 h-4" />
         Dashboard Equipo
@@ -64,11 +66,10 @@ export default function SuperAdminDashboard() {
       {isAdmin && (
         <button
           onClick={() => setActiveView('users')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
-            activeView === 'users'
-              ? 'bg-nexus-accent text-black'
-              : 'bg-nexus-surface text-gray-400 hover:text-white'
-          }`}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${activeView === 'users'
+            ? 'bg-nexus-accent text-black'
+            : 'bg-nexus-surface text-gray-400 hover:text-white'
+            }`}
         >
           <UserCog className="w-4 h-4" />
           Gestión Usuarios
@@ -137,7 +138,7 @@ export default function SuperAdminDashboard() {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         <StatCard
           icon={<Users className="w-6 h-6" />}
           label="Total Asesores"
@@ -160,6 +161,13 @@ export default function SuperAdminDashboard() {
           color="green"
         />
         <StatCard
+          icon={<Calendar className="w-6 h-6" />}
+          label="Citas del Equipo"
+          value={teamSummary?.total_appointments || 0}
+          subtext={`🖥️ ${teamSummary?.total_virtual || 0} | 🏠 ${teamSummary?.total_in_person || 0}`}
+          color="purple"
+        />
+        <StatCard
           icon={<AlertTriangle className="w-6 h-6" />}
           label="Inactivos"
           value={inactiveMembers.length}
@@ -175,7 +183,7 @@ export default function SuperAdminDashboard() {
             <Trophy className="w-5 h-5 text-yellow-500" />
             Ranking de Asesores
           </h2>
-          
+
           {teamMembers.length === 0 ? (
             <p className="text-gray-400 text-center py-8">No hay asesores registrados</p>
           ) : (
@@ -200,7 +208,7 @@ export default function SuperAdminDashboard() {
               <AlertTriangle className="w-5 h-5 text-red-500" />
               Alertas de Inactividad
             </h2>
-            
+
             {inactiveMembers.length === 0 ? (
               <div className="text-center py-4">
                 <CheckCircle2 className="w-10 h-10 mx-auto text-green-500 mb-2" />
@@ -217,7 +225,7 @@ export default function SuperAdminDashboard() {
                     <div>
                       <p className="text-white font-medium">{member.full_name}</p>
                       <p className="text-red-400 text-xs">
-                        {member.last_activity 
+                        {member.last_activity
                           ? `Última actividad: ${formatTimeAgo(member.last_activity)}`
                           : 'Sin actividad registrada'}
                       </p>
@@ -235,10 +243,10 @@ export default function SuperAdminDashboard() {
               <TrendingUp className="w-5 h-5 text-nexus-accent" />
               Top Performers
             </h2>
-            
+
             <div className="space-y-3">
               {topPerformers.slice(0, 3).map((member, index) => (
-                <div 
+                <div
                   key={member.user_id}
                   className="flex items-center gap-3"
                 >
@@ -273,16 +281,16 @@ export default function SuperAdminDashboard() {
 }
 
 // Stat Card Component
-function StatCard({ 
-  icon, 
-  label, 
-  value, 
-  subtext, 
-  color 
-}: { 
-  icon: React.ReactNode; 
-  label: string; 
-  value: number; 
+function StatCard({
+  icon,
+  label,
+  value,
+  subtext,
+  color
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: number;
   subtext: string;
   color: 'blue' | 'purple' | 'green' | 'red' | 'gray';
 }) {
@@ -309,20 +317,20 @@ function StatCard({
 }
 
 // Asesor Row Component
-function AsesorRow({ 
-  member, 
-  rank, 
-  onClick 
-}: { 
-  member: TeamMemberPerformance; 
+function AsesorRow({
+  member,
+  rank,
+  onClick
+}: {
+  member: TeamMemberPerformance;
   rank: number;
   onClick: () => void;
 }) {
-  const isInactive = !member.last_activity || 
+  const isInactive = !member.last_activity ||
     new Date(member.last_activity) < new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
 
   // Use the pre-calculated conversion rate if available, or calculate it
-  const conversionRate = member.conversion_rate ?? (member.total_leads > 0 
+  const conversionRate = member.conversion_rate ?? (member.total_leads > 0
     ? Math.round((member.leads_won / member.total_leads) * 100)
     : 0);
 
@@ -334,7 +342,7 @@ function AsesorRow({
   }[member.role] || { bg: 'bg-gray-500/20', text: 'text-gray-400', label: 'Asesor' };
 
   return (
-    <div 
+    <div
       className="flex items-center gap-4 p-4 bg-nexus-base/50 rounded-lg hover:bg-nexus-base cursor-pointer transition-colors group"
       onClick={onClick}
     >

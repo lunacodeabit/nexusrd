@@ -9,6 +9,7 @@ import DailyActivities from './components/DailyActivities';
 import SuperAdminDashboard from './components/SuperAdminDashboard';
 import AutomationsView from './components/AutomationsView';
 import FollowUpTrackingPage from './components/FollowUpTrackingPage';
+import VoiceAssistant from './components/VoiceAssistant';
 import { AuthScreen } from './components/Auth';
 import { useAuth } from './contexts/AuthContext';
 import { useLeads } from './hooks/useLeads';
@@ -24,12 +25,12 @@ import type { TaskCompletion, LeadFollowUp } from './types/activities';
 const App: React.FC = () => {
   const { user, loading: authLoading } = useAuth();
   const [activeTab, setActiveTab] = useState('dashboard');
-  
+
   // Supabase hooks
   const { leads, addLead: addLeadToDb, updateLead } = useLeads();
   const { followUps, addFollowUp: addFollowUpToDb, updateFollowUpNotes } = useFollowUps();
   const { completions: taskCompletions, toggleTask } = useActivities();
-  
+
   // Global task alerts - runs always when app is open
   useTaskAlerts();
   usePersonalTaskAlerts(); // Personal planner alerts
@@ -76,8 +77,8 @@ const App: React.FC = () => {
       }
     };
 
-    await updateLead(leadId, { 
-      status: newStatus, 
+    await updateLead(leadId, {
+      status: newStatus,
       lastContactDate: new Date().toISOString(),
       nextFollowUpDate: getNextFollowUpDate()
     });
@@ -103,20 +104,20 @@ const App: React.FC = () => {
   // Add lead follow-up
   const addFollowUp = async (followUp: Omit<LeadFollowUp, 'id'>) => {
     await addFollowUpToDb(followUp);
-    
+
     // IMPORTANTE: Actualizar lastContactDate del lead cuando se registra un seguimiento
     const lead = leads.find(l => l.id === followUp.leadId);
     if (lead) {
       const updates: Partial<Lead> = {
         lastContactDate: new Date().toISOString(),
       };
-      
+
       // Si el lead era NUEVO, cambiarlo a CONTACTADO
       if (lead.status === LeadStatus.NEW) {
         updates.status = LeadStatus.CONTACTED;
         updates.nextFollowUpDate = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(); // 24 horas
       }
-      
+
       await updateLead(lead.id, updates);
     }
   };
@@ -124,8 +125,8 @@ const App: React.FC = () => {
   const renderContent = () => {
     switch (activeTab) {
       case 'dashboard':
-        return <Dashboard 
-          leads={leads} 
+        return <Dashboard
+          leads={leads}
           onUpdateLeadStatus={updateLeadStatus}
           onUpdateLeadScore={updateLeadScore}
           onUpdateLead={updateLead}
@@ -134,10 +135,10 @@ const App: React.FC = () => {
           onUpdateFollowUpNotes={updateFollowUpNotes}
         />;
       case 'leads':
-        return <LeadsManager 
-          leads={leads} 
-          addLead={addLead} 
-          updateLeadStatus={updateLeadStatus} 
+        return <LeadsManager
+          leads={leads}
+          addLead={addLead}
+          updateLeadStatus={updateLeadStatus}
           updateLeadScore={updateLeadScore}
           updateLead={updateLead}
           followUps={followUps}
@@ -159,8 +160,8 @@ const App: React.FC = () => {
       case 'superadmin':
         return <SuperAdminDashboard />;
       default:
-        return <Dashboard 
-          leads={leads} 
+        return <Dashboard
+          leads={leads}
           onUpdateLeadStatus={updateLeadStatus}
           onUpdateLeadScore={updateLeadScore}
           onUpdateLead={updateLead}
@@ -173,6 +174,7 @@ const App: React.FC = () => {
   return (
     <Layout activeTab={activeTab} setActiveTab={setActiveTab}>
       {renderContent()}
+      <VoiceAssistant />
     </Layout>
   );
 };

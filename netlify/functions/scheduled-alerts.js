@@ -37,12 +37,12 @@ async function sendTelegram(chatId, message) {
 function formatMessage(task, minutesBefore) {
   const categoryEmoji = {
     'trabajo': '💼',
-    'cliente': '👤', 
+    'cliente': '👤',
     'personal': '🏠',
     'admin': '📋',
   };
   const emoji = categoryEmoji[task.category] || '📌';
-  
+
   return `⏰ <b>RECORDATORIO CRM ALVEARE</b>
 
 ${emoji} <b>${task.title}</b>
@@ -57,7 +57,7 @@ ${task.description ? `📝 ${task.description}` : ''}
 // Main handler - runs on schedule
 exports.handler = async (event, context) => {
   console.log('🔔 Scheduled alerts check running at:', new Date().toISOString());
-  
+
   if (!supabaseUrl || !TELEGRAM_BOT_TOKEN) {
     console.error('Missing environment variables');
     return { statusCode: 500, body: 'Missing config' };
@@ -66,10 +66,15 @@ exports.handler = async (event, context) => {
   try {
     const now = new Date();
     const today = now.toISOString().split('T')[0]; // YYYY-MM-DD
-    const currentHour = now.getHours();
-    const currentMinute = now.getMinutes();
-    
-    console.log(`🔔 Checking for alerts at ${currentHour}:${currentMinute} on ${today}`);
+
+    // IMPORTANT: Netlify runs in UTC. Tasks are stored in local time (Dominican Republic = UTC-4)
+    // We need to convert UTC to local time for comparison
+    const TIMEZONE_OFFSET = -4; // Dominican Republic (AST = UTC-4)
+    const localNow = new Date(now.getTime() + (TIMEZONE_OFFSET * 60 * 60 * 1000));
+    const currentHour = localNow.getUTCHours();
+    const currentMinute = localNow.getUTCMinutes();
+
+    console.log(`🔔 Checking for alerts - Server UTC: ${now.getUTCHours()}:${String(now.getUTCMinutes()).padStart(2, '0')}, Local (UTC${TIMEZONE_OFFSET}): ${currentHour}:${String(currentMinute).padStart(2, '0')} on ${today}`);
     console.log(`Supabase URL: ${supabaseUrl ? 'SET' : 'MISSING'}`);
     console.log(`Supabase Key: ${supabaseKey ? 'SET' : 'MISSING'}`);
 
@@ -78,7 +83,7 @@ exports.handler = async (event, context) => {
       .from('personal_tasks')
       .select('*')
       .eq('scheduled_date', today);
-    
+
     console.log(`📋 ALL tasks for today (${today}):`, JSON.stringify(allTasks, null, 2));
     if (allError) console.log('All tasks error:', allError);
 
@@ -95,9 +100,9 @@ exports.handler = async (event, context) => {
       return { statusCode: 500, body: JSON.stringify(tasksError) };
     }
 
-    // Filter tasks that have alerts configured
-    const tasksWithAlerts = (tasks || []).filter(t => 
-      t.scheduled_time && t.alert_minutes_before && t.alert_minutes_before > 0
+    // Filter tasks that have alerts configured (including 0 for exact-time alerts)
+    const tasksWithAlerts = (tasks || []).filter(t =>
+      t.scheduled_time && t.alert_minutes_before !== undefined && t.alert_minutes_before !== null
     );
 
     console.log(`📌 Tasks with alert config: ${tasksWithAlerts.length}`);
@@ -107,44 +112,46 @@ exports.handler = async (event, context) => {
     for (const task of tasksWithAlerts) {
       // Parse task time
       const [taskHour, taskMinute] = task.scheduled_time.split(':').map(Number);
-      
-      // Calculate alert time
+
+      // Calculate alert time (when the alert should fire)
       const taskTimeMinutes = taskHour * 60 + taskMinute;
-      const alertTimeMinutes = taskTimeMinutes - (task.alert_minutes_before || 15);
+      const alertMinutes = task.alert_minutes_before || 0;
+      const alertTimeMinutes = taskTimeMinutes - alertMinutes;
       const currentTimeMinutes = currentHour * 60 + currentMinute;
-      
+
       // Check if it's time to send alert (within window)
+      // diff = how many minutes past the alert time we are
       const diff = currentTimeMinutes - alertTimeMinutes;
-      
-      console.log(`Task "${task.title}": alert at ${Math.floor(alertTimeMinutes/60)}:${String(alertTimeMinutes%60).padStart(2,'0')}, current: ${currentHour}:${String(currentMinute).padStart(2,'0')}, diff: ${diff} min`);
-      
-      // Send if we're within -1 to +5 minutes of alert time
-      if (diff >= -1 && diff <= 5) {
+
+      console.log(`Task "${task.title}": scheduled ${task.scheduled_time}, alert ${alertMinutes}min before = ${Math.floor(alertTimeMinutes / 60)}:${String(alertTimeMinutes % 60).padStart(2, '0')}, current: ${currentHour}:${String(currentMinute).padStart(2, '0')}, diff: ${diff} min`);
+
+      // Send if we're within 0 to +3 minutes of alert time (tighter window for more accuracy)
+      if (diff >= 0 && diff <= 3) {
         // Get user profile for this task
         const { data: userProfile, error: profileError } = await supabase
           .from('user_profiles')
           .select('telegram_chat_id, enable_telegram_alerts')
           .eq('id', task.user_id)
           .single();
-        
+
         if (profileError) {
           console.error(`Error getting profile for user ${task.user_id}:`, profileError);
           continue;
         }
-        
+
         if (userProfile?.enable_telegram_alerts && userProfile?.telegram_chat_id) {
           console.log(`🔔 Sending alert for: ${task.title} to ${userProfile.telegram_chat_id}`);
-          
+
           const message = formatMessage(task, task.alert_minutes_before);
           const sent = await sendTelegram(userProfile.telegram_chat_id, message);
-          
+
           if (sent) {
             // Mark alert as sent
             await supabase
               .from('personal_tasks')
               .update({ alert_sent: true })
               .eq('id', task.id);
-            
+
             alertsSent++;
             console.log(`✅ Alert sent for: ${task.title}`);
           }
@@ -155,10 +162,10 @@ exports.handler = async (event, context) => {
     }
 
     console.log(`🔔 Alerts sent: ${alertsSent}`);
-    
+
     return {
       statusCode: 200,
-      body: JSON.stringify({ 
+      body: JSON.stringify({
         message: 'Alerts checked',
         tasksChecked: tasks?.length || 0,
         alertsSent,

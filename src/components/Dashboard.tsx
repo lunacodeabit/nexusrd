@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import type { Lead } from '../types';
 import { LeadStatus } from '../types';
-import { AlertTriangle, Clock, Phone, TrendingUp, Bell, X, MessageSquare, Mail, MapPin, MoreHorizontal, CheckCircle2, Pencil, CalendarPlus, Zap } from 'lucide-react';
+import { AlertTriangle, Clock, Phone, TrendingUp, Bell, X, MessageSquare, Mail, MapPin, MoreHorizontal, CheckCircle2, Pencil, CalendarPlus, Zap, Calendar } from 'lucide-react';
 import Modal from './Modal';
 import LeadDetail from './LeadDetail';
 import DailyPlanner from './DailyPlanner';
@@ -10,6 +10,7 @@ import type { LeadFollowUp } from '../types/activities';
 import { useTodayActivity } from '../hooks/useTodayActivity';
 import { useAutomations } from '../hooks/useAutomations';
 import { useAutomationEngine } from '../hooks/useAutomationEngine';
+import { useAppointmentMetrics } from '../hooks/useAppointmentMetrics';
 
 // Interface for scheduled tasks (same as in LeadFollowUpTracker)
 interface ScheduledTask {
@@ -36,8 +37,8 @@ interface DashboardProps {
   onUpdateFollowUpNotes?: (followUpId: string, notes: string) => void;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ 
-  leads, 
+const Dashboard: React.FC<DashboardProps> = ({
+  leads,
   onUpdateLeadStatus,
   onUpdateLeadScore,
   onUpdateLead,
@@ -48,6 +49,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   const { counts: todayActivity } = useTodayActivity();
   const { rules } = useAutomations();
   const { pendingAutomations } = useAutomationEngine({ leads, rules });
+  const { myMetrics } = useAppointmentMetrics();
   const [showNotifications, setShowNotifications] = useState(false);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [editingTask, setEditingTask] = useState<ScheduledTask | null>(null);
@@ -70,7 +72,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   // ---------------------------------------------------------------------------
   // LOGICA DE ALERTAS INTELIGENTE ("El Flow Lógico")
   // ---------------------------------------------------------------------------
-  
+
   // Tipo unificado para alertas críticas
   type CriticalAlert = {
     lead: Lead;
@@ -107,21 +109,21 @@ const Dashboard: React.FC<DashboardProps> = ({
 
       const leadFollowUps = followUps.filter(f => f.leadId === lead.id);
       const hasFollowUps = leadFollowUps.length > 0;
-      const lastFollowUpDate = hasFollowUps 
+      const lastFollowUpDate = hasFollowUps
         ? Math.max(...leadFollowUps.map(f => new Date(f.date).getTime()))
         : null;
 
       const createdTime = new Date(lead.createdAt).getTime();
-      const isNewAndOld = lead.status === LeadStatus.NEW && 
-                          !hasFollowUps && 
-                          (now.getTime() - createdTime > 1000 * 60 * 60 * 2);
+      const isNewAndOld = lead.status === LeadStatus.NEW &&
+        !hasFollowUps &&
+        (now.getTime() - createdTime > 1000 * 60 * 60 * 2);
 
       const followUp = new Date(lead.nextFollowUpDate).getTime();
       const isOverdue = followUp < now.getTime();
 
       const lastContactTime = lead.lastContactDate ? new Date(lead.lastContactDate).getTime() : null;
       const mostRecentContact = Math.max(lastContactTime || 0, lastFollowUpDate || 0);
-      
+
       if (mostRecentContact > 0) {
         const recentlyContacted = (now.getTime() - mostRecentContact) < 1000 * 60 * 60 * 2;
         if (recentlyContacted) continue;
@@ -143,35 +145,35 @@ const Dashboard: React.FC<DashboardProps> = ({
   const urgentAlerts = criticalAlerts;
 
   const todaysTasks = useMemo(() => {
-     // Visitas programadas (leads con status VISIT_SCHEDULED)
-     return leads.filter(l => l.status === LeadStatus.VISIT_SCHEDULED);
+    // Visitas programadas (leads con status VISIT_SCHEDULED)
+    return leads.filter(l => l.status === LeadStatus.VISIT_SCHEDULED);
   }, [leads]);
 
   // Get scheduled tasks from localStorage for today - split into pending and overdue
   const { todaysPendingTasks, todaysOverdueTasks } = useMemo(() => {
     const saved = localStorage.getItem('nexus_scheduled_tasks');
     if (!saved) return { todaysPendingTasks: [], todaysOverdueTasks: [] };
-    
+
     const allTasks: ScheduledTask[] = JSON.parse(saved);
     const today = new Date().toISOString().split('T')[0];
     const now = new Date();
-    
+
     const todayTasks = allTasks.filter(task => task.scheduledDate === today && !task.completed);
-    
+
     const pending: ScheduledTask[] = [];
     const overdue: ScheduledTask[] = [];
-    
+
     for (const task of todayTasks) {
       const [hours, minutes] = task.scheduledTime.split(':').map(Number);
       const taskTime = new Date(today);
       taskTime.setHours(hours, minutes, 0, 0);
-      
+
       if (taskTime.getTime() < now.getTime()) {
         // Calculate overdue time
         const diffMs = now.getTime() - taskTime.getTime();
         const diffMins = Math.floor(diffMs / 60000);
         let overdueLabel = '';
-        
+
         if (diffMins < 60) {
           overdueLabel = `Hace ${diffMins} min`;
         } else if (diffMins < 1440) {
@@ -181,13 +183,13 @@ const Dashboard: React.FC<DashboardProps> = ({
           const days = Math.floor(diffMins / 1440);
           overdueLabel = `Hace ${days} día${days > 1 ? 's' : ''}`;
         }
-        
+
         overdue.push({ ...task, overdueLabel } as ScheduledTask & { overdueLabel: string });
       } else {
         pending.push(task);
       }
     }
-    
+
     // Also check tasks from previous days that weren't completed
     const pastTasks = allTasks.filter(task => task.scheduledDate < today && !task.completed);
     for (const task of pastTasks) {
@@ -196,8 +198,8 @@ const Dashboard: React.FC<DashboardProps> = ({
       const overdueLabel = diffDays === 1 ? 'Hace 1 día' : `Hace ${diffDays} días`;
       overdue.push({ ...task, overdueLabel } as ScheduledTask & { overdueLabel: string });
     }
-    
-    return { 
+
+    return {
       todaysPendingTasks: pending.sort((a, b) => a.scheduledTime.localeCompare(b.scheduledTime)),
       todaysOverdueTasks: overdue.sort((a, b) => {
         // Sort by date first, then by time
@@ -212,9 +214,9 @@ const Dashboard: React.FC<DashboardProps> = ({
   const handleCompleteTask = (taskId: string) => {
     const saved = localStorage.getItem('nexus_scheduled_tasks');
     if (!saved) return;
-    
+
     const allTasks: ScheduledTask[] = JSON.parse(saved);
-    const updated = allTasks.map(t => 
+    const updated = allTasks.map(t =>
       t.id === taskId ? { ...t, completed: true } : t
     );
     localStorage.setItem('nexus_scheduled_tasks', JSON.stringify(updated));
@@ -235,22 +237,22 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   const handleSaveTask = () => {
     if (!editingTask || !taskForm.date || !taskForm.time) return;
-    
+
     const saved = localStorage.getItem('nexus_scheduled_tasks');
     if (!saved) return;
-    
+
     const allTasks: ScheduledTask[] = JSON.parse(saved);
-    const updated = allTasks.map(t => 
-      t.id === editingTask.id 
+    const updated = allTasks.map(t =>
+      t.id === editingTask.id
         ? {
-            ...t,
-            method: taskForm.method,
-            scheduledDate: taskForm.date,
-            scheduledTime: taskForm.time,
-            notes: taskForm.notes,
-            alertMinutesBefore: taskForm.alertMinutesBefore,
-            alertSent: false
-          }
+          ...t,
+          method: taskForm.method,
+          scheduledDate: taskForm.date,
+          scheduledTime: taskForm.time,
+          notes: taskForm.notes,
+          alertMinutesBefore: taskForm.alertMinutesBefore,
+          alertSent: false
+        }
         : t
     );
     localStorage.setItem('nexus_scheduled_tasks', JSON.stringify(updated));
@@ -262,7 +264,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   const handleDeleteTask = (taskId: string) => {
     const saved = localStorage.getItem('nexus_scheduled_tasks');
     if (!saved) return;
-    
+
     const allTasks: ScheduledTask[] = JSON.parse(saved);
     const updated = allTasks.filter(t => t.id !== taskId);
     localStorage.setItem('nexus_scheduled_tasks', JSON.stringify(updated));
@@ -338,13 +340,13 @@ const Dashboard: React.FC<DashboardProps> = ({
           <p className="text-gray-400">Resumen de operaciones en tiempo real</p>
         </div>
         <div className="relative">
-          <button 
+          <button
             onClick={() => setShowNotifications(!showNotifications)}
             className="p-2 bg-white/5 rounded-full hover:bg-white/10 relative"
           >
             <Bell size={24} className="text-nexus-accent" />
             {urgentAlerts.length > 0 && (
-               <span className="absolute top-0 right-0 w-3 h-3 bg-red-500 rounded-full animate-pulse border-2 border-nexus-base"></span>
+              <span className="absolute top-0 right-0 w-3 h-3 bg-red-500 rounded-full animate-pulse border-2 border-nexus-base"></span>
             )}
           </button>
 
@@ -362,8 +364,8 @@ const Dashboard: React.FC<DashboardProps> = ({
                   <p className="p-4 text-gray-500 text-sm text-center">Sin notificaciones pendientes</p>
                 ) : (
                   criticalAlerts.map((alert, idx) => (
-                    <div 
-                      key={`notif-${alert.lead.id}-${idx}`} 
+                    <div
+                      key={`notif-${alert.lead.id}-${idx}`}
                       className="p-3 border-b border-white/5 hover:bg-white/5 cursor-pointer"
                       onClick={() => { setSelectedLead(alert.lead); setShowNotifications(false); }}
                     >
@@ -379,28 +381,60 @@ const Dashboard: React.FC<DashboardProps> = ({
       </header>
 
       {/* KPI GRID */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {[
-          { label: 'Leads Activos', val: leads.length, icon: TrendingUp, color: 'text-green-400' },
-          { label: 'Alertas Rojas', val: urgentAlerts.length, icon: AlertTriangle, color: 'text-red-500' },
-          { label: 'Llamadas Hoy', val: todayActivity.calls, icon: Phone, color: 'text-blue-400' },
-          { label: 'WhatsApp Hoy', val: todayActivity.whatsapp, icon: MessageSquare, color: 'text-emerald-400' },
-        ].map((kpi, idx) => (
-          <div key={idx} className="bg-nexus-surface p-4 rounded-xl border border-white/5 shadow-lg">
-             <div className="flex justify-between items-start">
-               <div>
-                 <p className="text-xs text-gray-400 uppercase tracking-wider">{kpi.label}</p>
-                 <p className={`text-2xl md:text-3xl font-bold mt-1 ${kpi.color}`}>{kpi.val}</p>
-               </div>
-               <kpi.icon size={20} className="text-gray-500" />
-             </div>
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div className="bg-nexus-surface p-4 rounded-xl border border-white/5 shadow-lg">
+          <div className="flex justify-between items-start">
+            <div>
+              <p className="text-xs text-gray-400 uppercase tracking-wider">Leads Activos</p>
+              <p className="text-2xl md:text-3xl font-bold mt-1 text-green-400">{leads.length}</p>
+            </div>
+            <TrendingUp size={20} className="text-gray-500" />
           </div>
-        ))}
+        </div>
+        <div className="bg-nexus-surface p-4 rounded-xl border border-white/5 shadow-lg">
+          <div className="flex justify-between items-start">
+            <div>
+              <p className="text-xs text-gray-400 uppercase tracking-wider">Alertas Rojas</p>
+              <p className="text-2xl md:text-3xl font-bold mt-1 text-red-500">{urgentAlerts.length}</p>
+            </div>
+            <AlertTriangle size={20} className="text-gray-500" />
+          </div>
+        </div>
+        <div className="bg-nexus-surface p-4 rounded-xl border border-white/5 shadow-lg">
+          <div className="flex justify-between items-start">
+            <div>
+              <p className="text-xs text-gray-400 uppercase tracking-wider">Llamadas Hoy</p>
+              <p className="text-2xl md:text-3xl font-bold mt-1 text-blue-400">{todayActivity.calls}</p>
+            </div>
+            <Phone size={20} className="text-gray-500" />
+          </div>
+        </div>
+        <div className="bg-nexus-surface p-4 rounded-xl border border-white/5 shadow-lg">
+          <div className="flex justify-between items-start">
+            <div>
+              <p className="text-xs text-gray-400 uppercase tracking-wider">WhatsApp Hoy</p>
+              <p className="text-2xl md:text-3xl font-bold mt-1 text-emerald-400">{todayActivity.whatsapp}</p>
+            </div>
+            <MessageSquare size={20} className="text-gray-500" />
+          </div>
+        </div>
+        <div className="bg-nexus-surface p-4 rounded-xl border border-purple-500/20 shadow-lg">
+          <div className="flex justify-between items-start">
+            <div>
+              <p className="text-xs text-gray-400 uppercase tracking-wider">Citas del Mes</p>
+              <p className="text-2xl md:text-3xl font-bold mt-1 text-purple-400">{myMetrics?.total_appointments || 0}</p>
+              {myMetrics && (myMetrics.virtual_appointments > 0 || myMetrics.in_person_appointments > 0) && (
+                <p className="text-xs text-gray-500 mt-1">🖥️ {myMetrics.virtual_appointments} | 🏠 {myMetrics.in_person_appointments}</p>
+              )}
+            </div>
+            <Calendar size={20} className="text-purple-400" />
+          </div>
+        </div>
       </div>
 
       {/* ALERT SECTION - 3 Equal Columns */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        
+
         {/* 1. Agenda Hoy - Pending Tasks */}
         <div className="bg-nexus-surface rounded-xl border border-white/5 overflow-hidden">
           <div className="p-4 border-b border-white/10 flex items-center gap-2">
@@ -415,8 +449,8 @@ const Dashboard: React.FC<DashboardProps> = ({
           <div className="p-3 space-y-2 max-h-[380px] overflow-y-auto">
             {/* Visits (leads with VISIT_SCHEDULED status) */}
             {todaysTasks.map(task => (
-              <div 
-                key={task.id} 
+              <div
+                key={task.id}
                 className="flex gap-2 items-center p-2.5 bg-nexus-base rounded-lg border border-purple-500/20 cursor-pointer hover:border-purple-500/50 transition-all"
                 onClick={() => setSelectedLead(task)}
               >
@@ -433,8 +467,8 @@ const Dashboard: React.FC<DashboardProps> = ({
 
             {/* Scheduled Tasks for Today - Not yet overdue */}
             {todaysPendingTasks.map(task => (
-              <div 
-                key={task.id} 
+              <div
+                key={task.id}
                 className="flex gap-2 items-center p-2.5 bg-nexus-base rounded-lg border border-white/5 hover:border-nexus-accent/30 transition-all group"
               >
                 <div className={`w-2 h-2 rounded-full flex-shrink-0 ${getTaskColor(task.method)}`}></div>
@@ -503,11 +537,11 @@ const Dashboard: React.FC<DashboardProps> = ({
                 // Find the lead associated with this task
                 const taskLead = leads.find(l => l.id === task.leadId);
                 return (
-                  <div 
-                    key={task.id} 
+                  <div
+                    key={task.id}
                     className="p-2.5 bg-amber-950/30 rounded-lg border border-amber-500/20 hover:border-amber-500/40 transition-all group"
                   >
-                    <div 
+                    <div
                       className="flex gap-2 items-start cursor-pointer"
                       onClick={() => taskLead && setSelectedLead(taskLead)}
                     >
@@ -572,53 +606,53 @@ const Dashboard: React.FC<DashboardProps> = ({
               criticalAlerts.map((alert, idx) => {
                 const { lead, type, reason, automationName } = alert;
                 const leadFollowUps = followUps.filter(f => f.leadId === lead.id);
-                
+
                 return (
-                <div key={`${lead.id}-${idx}`} className="p-3 border-b border-white/5 hover:bg-white/5 transition-colors">
-                  <div 
-                    className="cursor-pointer"
-                    onClick={() => handleContactLead(lead)}
-                  >
-                    <div className="flex items-center gap-2 flex-wrap">
-                       <span className="font-bold text-white text-sm truncate">{lead.name}</span>
-                       <span className={`text-xs px-1.5 py-0.5 rounded border flex items-center gap-1 ${
-                         type === 'AUTOMATION' 
-                           ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/20' 
-                           : type === 'NEW'
-                           ? 'bg-blue-500/20 text-blue-400 border-blue-500/20' 
-                           : 'bg-red-500/20 text-red-400 border-red-500/20'
-                       }`}>
-                         {type === 'AUTOMATION' && <Zap size={10} />}
-                         {reason}
-                       </span>
+                  <div key={`${lead.id}-${idx}`} className="p-3 border-b border-white/5 hover:bg-white/5 transition-colors">
+                    <div
+                      className="cursor-pointer"
+                      onClick={() => handleContactLead(lead)}
+                    >
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-bold text-white text-sm truncate">{lead.name}</span>
+                        <span className={`text-xs px-1.5 py-0.5 rounded border flex items-center gap-1 ${type === 'AUTOMATION'
+                          ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/20'
+                          : type === 'NEW'
+                            ? 'bg-blue-500/20 text-blue-400 border-blue-500/20'
+                            : 'bg-red-500/20 text-red-400 border-red-500/20'
+                          }`}>
+                          {type === 'AUTOMATION' && <Zap size={10} />}
+                          {reason}
+                        </span>
+                      </div>
+                      {automationName && (
+                        <p className="text-xs text-yellow-400/70 mt-1">⚡ Regla: {automationName}</p>
+                      )}
+                      <p className="text-xs text-gray-400 mt-1 line-clamp-1">{lead.notes}</p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {leadFollowUps.length > 0
+                          ? `Último contacto: ${new Date(leadFollowUps[leadFollowUps.length - 1].date).toLocaleDateString()}`
+                          : `Creado: ${new Date(lead.createdAt).toLocaleDateString()}`
+                        }
+                      </p>
                     </div>
-                    {automationName && (
-                      <p className="text-xs text-yellow-400/70 mt-1">⚡ Regla: {automationName}</p>
-                    )}
-                    <p className="text-xs text-gray-400 mt-1 line-clamp-1">{lead.notes}</p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      {leadFollowUps.length > 0
-                        ? `Último contacto: ${new Date(leadFollowUps[leadFollowUps.length-1].date).toLocaleDateString()}`
-                        : `Creado: ${new Date(lead.createdAt).toLocaleDateString()}`
-                      }
-                    </p>
+                    <div className="flex gap-2 mt-2">
+                      <button
+                        onClick={() => handleCall(lead.phone)}
+                        className="flex-1 bg-green-600 text-white px-2 py-1.5 rounded font-bold text-xs hover:bg-green-500 flex items-center justify-center gap-1"
+                      >
+                        <Phone size={12} /> Llamar
+                      </button>
+                      <button
+                        onClick={() => handleWhatsApp(lead.phone, lead.name)}
+                        className="flex-1 bg-nexus-accent text-nexus-base px-2 py-1.5 rounded font-bold text-xs hover:bg-orange-400 flex items-center justify-center gap-1"
+                      >
+                        <MessageSquare size={12} /> WhatsApp
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex gap-2 mt-2">
-                    <button 
-                      onClick={() => handleCall(lead.phone)}
-                      className="flex-1 bg-green-600 text-white px-2 py-1.5 rounded font-bold text-xs hover:bg-green-500 flex items-center justify-center gap-1"
-                    >
-                      <Phone size={12} /> Llamar
-                    </button>
-                    <button 
-                      onClick={() => handleWhatsApp(lead.phone, lead.name)}
-                      className="flex-1 bg-nexus-accent text-nexus-base px-2 py-1.5 rounded font-bold text-xs hover:bg-orange-400 flex items-center justify-center gap-1"
-                    >
-                      <MessageSquare size={12} /> WhatsApp
-                    </button>
-                  </div>
-                </div>
-              )})
+                )
+              })
             )}
           </div>
         </div>
@@ -628,8 +662,8 @@ const Dashboard: React.FC<DashboardProps> = ({
       {/* Modal: Lead Detail */}
       <Modal isOpen={!!selectedLead} onClose={() => setSelectedLead(null)} title="Detalle del Lead">
         {selectedLead && (
-          <LeadDetail 
-            lead={selectedLead} 
+          <LeadDetail
+            lead={selectedLead}
             onClose={() => setSelectedLead(null)}
             onUpdateStatus={handleUpdateStatus}
             onUpdateScore={handleUpdateScore}
@@ -661,11 +695,10 @@ const Dashboard: React.FC<DashboardProps> = ({
                   <button
                     key={method}
                     onClick={() => setTaskForm(prev => ({ ...prev, method }))}
-                    className={`p-2 rounded-lg flex flex-col items-center gap-1 transition-all ${
-                      taskForm.method === method
-                        ? getTaskColor(method).replace('bg-', 'bg-') + '/30 border border-white/30 text-white'
-                        : 'bg-nexus-surface border border-white/10 text-gray-400'
-                    }`}
+                    className={`p-2 rounded-lg flex flex-col items-center gap-1 transition-all ${taskForm.method === method
+                      ? getTaskColor(method).replace('bg-', 'bg-') + '/30 border border-white/30 text-white'
+                      : 'bg-nexus-surface border border-white/10 text-gray-400'
+                      }`}
                   >
                     {getTaskIcon(method)}
                     <span className="text-[10px]">{method}</span>
@@ -704,11 +737,10 @@ const Dashboard: React.FC<DashboardProps> = ({
                   <button
                     key={option.value}
                     onClick={() => setTaskForm(prev => ({ ...prev, alertMinutesBefore: option.value }))}
-                    className={`p-2 rounded-lg text-xs transition-all ${
-                      taskForm.alertMinutesBefore === option.value
-                        ? 'bg-blue-500 text-white font-bold'
-                        : 'bg-nexus-surface border border-white/10 text-gray-400 hover:border-white/30'
-                    }`}
+                    className={`p-2 rounded-lg text-xs transition-all ${taskForm.alertMinutesBefore === option.value
+                      ? 'bg-blue-500 text-white font-bold'
+                      : 'bg-nexus-surface border border-white/10 text-gray-400 hover:border-white/30'
+                      }`}
                   >
                     {option.label}
                   </button>
