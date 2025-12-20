@@ -189,6 +189,16 @@ export default function VoiceAssistant() {
         start();
     }, [start, reset]);
 
+    // Stop listening and immediately process transcript
+    const handleStopAndProcess = useCallback(() => {
+        stop();
+        // Get current transcript and process if we have one
+        const currentTranscript = transcript || interimTranscript;
+        if (currentTranscript && state === 'listening') {
+            processTranscript(currentTranscript);
+        }
+    }, [stop, transcript, interimTranscript, state]);
+
     // Retry - uses intelligent retry from hook
     const handleRetry = useCallback(() => {
         reset();
@@ -287,7 +297,7 @@ export default function VoiceAssistant() {
                                 <div className="text-center space-y-4">
                                     <div className="relative w-24 h-24 mx-auto">
                                         <button
-                                            onClick={stop}
+                                            onClick={handleStopAndProcess}
                                             className={`w-full h-full rounded-full flex items-center justify-center shadow-lg transition-all ${isSpeaking
                                                 ? 'bg-green-500 scale-110'
                                                 : 'bg-red-500 animate-pulse'
