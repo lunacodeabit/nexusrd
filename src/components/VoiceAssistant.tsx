@@ -192,11 +192,16 @@ export default function VoiceAssistant() {
     // Stop listening and immediately process transcript
     const handleStopAndProcess = useCallback(() => {
         stop();
-        // Get current transcript and process if we have one
-        const currentTranscript = transcript || interimTranscript;
-        if (currentTranscript && state === 'listening') {
-            processTranscript(currentTranscript);
-        }
+        // Small delay to let React update the transcript state
+        setTimeout(() => {
+            // We need to get the latest transcript from the DOM since React state might be stale
+            // The transcript is shown in the UI, so it should be current after the delay
+            const currentTranscript = transcript || interimTranscript;
+            console.log('🎤 Processing after stop:', currentTranscript);
+            if (currentTranscript && (state === 'listening' || state === 'idle')) {
+                processTranscript(currentTranscript);
+            }
+        }, 200);
     }, [stop, transcript, interimTranscript, state]);
 
     // Retry - uses intelligent retry from hook
