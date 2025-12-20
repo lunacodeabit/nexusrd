@@ -10,6 +10,7 @@ import SuperAdminDashboard from './components/SuperAdminDashboard';
 import AutomationsView from './components/AutomationsView';
 import FollowUpTrackingPage from './components/FollowUpTrackingPage';
 import VoiceAssistant from './components/VoiceAssistant';
+import CalculadoraView from './components/CalculadoraView';
 import { AuthScreen } from './components/Auth';
 import { useAuth } from './contexts/AuthContext';
 import { useLeads } from './hooks/useLeads';
@@ -157,6 +158,8 @@ const App: React.FC = () => {
         return <AdvancedAnalytics leads={leads} followUps={followUps} taskCompletions={taskCompletions} />;
       case 'architecture':
         return <ArchitectureInfo />;
+      case 'calculadora':
+        return <CalculadoraView />;
       case 'superadmin':
         return <SuperAdminDashboard />;
       default:
