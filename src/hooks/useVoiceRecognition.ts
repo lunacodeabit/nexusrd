@@ -94,8 +94,8 @@ export function useVoiceRecognition(): UseVoiceRecognitionReturn {
         const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
         const recognition = new SpeechRecognitionAPI();
 
-        // Configuration for better voice detection
-        recognition.continuous = true; // Keep listening until we stop it
+        // Configuration for voice command (not dictation)
+        recognition.continuous = false; // Stop after first utterance
         recognition.interimResults = true; // Show partial results for better UX
         recognition.maxAlternatives = 1;
 
@@ -158,10 +158,8 @@ export function useVoiceRecognition(): UseVoiceRecognitionReturn {
             }
 
             if (finalTranscript) {
-                setTranscript(prev => {
-                    const newTranscript = prev ? prev + ' ' + finalTranscript : finalTranscript;
-                    return newTranscript.trim();
-                });
+                // Replace transcript instead of accumulating (for voice commands)
+                setTranscript(finalTranscript.trim());
                 setInterimTranscript('');
             } else if (interim) {
                 setInterimTranscript(interim);
