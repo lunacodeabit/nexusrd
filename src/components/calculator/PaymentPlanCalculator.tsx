@@ -89,6 +89,67 @@ const PaymentPlanCalculator: React.FC<PaymentPlanCalculatorProps> = ({
         }
     }, [propertyValue, fairDiscountInputMode, fairDiscountInputValue]);
 
+    // Track previous currency to detect changes
+    const prevCurrencyRef = useRef<Currency>(currency);
+
+    // Convert all monetary values when currency changes
+    useEffect(() => {
+        const prevCurrency = prevCurrencyRef.current;
+
+        // Only convert if currency actually changed and we have a valid rate
+        if (prevCurrency !== currency && sellRate > 0) {
+            const convertValue = (value: string): string => {
+                const numValue = parseFloat(value.replace(/,/g, '')) || 0;
+                if (numValue === 0) return '';
+
+                let converted: number;
+                if (prevCurrency === Currency.USD && currency === Currency.DOP) {
+                    // USD -> DOP: multiply by rate
+                    converted = numValue * sellRate;
+                } else if (prevCurrency === Currency.DOP && currency === Currency.USD) {
+                    // DOP -> USD: divide by rate
+                    converted = numValue / sellRate;
+                } else {
+                    return value;
+                }
+
+                return converted.toFixed(2);
+            };
+
+            // Convert property value
+            if (propertyValue) {
+                setPropertyValue(convertValue(propertyValue));
+            }
+
+            // Convert reservation
+            if (reservation) {
+                setReservation(convertValue(reservation));
+            }
+
+            // Convert fair discount if in amount mode
+            if (fairDiscountInputMode === 'amount' && fairDiscountInputValue) {
+                const converted = convertValue(fairDiscountInputValue);
+                setFairDiscountInputValue(converted);
+                setFairDiscount(converted);
+            }
+
+            // Convert initial payment if in amount mode
+            if (initialInputMode === 'amount' && initialInputValue) {
+                setInitialInputValue(convertValue(initialInputValue));
+            }
+
+            // Convert extra payments
+            if (extraPayments.length > 0) {
+                setExtraPayments(extraPayments.map(ep => ({
+                    ...ep,
+                    amount: ep.amount ? convertValue(ep.amount) : ''
+                })));
+            }
+        }
+
+        prevCurrencyRef.current = currency;
+    }, [currency, sellRate]);
+
     const formatForDisplay = (val: string): string => {
         if (!val) return '';
         const parts = val.split('.');
