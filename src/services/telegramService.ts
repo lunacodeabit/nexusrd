@@ -1,50 +1,29 @@
 // Telegram Alert Service
-// Sends alerts via Telegram bot using Netlify Functions or direct API
-
-// Bot token - in production this is handled by Netlify Function
-// For local dev, we call Telegram API directly
-const TELEGRAM_BOT_TOKEN = '8473727285:AAE-z5MqqqbRrWPKxASSYbPtlYiIFKrYezY';
+// Sends alerts via Telegram bot using Netlify Functions
+// The bot token is stored securely in Netlify environment variables
 
 /**
- * Send a Telegram message via Netlify Function or direct API
+ * Send a Telegram message via Netlify Function
+ * In production, the Netlify Function handles the bot token securely
+ * In local dev, you need to run `netlify dev` to access the function
  */
 export async function sendTelegramAlert(chatId: string, message: string): Promise<boolean> {
   try {
-    const isLocalDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-    
-    let response;
-    
-    if (isLocalDev) {
-      // In development, call Telegram API directly
-      console.log('📱 DEV MODE: Calling Telegram API directly');
-      response = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          chat_id: chatId,
-          text: message,
-          parse_mode: 'HTML',
-        }),
-      });
-    } else {
-      // In production, use Netlify Function
-      response = await fetch('/.netlify/functions/telegram-send', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          chat_id: chatId,
-          message: message,
-        }),
-      });
-    }
+    // Always use Netlify Function - it handles the bot token securely
+    const response = await fetch('/.netlify/functions/telegram-send', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        chat_id: chatId,
+        message: message,
+      }),
+    });
 
     const result = await response.json();
     console.log('📱 Telegram response:', result);
-    
+
     if (!response.ok) {
       console.error('Telegram send error:', result);
       return false;
@@ -61,8 +40,8 @@ export async function sendTelegramAlert(chatId: string, message: string): Promis
  * Format an alert message for Telegram
  */
 export function formatAlertMessage(
-  taskTitle: string, 
-  taskTime: string, 
+  taskTitle: string,
+  taskTime: string,
   minutesBefore: number,
   category?: string
 ): string {
