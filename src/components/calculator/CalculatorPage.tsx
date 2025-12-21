@@ -1,31 +1,19 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { GoogleGenAI } from "@google/genai";
-import { ActiveCalculator, Currency } from './types';
-import CalculatorSidebar from './CalculatorSidebar';
+import { Currency } from './types';
 import PaymentPlanCalculator from './PaymentPlanCalculator';
-import MortgageCalculator from './MortgageCalculator';
-import CurrencyConverter from './CurrencyConverter';
-import { MenuIcon } from './icons/MenuIcon';
 import { DEFAULT_BUY_RATE, DEFAULT_SELL_RATE } from './constants';
-import { AlveareLogo } from './ui/AlveareLogo';
+import { RefreshIcon } from './icons/RefreshIcon';
+import { UploadIcon } from './icons/UploadIcon';
+import { TrashIcon } from './icons/TrashIcon';
 
-// Get API key from Vite env vars (same as CRM uses for Netlify)
+// Get API key from Vite env vars
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || '';
 
 const CalculatorPage: React.FC = () => {
-    const [activeCalculator, setActiveCalculator] = useState<ActiveCalculator>(ActiveCalculator.PaymentPlan);
-    const [isSidebarOpen, setSidebarOpen] = useState<boolean>(false);
     const [excelExportTrigger, setExcelExportTrigger] = useState(0);
-    const [theme, setTheme] = useState(() => {
-        if (typeof window !== 'undefined' && window.localStorage) {
-            const storedTheme = localStorage.getItem('calculatorTheme');
-            if (storedTheme) return storedTheme;
-            return 'dark'; // CRM uses dark theme by default
-        }
-        return 'dark';
-    });
 
-    const [buyRate, setBuyRate] = useState<number>(DEFAULT_BUY_RATE);
+    const [_buyRate, setBuyRate] = useState<number>(DEFAULT_BUY_RATE);
     const [sellRate, setSellRate] = useState<number>(DEFAULT_SELL_RATE);
     const [rateSource, setRateSource] = useState<string>('Fija');
     const [isFetchingRate, setIsFetchingRate] = useState<boolean>(false);
@@ -48,6 +36,9 @@ const CalculatorPage: React.FC = () => {
         return 'Promoción Especial';
     });
 
+    // Settings panel visibility
+    const [showSettings, setShowSettings] = useState(false);
+
     useEffect(() => {
         const storedLogo = localStorage.getItem('calculatorCustomLogo');
         if (storedLogo) {
@@ -64,7 +55,6 @@ const CalculatorPage: React.FC = () => {
                 const hoursDiff = (now.getTime() - cacheTime.getTime()) / (1000 * 60 * 60);
 
                 if (hoursDiff < 1) {
-                    // Cache is still valid
                     setBuyRate(cachedBuy);
                     setSellRate(cachedSell);
                     setRateSource('Banco Popular (Cache)');
@@ -84,7 +74,6 @@ const CalculatorPage: React.FC = () => {
                 const base64String = reader.result as string;
                 setCustomLogo(base64String);
                 localStorage.setItem('calculatorCustomLogo', base64String);
-                setSidebarOpen(false);
             };
             reader.readAsDataURL(file);
         }
@@ -103,16 +92,6 @@ const CalculatorPage: React.FC = () => {
     useEffect(() => {
         localStorage.setItem('calculatorPromotionName', promotionName);
     }, [promotionName]);
-
-    useEffect(() => {
-        if (theme === 'dark') {
-            document.documentElement.classList.add('dark');
-            localStorage.setItem('calculatorTheme', 'dark');
-        } else {
-            document.documentElement.classList.remove('dark');
-            localStorage.setItem('calculatorTheme', 'light');
-        }
-    }, [theme]);
 
     const handleFetchLiveRate = useCallback(async () => {
         if (!GEMINI_API_KEY) {
@@ -137,7 +116,6 @@ const CalculatorPage: React.FC = () => {
                 throw new Error('No response from AI');
             }
 
-            // The model might wrap the JSON in markdown fences. Let's remove them.
             if (jsonText.startsWith('```json')) {
                 jsonText = jsonText.substring(7, jsonText.length - 3).trim();
             } else if (jsonText.startsWith('```')) {
@@ -153,7 +131,6 @@ const CalculatorPage: React.FC = () => {
                 setRateSource('Banco Popular (En Vivo)');
                 setRateLastUpdated(now);
 
-                // Cache the rate
                 localStorage.setItem('calculatorCachedExchangeRate', JSON.stringify({
                     buyRate: rates.buyRate,
                     sellRate: rates.sellRate,
@@ -181,7 +158,7 @@ const CalculatorPage: React.FC = () => {
                 const cacheTime = new Date(timestamp);
                 const now = new Date();
                 const hoursDiff = (now.getTime() - cacheTime.getTime()) / (1000 * 60 * 60);
-                shouldFetch = hoursDiff >= 1; // Only fetch if cache is older than 1 hour
+                shouldFetch = hoursDiff >= 1;
             } catch (e) {
                 shouldFetch = true;
             }
@@ -196,74 +173,137 @@ const CalculatorPage: React.FC = () => {
         setExcelExportTrigger(prev => prev + 1);
     }, []);
 
-    const renderActiveCalculator = () => {
-        switch (activeCalculator) {
-            case ActiveCalculator.PaymentPlan:
-                return <PaymentPlanCalculator
-                    sellRate={sellRate}
-                    rateSource={rateSource}
-                    customLogo={customLogo}
-                    excelExportTrigger={excelExportTrigger}
-                    currency={currency}
-                    promotionEnabled={promotionEnabled}
-                    promotionName={promotionName}
-                />;
-            case ActiveCalculator.Mortgage:
-                return <MortgageCalculator />;
-            case ActiveCalculator.Converter:
-                return <CurrencyConverter
-                    buyRate={buyRate}
-                    sellRate={sellRate}
-                    rateSource={rateSource}
-                    isFetchingRate={isFetchingRate}
-                    handleFetchLiveRate={handleFetchLiveRate}
-                    fetchRateError={fetchRateError}
-                />;
-            default:
-                return null;
-        }
-    };
-
     return (
-        <div className="flex h-full bg-slate-950 text-slate-200">
-            <CalculatorSidebar
-                isOpen={isSidebarOpen}
-                setIsOpen={setSidebarOpen}
-                activeCalculator={activeCalculator}
-                setActiveCalculator={setActiveCalculator}
-                theme={theme}
-                setTheme={setTheme}
-                customLogo={customLogo}
-                onLogoUpload={handleLogoUpload}
-                onRemoveLogo={handleRemoveLogo}
-                onTriggerExcelExport={handleTriggerExcelExport}
-                currency={currency}
-                setCurrency={setCurrency}
+        <div className="space-y-4">
+            {/* Toolbar - Inline Controls */}
+            <div className="flex flex-wrap items-center gap-3 p-3 bg-nexus-card rounded-lg border border-nexus-border">
+                {/* Currency Toggle */}
+                <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-400">Moneda:</span>
+                    <div className="flex bg-nexus-base rounded-md">
+                        <button
+                            onClick={() => setCurrency(Currency.USD)}
+                            className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${currency === Currency.USD ? 'bg-nexus-accent text-white' : 'text-gray-400 hover:text-white'}`}
+                        >
+                            USD
+                        </button>
+                        <button
+                            onClick={() => setCurrency(Currency.DOP)}
+                            className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${currency === Currency.DOP ? 'bg-nexus-accent text-white' : 'text-gray-400 hover:text-white'}`}
+                        >
+                            DOP
+                        </button>
+                    </div>
+                </div>
+
+                {/* Divider */}
+                <div className="h-6 w-px bg-nexus-border" />
+
+                {/* Exchange Rate */}
+                <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-400">Tasa:</span>
+                    <span className="text-sm font-mono text-white">1 USD = {sellRate.toFixed(2)} DOP</span>
+                    <button
+                        onClick={handleFetchLiveRate}
+                        disabled={isFetchingRate}
+                        className="p-1.5 text-gray-400 hover:text-nexus-accent transition-colors disabled:opacity-50"
+                        title="Actualizar tasa del Banco Popular"
+                    >
+                        <RefreshIcon className={isFetchingRate ? 'animate-spin w-4 h-4' : 'w-4 h-4'} />
+                    </button>
+                    {rateLastUpdated && (
+                        <span className="text-xs text-gray-500">
+                            ({rateSource})
+                        </span>
+                    )}
+                    {fetchRateError && <span className="text-xs text-red-400">{fetchRateError}</span>}
+                </div>
+
+                {/* Divider */}
+                <div className="h-6 w-px bg-nexus-border" />
+
+                {/* Promotion Toggle */}
+                <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-400">Promoción:</span>
+                    <button
+                        onClick={() => setPromotionEnabled(!promotionEnabled)}
+                        className={`relative w-10 h-5 rounded-full transition-colors ${promotionEnabled ? 'bg-nexus-accent' : 'bg-gray-600'}`}
+                    >
+                        <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform ${promotionEnabled ? 'translate-x-5' : ''}`} />
+                    </button>
+                    {promotionEnabled && (
+                        <input
+                            type="text"
+                            value={promotionName}
+                            onChange={(e) => setPromotionName(e.target.value)}
+                            className="w-32 px-2 py-1 text-xs bg-nexus-base border border-nexus-border rounded text-white"
+                            placeholder="Nombre promoción"
+                        />
+                    )}
+                </div>
+
+                {/* Divider */}
+                <div className="h-6 w-px bg-nexus-border" />
+
+                {/* Settings Button */}
+                <button
+                    onClick={() => setShowSettings(!showSettings)}
+                    className="flex items-center gap-1 px-2 py-1.5 text-xs text-gray-400 hover:text-white transition-colors"
+                >
+                    ⚙️ Más opciones
+                </button>
+
+                {/* Excel Export */}
+                <button
+                    onClick={handleTriggerExcelExport}
+                    className="ml-auto flex items-center gap-1 px-3 py-1.5 text-xs bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors"
+                >
+                    📊 Excel
+                </button>
+            </div>
+
+            {/* Expandable Settings Panel */}
+            {showSettings && (
+                <div className="p-4 bg-nexus-card rounded-lg border border-nexus-border">
+                    <h3 className="text-sm font-medium text-white mb-3">Configuración Avanzada</h3>
+                    <div className="flex flex-wrap items-center gap-4">
+                        {/* Custom Logo */}
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs text-gray-400">Logo personalizado:</span>
+                            <label className="flex items-center gap-1 px-2 py-1 text-xs bg-nexus-base border border-nexus-border rounded cursor-pointer hover:border-nexus-accent transition-colors">
+                                <UploadIcon />
+                                <span>{customLogo ? 'Cambiar' : 'Subir'}</span>
+                                <input type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} />
+                            </label>
+                            {customLogo && (
+                                <button
+                                    onClick={handleRemoveLogo}
+                                    className="flex items-center gap-1 px-2 py-1 text-xs text-red-400 hover:text-red-300 transition-colors"
+                                >
+                                    <TrashIcon />
+                                    Quitar
+                                </button>
+                            )}
+                        </div>
+
+                        {/* Preview Logo */}
+                        {customLogo && (
+                            <img src={customLogo} alt="Logo" className="h-8 object-contain" />
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {/* Calculator Content */}
+            <PaymentPlanCalculator
                 sellRate={sellRate}
                 rateSource={rateSource}
-                isFetchingRate={isFetchingRate}
-                handleFetchLiveRate={handleFetchLiveRate}
-                fetchRateError={fetchRateError}
-                rateLastUpdated={rateLastUpdated}
+                customLogo={customLogo}
+                excelExportTrigger={excelExportTrigger}
+                currency={currency}
                 promotionEnabled={promotionEnabled}
-                setPromotionEnabled={setPromotionEnabled}
                 promotionName={promotionName}
-                setPromotionName={setPromotionName}
             />
-            <main className="flex-1 p-6 lg:ml-64 overflow-y-auto print:ml-0 print:p-4">
-                <header className="lg:hidden fixed top-0 left-0 right-0 bg-slate-800 px-4 z-30 flex items-center justify-between shadow-md print:hidden h-[65px]">
-                    <button onClick={() => setSidebarOpen(true)} className="text-white p-2" aria-label="Open menu">
-                        <MenuIcon />
-                    </button>
-                    <div className="flex-grow flex justify-center items-center">
-                        <AlveareLogo className="text-white" monochrome />
-                    </div>
-                    <div className="w-10" /> {/* Spacer for centering the logo */}
-                </header>
-                <div className="lg:pt-0 pt-[65px]">
-                    {renderActiveCalculator()}
-                </div>
-            </main>
         </div>
     );
 };
