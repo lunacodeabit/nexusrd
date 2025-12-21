@@ -1,8 +1,11 @@
 import { useState, useCallback, useEffect } from 'react';
-import { Mic, MicOff, X, Check, Loader2, Calendar, User, Clock, MapPin, AlertCircle, RefreshCw } from 'lucide-react';
+import { Mic, MicOff, X, Check, Loader2, Calendar, User, Clock, MapPin, AlertCircle, RefreshCw, Download } from 'lucide-react';
 import { useVoiceRecognition } from '../hooks/useVoiceRecognition';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
+import { generateGoogleCalendarUrl, downloadICalFile, createEventFromTask } from '../utils/calendarUtils';
+import { sendTelegramAlert, formatNewTaskMessage } from '../services/telegramService';
+import { useUserProfile } from '../hooks/useUserProfile';
 
 // Types for parsed command
 interface ParsedCommand {
@@ -28,6 +31,7 @@ interface MatchedLead {
 
 export default function VoiceAssistant() {
     const { user } = useAuth();
+    const { profile: userProfile } = useUserProfile();
     const { isListening, isSpeaking, transcript, interimTranscript, error: voiceError, isSupported, start, stop, reset, retry } = useVoiceRecognition();
 
     const [state, setState] = useState<AssistantState>('idle');
@@ -183,10 +187,25 @@ export default function VoiceAssistant() {
 
             setState('success');
 
-            // Auto close after success
-            setTimeout(() => {
-                handleClose();
-            }, 2000);
+            // Send Telegram notification if user has it configured
+            if (userProfile?.enable_telegram_alerts && userProfile?.telegram_chat_id) {
+                const telegramMessage = formatNewTaskMessage(
+                    matchedLead?.name || parsedCommand.lead_name || 'Sin nombre',
+                    parsedCommand.task_type,
+                    parsedCommand.date || new Date().toISOString().split('T')[0],
+                    parsedCommand.time || '09:00',
+                    parsedCommand.appointment_type,
+                    parsedCommand.notes
+                );
+
+                sendTelegramAlert(userProfile.telegram_chat_id, telegramMessage)
+                    .then(success => {
+                        if (success) {
+                            console.log('📱 Telegram notification sent for new task');
+                        }
+                    });
+            }
+            // No auto-close - let user add to calendar first
 
         } catch (err) {
             console.error('Error creating task:', err);
@@ -491,12 +510,61 @@ export default function VoiceAssistant() {
                             )}
 
                             {/* Success State */}
-                            {state === 'success' && (
+                            {state === 'success' && parsedCommand && (
                                 <div className="text-center space-y-4">
-                                    <div className="w-24 h-24 mx-auto rounded-full bg-green-500/20 flex items-center justify-center">
-                                        <Check className="w-12 h-12 text-green-400" />
+                                    <div className="w-20 h-20 mx-auto rounded-full bg-green-500/20 flex items-center justify-center">
+                                        <Check className="w-10 h-10 text-green-400" />
                                     </div>
                                     <p className="text-green-400 font-bold text-lg">¡Tarea creada!</p>
+                                    <p className="text-gray-400 text-sm">
+                                        {matchedLead?.name || parsedCommand.lead_name} - {formatDate(parsedCommand.date || '')} {formatTime(parsedCommand.time || '')}
+                                    </p>
+
+                                    {/* Calendar Buttons */}
+                                    <div className="pt-4 space-y-2">
+                                        <p className="text-xs text-gray-500">Agregar a tu calendario:</p>
+                                        <div className="flex gap-2">
+                                            <button
+                                                onClick={() => {
+                                                    const event = createEventFromTask(
+                                                        matchedLead?.name || parsedCommand.lead_name || 'Cliente',
+                                                        parsedCommand.date || new Date().toISOString().split('T')[0],
+                                                        parsedCommand.time || '09:00',
+                                                        parsedCommand.appointment_type,
+                                                        parsedCommand.notes
+                                                    );
+                                                    window.open(generateGoogleCalendarUrl(event), '_blank');
+                                                }}
+                                                className="flex-1 py-2.5 px-3 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-500 transition-colors flex items-center justify-center gap-2"
+                                            >
+                                                <Calendar className="w-4 h-4" />
+                                                Google Calendar
+                                            </button>
+                                            <button
+                                                onClick={() => {
+                                                    const event = createEventFromTask(
+                                                        matchedLead?.name || parsedCommand.lead_name || 'Cliente',
+                                                        parsedCommand.date || new Date().toISOString().split('T')[0],
+                                                        parsedCommand.time || '09:00',
+                                                        parsedCommand.appointment_type,
+                                                        parsedCommand.notes
+                                                    );
+                                                    downloadICalFile(event);
+                                                }}
+                                                className="flex-1 py-2.5 px-3 rounded-lg bg-gray-700 text-white text-sm font-medium hover:bg-gray-600 transition-colors flex items-center justify-center gap-2"
+                                            >
+                                                <Download className="w-4 h-4" />
+                                                Descargar .ics
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <button
+                                        onClick={handleClose}
+                                        className="mt-4 px-6 py-2 bg-white/10 text-gray-400 rounded-lg hover:bg-white/20 transition-colors text-sm"
+                                    >
+                                        Cerrar
+                                    </button>
                                 </div>
                             )}
 

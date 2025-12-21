@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import type { Lead } from '../types';
 import { LeadStatus } from '../types';
 import { AlertTriangle, Clock, Phone, TrendingUp, Bell, X, MessageSquare, Mail, MapPin, MoreHorizontal, CheckCircle2, Pencil, CalendarPlus, Zap, Calendar } from 'lucide-react';
@@ -35,6 +35,7 @@ interface DashboardProps {
   followUps?: LeadFollowUp[];
   onAddFollowUp?: (followUp: Omit<LeadFollowUp, 'id'>) => void;
   onUpdateFollowUpNotes?: (followUpId: string, notes: string) => void;
+  onNavigate?: (tab: string) => void;
 }
 
 const Dashboard: React.FC<DashboardProps> = ({
@@ -44,7 +45,8 @@ const Dashboard: React.FC<DashboardProps> = ({
   onUpdateLead,
   followUps = [],
   onAddFollowUp,
-  onUpdateFollowUpNotes
+  onUpdateFollowUpNotes,
+  onNavigate
 }) => {
   const { counts: todayActivity } = useTodayActivity();
   const { rules } = useAutomations();
@@ -61,6 +63,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     alertMinutesBefore: 15
   });
   const [refreshKey, setRefreshKey] = useState(0);
+  const [showAlertsModal, setShowAlertsModal] = useState(false);
 
   const ALERT_TIME_OPTIONS = [
     { value: 15, label: '15m' },
@@ -332,6 +335,17 @@ const Dashboard: React.FC<DashboardProps> = ({
     }
   }, []);
 
+  // Listen for localStorage changes (from Voice Assistant or other components)
+  useEffect(() => {
+    const handleStorageChange = () => {
+      // Trigger re-render to refresh tasks
+      setRefreshKey(prev => prev + 1);
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
   return (
     <div className="space-y-6 pb-20">
       <header className="flex justify-between items-center mb-8">
@@ -382,7 +396,11 @@ const Dashboard: React.FC<DashboardProps> = ({
 
       {/* KPI GRID */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <div className="bg-nexus-surface p-4 rounded-xl border border-white/5 shadow-lg">
+        <div
+          className="bg-nexus-surface p-4 rounded-xl border border-white/5 shadow-lg cursor-pointer hover:border-green-500/30 hover:bg-green-500/5 transition-all"
+          onClick={() => onNavigate?.('leads')}
+          title="Ver todos los leads"
+        >
           <div className="flex justify-between items-start">
             <div>
               <p className="text-xs text-gray-400 uppercase tracking-wider">Leads Activos</p>
@@ -391,7 +409,11 @@ const Dashboard: React.FC<DashboardProps> = ({
             <TrendingUp size={20} className="text-gray-500" />
           </div>
         </div>
-        <div className="bg-nexus-surface p-4 rounded-xl border border-white/5 shadow-lg">
+        <div
+          className="bg-nexus-surface p-4 rounded-xl border border-white/5 shadow-lg cursor-pointer hover:border-red-500/30 hover:bg-red-500/5 transition-all"
+          onClick={() => setShowAlertsModal(true)}
+          title="Ver alertas críticas"
+        >
           <div className="flex justify-between items-start">
             <div>
               <p className="text-xs text-gray-400 uppercase tracking-wider">Alertas Rojas</p>
@@ -784,6 +806,57 @@ const Dashboard: React.FC<DashboardProps> = ({
             </div>
           </div>
         )}
+      </Modal>
+
+      {/* Modal: Alerts Full View */}
+      <Modal isOpen={showAlertsModal} onClose={() => setShowAlertsModal(false)} title="Acciones Críticas">
+        <div className="space-y-3 max-h-[60vh] overflow-y-auto">
+          {criticalAlerts.length === 0 ? (
+            <div className="text-center py-8">
+              <CheckCircle2 size={48} className="text-green-500/50 mx-auto mb-3" />
+              <p className="text-gray-400">¡Todo al día! No hay acciones críticas pendientes.</p>
+            </div>
+          ) : (
+            criticalAlerts.map((alert, idx) => {
+              const { lead, type, reason, automationName } = alert;
+              return (
+                <div
+                  key={`alert-modal-${lead.id}-${idx}`}
+                  className="p-4 bg-nexus-surface rounded-xl border border-red-500/20 hover:border-red-500/40 cursor-pointer transition-all"
+                  onClick={() => { setSelectedLead(lead); setShowAlertsModal(false); }}
+                >
+                  <div className="flex items-center gap-2 flex-wrap mb-2">
+                    <span className="font-bold text-white">{lead.name}</span>
+                    <span className={`text-xs px-2 py-0.5 rounded ${type === 'AUTOMATION' ? 'bg-yellow-500/20 text-yellow-400' :
+                        type === 'NEW' ? 'bg-blue-500/20 text-blue-400' :
+                          'bg-red-500/20 text-red-400'
+                      }`}>
+                      {reason}
+                    </span>
+                  </div>
+                  {automationName && (
+                    <p className="text-xs text-yellow-400/70 mb-1">⚡ Regla: {automationName}</p>
+                  )}
+                  <p className="text-sm text-gray-400">{lead.phone}</p>
+                  <div className="flex gap-2 mt-3">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleCall(lead.phone); }}
+                      className="flex-1 bg-green-600 text-white px-3 py-2 rounded-lg font-bold text-sm hover:bg-green-500 flex items-center justify-center gap-1"
+                    >
+                      <Phone size={14} /> Llamar
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleWhatsApp(lead.phone, lead.name); }}
+                      className="flex-1 bg-nexus-accent text-nexus-base px-3 py-2 rounded-lg font-bold text-sm hover:bg-orange-400 flex items-center justify-center gap-1"
+                    >
+                      <MessageSquare size={14} /> WhatsApp
+                    </button>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
       </Modal>
     </div>
   );

@@ -5,21 +5,27 @@ const SYSTEM_PROMPT = `Eres un asistente de CRM inmobiliario. Extrae informació
 
 FECHA Y HORA ACTUAL (Santo Domingo, RD): {TODAY} {CURRENT_TIME}
 
-REGLAS CRÍTICAS:
+⚠️ REGLA FUNDAMENTAL: NUNCA agendar algo en el pasado.
+- Si la hora mencionada YA PASÓ hoy, agenda para MAÑANA a esa hora.
+- Ejemplo: Si son las 10:47 AM y dicen "a las 10", agenda para MAÑANA a las 10 AM.
+- Ejemplo: Si son las 10:47 AM y dicen "a las 11", agenda para HOY a las 11 AM.
+
+REGLAS DE TIEMPO:
 - "dentro de una hora" = HOY a {HOUR_PLUS_1}
 - "dentro de X horas" = HOY + X horas desde ahora
 - "ahora" o "ahorita" = HOY a la hora actual ({CURRENT_TIME})
 - "mañana" = un día después de hoy
-- "hoy" = la fecha de hoy
-- Si dicen una hora sin AM/PM y es 1-7, asume PM
-- Para "time", usa formato 12 horas (ej: "9:30 PM")
+- "hoy" = la fecha de hoy (solo si la hora aún no ha pasado)
+- Si dicen una hora sin AM/PM y es 1-7, asume PM (ejem: "a las 3" = 3:00 PM)
+- Si dicen una hora sin AM/PM y es 8-12, asume AM por la mañana o PM por la tarde
+- Para "time", usa formato 24 horas (ej: "15:00" para 3 PM, "09:30" para 9:30 AM)
 
 Responde ÚNICAMENTE con este JSON, sin texto adicional:
 {
   "action": "create_appointment",
   "lead_name": "nombre" o null,
   "date": "YYYY-MM-DD",
-  "time": "H:MM AM/PM",
+  "time": "HH:MM",
   "appointment_type": "virtual" o "in_person",
   "task_type": "visit",
   "notes": "detalles",

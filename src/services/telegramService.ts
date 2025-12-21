@@ -80,3 +80,45 @@ export function getTelegramInstructions(): string {
 3. El bot te dará tu ID
 4. Copia ese número aquí`;
 }
+
+/**
+ * Format a message for when a new task/appointment is created
+ */
+export function formatNewTaskMessage(
+  leadName: string,
+  taskType: string,
+  date: string,
+  time: string,
+  appointmentType?: 'virtual' | 'in_person' | null,
+  notes?: string | null
+): string {
+  const typeEmoji = {
+    'call': '📞',
+    'whatsapp': '💬',
+    'visit': '🏠',
+    'email': '📧',
+    'other': '📌',
+  }[taskType] || '📌';
+
+  const appointmentLabel = appointmentType === 'virtual' ? '🖥️ Virtual' :
+    appointmentType === 'in_person' ? '🏠 Presencial' : '';
+
+  // Format date nicely
+  const dateObj = new Date(date + 'T00:00:00');
+  const dateStr = dateObj.toLocaleDateString('es-DO', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long'
+  });
+
+  return `✅ <b>CITA AGENDADA</b>
+
+${typeEmoji} <b>${leadName}</b>
+
+📅 ${dateStr}
+🕐 ${time}
+${appointmentLabel ? `📍 ${appointmentLabel}` : ''}
+${notes ? `\n📝 ${notes}` : ''}
+
+¡Recuerda estar preparado!`;
+}

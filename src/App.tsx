@@ -134,6 +134,7 @@ const App: React.FC = () => {
           followUps={followUps}
           onAddFollowUp={addFollowUp}
           onUpdateFollowUpNotes={updateFollowUpNotes}
+          onNavigate={setActiveTab}
         />;
       case 'leads':
         return <LeadsManager
