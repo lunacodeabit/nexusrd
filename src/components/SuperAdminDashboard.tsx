@@ -12,7 +12,8 @@ import {
   CheckCircle2,
   UserCog,
   BarChart3,
-  Calendar
+  Calendar,
+  Map
 } from 'lucide-react';
 import { useTeamData } from '../hooks/useTeamData';
 import { useUserRole } from '../hooks/useUserRole';
@@ -20,8 +21,9 @@ import { useAppointmentMetrics } from '../hooks/useAppointmentMetrics';
 import type { TeamMemberPerformance } from '../types';
 import AsesorDetailModal from './AsesorDetailModal';
 import UserManagement from './UserManagement';
+import RoadmapView from './RoadmapView';
 
-type TabView = 'dashboard' | 'users';
+type TabView = 'dashboard' | 'users' | 'roadmap';
 
 export default function SuperAdminDashboard() {
   const { canViewTeam, isAdmin, role } = useUserRole();
@@ -75,6 +77,18 @@ export default function SuperAdminDashboard() {
           Gestión Usuarios
         </button>
       )}
+      {isAdmin && (
+        <button
+          onClick={() => setActiveView('roadmap')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${activeView === 'roadmap'
+            ? 'bg-nexus-accent text-black'
+            : 'bg-nexus-surface text-gray-400 hover:text-white'
+            }`}
+        >
+          <Map className="w-4 h-4" />
+          Roadmap
+        </button>
+      )}
     </div>
   );
 
@@ -84,6 +98,16 @@ export default function SuperAdminDashboard() {
       <div className="space-y-6">
         {renderTabs()}
         <UserManagement />
+      </div>
+    );
+  }
+
+  // Roadmap View
+  if (activeView === 'roadmap' && isAdmin) {
+    return (
+      <div className="space-y-6">
+        {renderTabs()}
+        <RoadmapView />
       </div>
     );
   }
