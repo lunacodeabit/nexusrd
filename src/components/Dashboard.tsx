@@ -5,9 +5,11 @@ import { AlertTriangle, Clock, Phone, TrendingUp, Bell, X, MessageSquare, Mail, 
 import Modal from './Modal';
 import LeadDetail from './LeadDetail';
 import DailyPlanner from './DailyPlanner';
+import CalendarView from './CalendarView';
 import type { LeadScore } from '../services/leadScoring';
 import type { LeadFollowUp } from '../types/activities';
 import { useTodayActivity } from '../hooks/useTodayActivity';
+import { useTodayActivityDetails } from '../hooks/useTodayActivityDetails';
 import { useAutomations } from '../hooks/useAutomations';
 import { useAutomationEngine } from '../hooks/useAutomationEngine';
 import { useAppointmentMetrics } from '../hooks/useAppointmentMetrics';
@@ -49,6 +51,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   onNavigate
 }) => {
   const { counts: todayActivity } = useTodayActivity();
+  const { calls: todayCalls, whatsapp: todayWhatsapp } = useTodayActivityDetails();
   const { rules } = useAutomations();
   const { pendingAutomations } = useAutomationEngine({ leads, rules });
   const { myMetrics } = useAppointmentMetrics();
@@ -64,6 +67,9 @@ const Dashboard: React.FC<DashboardProps> = ({
   });
   const [refreshKey, setRefreshKey] = useState(0);
   const [showAlertsModal, setShowAlertsModal] = useState(false);
+  const [showCalendar, setShowCalendar] = useState(false);
+  const [showCallsModal, setShowCallsModal] = useState(false);
+  const [showWhatsappModal, setShowWhatsappModal] = useState(false);
 
   const ALERT_TIME_OPTIONS = [
     { value: 15, label: '15m' },
@@ -422,7 +428,11 @@ const Dashboard: React.FC<DashboardProps> = ({
             <AlertTriangle size={20} className="text-gray-500" />
           </div>
         </div>
-        <div className="bg-nexus-surface p-4 rounded-xl border border-white/5 shadow-lg">
+        <div
+          className="bg-nexus-surface p-4 rounded-xl border border-white/5 shadow-lg cursor-pointer hover:border-blue-500/30 hover:bg-blue-500/5 transition-all"
+          onClick={() => setShowCallsModal(true)}
+          title="Ver historial de llamadas"
+        >
           <div className="flex justify-between items-start">
             <div>
               <p className="text-xs text-gray-400 uppercase tracking-wider">Llamadas Hoy</p>
@@ -431,7 +441,11 @@ const Dashboard: React.FC<DashboardProps> = ({
             <Phone size={20} className="text-gray-500" />
           </div>
         </div>
-        <div className="bg-nexus-surface p-4 rounded-xl border border-white/5 shadow-lg">
+        <div
+          className="bg-nexus-surface p-4 rounded-xl border border-white/5 shadow-lg cursor-pointer hover:border-emerald-500/30 hover:bg-emerald-500/5 transition-all"
+          onClick={() => setShowWhatsappModal(true)}
+          title="Ver historial de WhatsApp"
+        >
           <div className="flex justify-between items-start">
             <div>
               <p className="text-xs text-gray-400 uppercase tracking-wider">WhatsApp Hoy</p>
@@ -440,7 +454,11 @@ const Dashboard: React.FC<DashboardProps> = ({
             <MessageSquare size={20} className="text-gray-500" />
           </div>
         </div>
-        <div className="bg-nexus-surface p-4 rounded-xl border border-purple-500/20 shadow-lg">
+        <div
+          className="bg-nexus-surface p-4 rounded-xl border border-purple-500/20 shadow-lg cursor-pointer hover:border-purple-500/50 hover:bg-purple-500/5 transition-all"
+          onClick={() => setShowCalendar(true)}
+          title="Ver calendario de citas"
+        >
           <div className="flex justify-between items-start">
             <div>
               <p className="text-xs text-gray-400 uppercase tracking-wider">Citas del Mes</p>
@@ -828,8 +846,8 @@ const Dashboard: React.FC<DashboardProps> = ({
                   <div className="flex items-center gap-2 flex-wrap mb-2">
                     <span className="font-bold text-white">{lead.name}</span>
                     <span className={`text-xs px-2 py-0.5 rounded ${type === 'AUTOMATION' ? 'bg-yellow-500/20 text-yellow-400' :
-                        type === 'NEW' ? 'bg-blue-500/20 text-blue-400' :
-                          'bg-red-500/20 text-red-400'
+                      type === 'NEW' ? 'bg-blue-500/20 text-blue-400' :
+                        'bg-red-500/20 text-red-400'
                       }`}>
                       {reason}
                     </span>
@@ -855,6 +873,66 @@ const Dashboard: React.FC<DashboardProps> = ({
                 </div>
               );
             })
+          )}
+        </div>
+      </Modal>
+
+      {/* Calendar View Modal */}
+      <CalendarView
+        isOpen={showCalendar}
+        onClose={() => setShowCalendar(false)}
+      />
+
+      {/* Calls Log Modal */}
+      <Modal isOpen={showCallsModal} onClose={() => setShowCallsModal(false)} title="📞 Llamadas de Hoy">
+        <div className="space-y-3 max-h-[60vh] overflow-y-auto">
+          {todayCalls.length === 0 ? (
+            <div className="text-center py-8">
+              <Phone size={48} className="text-blue-500/30 mx-auto mb-3" />
+              <p className="text-gray-400">No hay llamadas registradas hoy.</p>
+              <p className="text-xs text-gray-500 mt-2">Las llamadas se registran al hacer click en "Llamar" desde un lead.</p>
+            </div>
+          ) : (
+            todayCalls.map((call) => (
+              <div key={call.id} className="p-3 bg-nexus-base rounded-lg border border-blue-500/20">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium text-white">{call.lead_name || 'Desconocido'}</p>
+                    <p className="text-sm text-gray-400">{call.metadata?.phone || 'Sin teléfono'}</p>
+                  </div>
+                  <span className="text-xs text-gray-500">
+                    {new Date(call.created_at).toLocaleTimeString('es-DO', { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </Modal>
+
+      {/* WhatsApp Log Modal */}
+      <Modal isOpen={showWhatsappModal} onClose={() => setShowWhatsappModal(false)} title="💬 WhatsApp de Hoy">
+        <div className="space-y-3 max-h-[60vh] overflow-y-auto">
+          {todayWhatsapp.length === 0 ? (
+            <div className="text-center py-8">
+              <MessageSquare size={48} className="text-emerald-500/30 mx-auto mb-3" />
+              <p className="text-gray-400">No hay WhatsApp registrados hoy.</p>
+              <p className="text-xs text-gray-500 mt-2">Los WhatsApp se registran al hacer click en "WhatsApp" desde un lead.</p>
+            </div>
+          ) : (
+            todayWhatsapp.map((wa) => (
+              <div key={wa.id} className="p-3 bg-nexus-base rounded-lg border border-emerald-500/20">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium text-white">{wa.lead_name || 'Desconocido'}</p>
+                    <p className="text-sm text-gray-400">{wa.metadata?.phone || 'Sin teléfono'}</p>
+                  </div>
+                  <span className="text-xs text-gray-500">
+                    {new Date(wa.created_at).toLocaleTimeString('es-DO', { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                </div>
+              </div>
+            ))
           )}
         </div>
       </Modal>
