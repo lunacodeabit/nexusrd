@@ -127,29 +127,40 @@ exports.handler = async (event) => {
         // Extract the text response
         const textResponse = data.candidates?.[0]?.content?.parts?.[0]?.text;
 
+        console.log('📥 Raw Gemini response:', textResponse?.substring(0, 200) || 'NO RESPONSE');
+
         if (!textResponse) {
             console.error('No text response from Gemini:', JSON.stringify(data));
             return {
                 statusCode: 500,
                 headers,
-                body: JSON.stringify({ error: 'No response from AI' }),
+                body: JSON.stringify({ error: 'No response from AI', rawData: JSON.stringify(data).substring(0, 500) }),
             };
         }
 
         console.log('✅ Gemini response received, parsing JSON...');
+        console.log('📝 Full response:', textResponse);
 
         // Parse JSON from response (handle markdown code blocks)
         let parsed;
         try {
             // Remove markdown code blocks if present
-            const jsonStr = textResponse
+            let jsonStr = textResponse
                 .replace(/```json\n?/g, '')
                 .replace(/```\n?/g, '')
                 .trim();
 
+            // Try to find JSON object in the response if it's wrapped in text
+            const jsonMatch = jsonStr.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+                jsonStr = jsonMatch[0];
+            }
+
             parsed = JSON.parse(jsonStr);
+            console.log('✅ Parsed JSON:', JSON.stringify(parsed));
         } catch (parseError) {
             console.error('Failed to parse AI response:', textResponse);
+            console.error('Parse error:', parseError.message);
             return {
                 statusCode: 200,
                 headers,
@@ -163,6 +174,7 @@ exports.handler = async (event) => {
                     notes: transcript,
                     confidence: 0,
                     error: 'No se pudo entender el comando. Intenta ser más específico.',
+                    debug_response: textResponse?.substring(0, 200),
                 }),
             };
         }
