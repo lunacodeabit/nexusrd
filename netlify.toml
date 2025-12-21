@@ -14,6 +14,13 @@
 [functions."critical-alerts"]
   schedule = "*/15 8-20 * * *"
 
+# Functions should NOT be redirected
+[[redirects]]
+  from = "/.netlify/*"
+  to = "/.netlify/:splat"
+  status = 200
+
+# SPA fallback - all other routes go to index.html
 [[redirects]]
   from = "/*"
   to = "/index.html"
