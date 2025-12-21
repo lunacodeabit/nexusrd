@@ -127,6 +127,15 @@ export default function VoiceAssistant() {
         setState('processing');
 
         try {
+            // Map task_type to method format expected by Dashboard
+            const methodMap: Record<string, 'LLAMADA' | 'WHATSAPP' | 'EMAIL' | 'VISITA' | 'OTRO'> = {
+                'call': 'LLAMADA',
+                'whatsapp': 'WHATSAPP',
+                'email': 'EMAIL',
+                'visit': 'VISITA',
+                'other': 'OTRO',
+            };
+
             const taskData = {
                 user_id: user.id,
                 lead_id: matchedLead?.id || null,
@@ -141,11 +150,36 @@ export default function VoiceAssistant() {
                 alert_sent: false,
             };
 
-            const { error: insertError } = await supabase
+            // 1. Save to Supabase
+            const { data: insertedTask, error: insertError } = await supabase
                 .from('scheduled_tasks')
-                .insert(taskData);
+                .insert(taskData)
+                .select()
+                .single();
 
             if (insertError) throw insertError;
+
+            // 2. Also save to localStorage for Dashboard compatibility
+            const localStorageTask = {
+                id: insertedTask?.id || crypto.randomUUID(),
+                leadId: matchedLead?.id || '',
+                leadName: matchedLead?.name || parsedCommand.lead_name || 'Sin nombre',
+                method: methodMap[parsedCommand.task_type] || 'OTRO',
+                scheduledDate: parsedCommand.date || new Date().toISOString().split('T')[0],
+                scheduledTime: parsedCommand.time || '09:00',
+                notes: parsedCommand.notes || '',
+                completed: false,
+                alertMinutesBefore: 15,
+                alertSent: false,
+            };
+
+            const saved = localStorage.getItem('nexus_scheduled_tasks');
+            const existingTasks = saved ? JSON.parse(saved) : [];
+            existingTasks.push(localStorageTask);
+            localStorage.setItem('nexus_scheduled_tasks', JSON.stringify(existingTasks));
+
+            // Dispatch storage event to notify Dashboard
+            window.dispatchEvent(new Event('storage'));
 
             setState('success');
 
@@ -291,9 +325,27 @@ export default function VoiceAssistant() {
                                     <p className="text-gray-400 text-sm">
                                         Toca para hablar
                                     </p>
-                                    <p className="text-gray-500 text-xs">
-                                        Ejemplo: "Agenda cita mañana 9am con Juan, presencial"
-                                    </p>
+
+                                    {/* Command Examples */}
+                                    <div className="mt-4 p-3 bg-gray-900/50 rounded-lg text-left">
+                                        <p className="text-xs text-purple-400 font-medium mb-2 flex items-center gap-1">
+                                            <Calendar className="w-3 h-3" /> Ejemplos de comandos:
+                                        </p>
+                                        <ul className="space-y-1.5 text-xs text-gray-400">
+                                            <li className="flex items-start gap-2">
+                                                <span className="text-green-400">•</span>
+                                                <span>"Agenda cita <b className="text-white">mañana a las 3pm</b> con <b className="text-white">Juan</b>, <b className="text-white">presencial</b>"</span>
+                                            </li>
+                                            <li className="flex items-start gap-2">
+                                                <span className="text-blue-400">•</span>
+                                                <span>"Llamar a <b className="text-white">María</b> <b className="text-white">dentro de 1 hora</b>"</span>
+                                            </li>
+                                            <li className="flex items-start gap-2">
+                                                <span className="text-yellow-400">•</span>
+                                                <span>"Recordarme enviar contrato el <b className="text-white">lunes</b> a las <b className="text-white">10am</b>"</span>
+                                            </li>
+                                        </ul>
+                                    </div>
                                 </div>
                             )}
 
