@@ -1,32 +1,29 @@
 // Gemini API endpoint - using gemini-3-flash-preview
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent';
 
-const SYSTEM_PROMPT = `Eres un asistente de CRM inmobiliario. Tu tarea es extraer información estructurada de comandos de voz en español.
+const SYSTEM_PROMPT = `Eres un asistente de CRM inmobiliario. Extrae información estructurada de comandos de voz en español.
 
-El usuario puede decir cosas como:
-- "Agéndame una cita para mañana a las 9am con Juan, visita presencial"
-- "Programa llamada con María el viernes a las 3 de la tarde"
-- "Recuérdame enviar WhatsApp a Pedro López mañana"
-- "Cita virtual con la clienta nueva hoy a las 2pm"
+FECHA Y HORA ACTUAL (Santo Domingo, RD): {TODAY} {CURRENT_TIME}
 
-IMPORTANTE:
-- Hoy es: {TODAY}
+REGLAS CRÍTICAS:
+- "dentro de una hora" = HOY a {HOUR_PLUS_1}
+- "dentro de X horas" = HOY + X horas desde ahora
+- "ahora" o "ahorita" = HOY a la hora actual ({CURRENT_TIME})
 - "mañana" = un día después de hoy
-- "pasado mañana" = dos días después de hoy
-- "el viernes" = el próximo viernes desde hoy
-- Si no se especifica AM/PM y la hora es entre 1-7, asume PM (horario laboral)
-- Si no se especifica tipo de cita, asume "in_person" para visitas
+- "hoy" = la fecha de hoy
+- Si dicen una hora sin AM/PM y es 1-7, asume PM
+- Para "time", usa formato 12 horas (ej: "9:30 PM")
 
-Responde SOLO con JSON válido, sin explicaciones:
+Responde ÚNICAMENTE con este JSON, sin texto adicional:
 {
-  "action": "create_appointment" | "create_task" | "search_lead" | "unknown",
-  "lead_name": "nombre del cliente" | null,
-  "date": "YYYY-MM-DD" | null,
-  "time": "HH:MM" (24h format) | null,
-  "appointment_type": "virtual" | "in_person" | null,
-  "task_type": "call" | "whatsapp" | "visit" | "email" | "other",
-  "notes": "cualquier detalle adicional" | null,
-  "confidence": 0.0-1.0
+  "action": "create_appointment",
+  "lead_name": "nombre" o null,
+  "date": "YYYY-MM-DD",
+  "time": "H:MM AM/PM",
+  "appointment_type": "virtual" o "in_person",
+  "task_type": "visit",
+  "notes": "detalles",
+  "confidence": 0.95
 }`;
 
 exports.handler = async (event) => {
@@ -76,12 +73,35 @@ exports.handler = async (event) => {
             };
         }
 
-        // Get today's date for context
-        const today = new Date();
-        const todayStr = today.toISOString().split('T')[0];
-        const dayOfWeek = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'][today.getDay()];
+        // Get today's date and time in Santo Domingo timezone (UTC-4)
+        const now = new Date();
+        const sdOptions = { timeZone: 'America/Santo_Domingo' };
 
-        const prompt = SYSTEM_PROMPT.replace('{TODAY}', `${todayStr} (${dayOfWeek})`);
+        // Get date parts in Santo Domingo timezone
+        const sdFormatter = new Intl.DateTimeFormat('es-DO', {
+            ...sdOptions,
+            year: 'numeric', month: '2-digit', day: '2-digit'
+        });
+        const dateParts = sdFormatter.formatToParts(now);
+        const todayStr = `${dateParts.find(p => p.type === 'year').value}-${dateParts.find(p => p.type === 'month').value}-${dateParts.find(p => p.type === 'day').value}`;
+
+        const dayOfWeek = new Intl.DateTimeFormat('es-DO', { ...sdOptions, weekday: 'long' }).format(now);
+
+        // Get current time in 12h format (Santo Domingo)
+        const timeFormatter = new Intl.DateTimeFormat('es-DO', {
+            ...sdOptions,
+            hour: 'numeric', minute: '2-digit', hour12: true
+        });
+        const currentTime = timeFormatter.format(now);
+
+        // Get time + 1 hour in 12h format
+        const nowPlus1 = new Date(now.getTime() + 60 * 60 * 1000);
+        const hourPlus1 = timeFormatter.format(nowPlus1);
+
+        const prompt = SYSTEM_PROMPT
+            .replace(/{TODAY}/g, `${todayStr} (${dayOfWeek})`)
+            .replace(/{CURRENT_TIME}/g, currentTime)
+            .replace(/{HOUR_PLUS_1}/g, hourPlus1);
 
         console.log('📤 Calling Gemini API for transcript:', transcript.substring(0, 50) + '...');
 
@@ -101,7 +121,7 @@ exports.handler = async (event) => {
                 ],
                 generationConfig: {
                     temperature: 0.1,
-                    maxOutputTokens: 2048,
+                    maxOutputTokens: 4096,
                 }
             }),
         });

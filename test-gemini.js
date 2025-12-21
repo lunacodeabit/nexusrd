@@ -1,47 +1,72 @@
 // Test script to call Gemini API directly and see what it returns
-// Run with: node test-gemini.js
+// Run with: $env:GEMINI_API_KEY="your_key"; node test-gemini.js
 
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent';
 
-const SYSTEM_PROMPT = `Eres un asistente de CRM inmobiliario. Tu tarea es extraer información estructurada de comandos de voz en español.
+// Get today's date and time in Santo Domingo timezone (UTC-4)
+const now = new Date();
+const sdOptions = { timeZone: 'America/Santo_Domingo' };
 
-El usuario puede decir cosas como:
-- "Agéndame una cita para mañana a las 9am con Juan, visita presencial"
-- "Programa llamada con María el viernes a las 3 de la tarde"
-- "Recuérdame enviar WhatsApp a Pedro López mañana"
-- "Cita virtual con la clienta nueva hoy a las 2pm"
+// Get date parts in Santo Domingo timezone
+const sdFormatter = new Intl.DateTimeFormat('es-DO', {
+    ...sdOptions,
+    year: 'numeric', month: '2-digit', day: '2-digit'
+});
+const dateParts = sdFormatter.formatToParts(now);
+const todayStr = `${dateParts.find(p => p.type === 'year').value}-${dateParts.find(p => p.type === 'month').value}-${dateParts.find(p => p.type === 'day').value}`;
 
-IMPORTANTE:
-- Hoy es: ${new Date().toISOString().split('T')[0]}
+const dayOfWeek = new Intl.DateTimeFormat('es-DO', { ...sdOptions, weekday: 'long' }).format(now);
+
+// Get current time in 12h format (Santo Domingo)
+const timeFormatter = new Intl.DateTimeFormat('es-DO', {
+    ...sdOptions,
+    hour: 'numeric', minute: '2-digit', hour12: true
+});
+const currentTime = timeFormatter.format(now);
+
+// Get time + 1 hour in 12h format
+const nowPlus1 = new Date(now.getTime() + 60 * 60 * 1000);
+const hourPlus1 = timeFormatter.format(nowPlus1);
+
+const SYSTEM_PROMPT = `Eres un asistente de CRM inmobiliario. Extrae información estructurada de comandos de voz en español.
+
+FECHA Y HORA ACTUAL (Santo Domingo): ${todayStr} (${dayOfWeek}) ${currentTime}
+
+REGLAS CRÍTICAS:
+- "dentro de una hora" = HOY a ${hourPlus1}
+- "dentro de X horas" = HOY + X horas desde ahora
+- "ahora" o "ahorita" = HOY a la hora actual (${currentTime})
 - "mañana" = un día después de hoy
-- Si no se especifica AM/PM y la hora es entre 1-7, asume PM (horario laboral)
+- "hoy" = la fecha de hoy (${todayStr})
+- Si dicen una hora sin AM/PM y es 1-7, asume PM
+- Para el campo "time", usa formato 12 horas con AM/PM (ej: "9:30 PM")
 
-Responde SOLO con JSON válido, sin explicaciones:
+Responde ÚNICAMENTE con este JSON, sin texto adicional:
 {
-  "action": "create_appointment" | "create_task" | "search_lead" | "unknown",
-  "lead_name": "nombre del cliente" | null,
-  "date": "YYYY-MM-DD" | null,
-  "time": "HH:MM" (24h format) | null,
-  "appointment_type": "virtual" | "in_person" | null,
-  "task_type": "call" | "whatsapp" | "visit" | "email" | "other",
-  "notes": "cualquier detalle adicional" | null,
-  "confidence": 0.0-1.0
+  "action": "create_appointment",
+  "lead_name": "nombre" o null,
+  "date": "YYYY-MM-DD",
+  "time": "H:MM AM/PM",
+  "appointment_type": "virtual" o "in_person",
+  "task_type": "visit",
+  "notes": "detalles",
+  "confidence": 0.95
 }`;
 
 async function testGemini() {
-    // Get API key from environment or use placeholder
     const apiKey = process.env.GEMINI_API_KEY || 'YOUR_API_KEY_HERE';
 
     if (apiKey === 'YOUR_API_KEY_HERE') {
         console.log('❌ Please set GEMINI_API_KEY environment variable');
-        console.log('   Example: set GEMINI_API_KEY=your_key_here && node test-gemini.js');
         return;
     }
 
-    const testTranscript = "agenda una cita para mañana a las 9 con Juan presencial";
+    const testTranscript = "agenda una cita con Isaías para dentro de una hora presencial";
 
     console.log('🎤 Testing transcript:', testTranscript);
-    console.log('🔑 API Key:', apiKey.substring(0, 8) + '...');
+    console.log('📅 Today (Santo Domingo):', todayStr, '(' + dayOfWeek + ')');
+    console.log('🕐 Current time:', currentTime);
+    console.log('🕑 Hour + 1:', hourPlus1);
     console.log('📤 Calling Gemini API...\n');
 
     try {
@@ -60,7 +85,7 @@ async function testGemini() {
                 ],
                 generationConfig: {
                     temperature: 0.1,
-                    maxOutputTokens: 2048,
+                    maxOutputTokens: 4096,
                 }
             }),
         });
@@ -74,14 +99,17 @@ async function testGemini() {
         }
 
         const data = await response.json();
-        console.log('\n📦 Raw API Response:');
-        console.log(JSON.stringify(data, null, 2));
+
+        console.log('📊 Token usage:');
+        console.log('   Prompt tokens:', data.usageMetadata?.promptTokenCount);
+        console.log('   Response tokens:', data.usageMetadata?.candidatesTokenCount);
+        console.log('   Thinking tokens:', data.usageMetadata?.thoughtsTokenCount);
+        console.log('   Finish reason:', data.candidates?.[0]?.finishReason);
 
         const textResponse = data.candidates?.[0]?.content?.parts?.[0]?.text;
         console.log('\n📝 Text Response:', textResponse);
 
         if (textResponse) {
-            // Try to parse JSON
             let jsonStr = textResponse
                 .replace(/```json\n?/g, '')
                 .replace(/```\n?/g, '')
@@ -96,6 +124,20 @@ async function testGemini() {
                 const parsed = JSON.parse(jsonStr);
                 console.log('\n✅ Parsed JSON:');
                 console.log(JSON.stringify(parsed, null, 2));
+
+                // Verify the date
+                if (parsed.date === todayStr) {
+                    console.log('\n✅ Date is TODAY - correct!');
+                } else {
+                    console.log('\n⚠️ Date is', parsed.date, '- expected', todayStr);
+                }
+
+                // Check time format
+                if (parsed.time && (parsed.time.includes('AM') || parsed.time.includes('PM') || parsed.time.includes('a.') || parsed.time.includes('p.'))) {
+                    console.log('✅ Time is in 12h format - correct!');
+                } else {
+                    console.log('⚠️ Time format:', parsed.time);
+                }
             } catch (e) {
                 console.log('\n❌ Failed to parse JSON:', e.message);
             }
