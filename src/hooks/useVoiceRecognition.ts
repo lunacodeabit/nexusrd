@@ -53,8 +53,8 @@ interface UseVoiceRecognitionReturn {
 const CONFIG = {
     LANG: 'es-DO', // Dominican Republic Spanish
     FALLBACK_LANG: 'es-ES', // Fallback to Spain Spanish
-    SILENCE_TIMEOUT_MS: 8000, // How long to wait for speech
-    SPEECH_END_DELAY_MS: 1500, // Delay after speech ends before stopping
+    SILENCE_TIMEOUT_MS: 10000, // How long to wait for speech (10 seconds)
+    SPEECH_END_DELAY_MS: 3000, // Delay after speech ends before stopping (3 seconds to allow pauses)
     MAX_RETRIES: 2,
 };
 

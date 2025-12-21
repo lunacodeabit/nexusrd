@@ -265,10 +265,26 @@ export default function VoiceAssistant() {
 
     // Format time for display
     const formatTime = (timeStr: string) => {
-        const [hours, minutes] = timeStr.split(':').map(Number);
+        if (!timeStr) return 'Hora no especificada';
+
+        // If already contains AM/PM, return as is
+        if (timeStr.includes('AM') || timeStr.includes('PM')) {
+            return timeStr;
+        }
+
+        // Handle various formats: "9", "09:00", "9:00", "09:30"
+        const parts = timeStr.split(':');
+        const hours = parseInt(parts[0], 10);
+        const minutes = parseInt(parts[1] || '0', 10);
+
+        // Check for invalid parsing
+        if (isNaN(hours)) return timeStr; // Return original if can't parse
+
         const period = hours >= 12 ? 'PM' : 'AM';
         const hours12 = hours % 12 || 12;
-        return `${hours12}:${minutes.toString().padStart(2, '0')} ${period}`;
+        const minutesStr = isNaN(minutes) ? '00' : minutes.toString().padStart(2, '0');
+
+        return `${hours12}:${minutesStr} ${period}`;
     };
 
     return (
