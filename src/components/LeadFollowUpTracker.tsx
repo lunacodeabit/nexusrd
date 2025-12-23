@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   Phone, MessageSquare, Mail, MapPin, MoreHorizontal,
   Plus, CheckCircle2, Clock, AlertCircle,
-  TrendingUp, CalendarPlus, Bell, X, Pencil, Check
+  TrendingUp, CalendarPlus, Bell, X, Pencil, Check, Ban
 } from 'lucide-react';
 import type { Lead } from '../types';
 import type { LeadFollowUp } from '../types/activities';
@@ -10,6 +10,8 @@ import { notificationSound } from '../services/notificationSound';
 import { sendWhatsAppAlert } from '../services/userProfile';
 import { useAuth } from '../contexts/AuthContext';
 import { getProfileForAlerts, type UserProfileData } from '../hooks/useUserProfile';
+import { useAppointments } from '../hooks/useAppointments';
+import type { Appointment } from '../services/appointmentService';
 
 // Alert time options in minutes
 const ALERT_TIME_OPTIONS = [
@@ -22,20 +24,8 @@ const ALERT_TIME_OPTIONS = [
 // Appointment type for visits
 type AppointmentType = 'virtual' | 'in_person';
 
-// Scheduled Task Interface
-interface ScheduledTask {
-  id: string;
-  leadId: string;
-  leadName: string;
-  method: LeadFollowUp['method'];
-  appointmentType?: AppointmentType; // Only for VISITA method
-  scheduledDate: string;
-  scheduledTime: string;
-  notes: string;
-  completed: boolean;
-  alertMinutesBefore: number; // Minutes before to send alert
-  alertSent: boolean; // Track if alert was already sent
-}
+// ScheduledTask type now uses Appointment from service
+type ScheduledTask = Appointment;
 
 interface LeadFollowUpTrackerProps {
   lead: Lead;
@@ -64,10 +54,8 @@ const LeadFollowUpTracker: React.FC<LeadFollowUpTrackerProps> = ({
   const [isScheduling, setIsScheduling] = useState(false);
   const [editingFollowUpId, setEditingFollowUpId] = useState<string | null>(null);
   const [editingNotes, setEditingNotes] = useState('');
-  const [scheduledTasks, setScheduledTasks] = useState<ScheduledTask[]>(() => {
-    const saved = localStorage.getItem('nexus_scheduled_tasks');
-    return saved ? JSON.parse(saved) : [];
-  });
+  // Use Supabase-backed appointments hook
+  const { appointments, create: createAppointment, update: updateAppointment, remove: deleteAppointment, complete: completeAppointment, noShow: noShowAppointment, loading: appointmentsLoading } = useAppointments({ leadId: lead.id });
   const [newFollowUp, setNewFollowUp] = useState({
     method: 'WHATSAPP' as LeadFollowUp['method'],
     notes: '',
@@ -94,24 +82,21 @@ const LeadFollowUpTracker: React.FC<LeadFollowUpTrackerProps> = ({
     loadProfile();
   }, [user?.id]);
 
-  // Save scheduled tasks to localStorage
-  useEffect(() => {
-    localStorage.setItem('nexus_scheduled_tasks', JSON.stringify(scheduledTasks));
-  }, [scheduledTasks]);
+  // No longer need localStorage - Supabase handles persistence
 
-  // Check for reminders
+  // Check for reminders - now uses appointments from Supabase
   useEffect(() => {
     if (!userProfile) return;
 
     const checkReminders = () => {
       const now = new Date();
 
-      scheduledTasks.forEach(task => {
-        if (task.completed || task.alertSent) return;
+      appointments.forEach(async (appt) => {
+        if (appt.status !== 'pending' || appt.alert_sent) return;
 
-        const taskDateTime = new Date(`${task.scheduledDate}T${task.scheduledTime}`);
+        const taskDateTime = new Date(`${appt.scheduled_date}T${appt.scheduled_time}`);
         const diffMinutes = (taskDateTime.getTime() - now.getTime()) / (1000 * 60);
-        const alertTime = task.alertMinutesBefore || 15;
+        const alertTime = appt.alert_minutes_before || 15;
 
         // Check if it's time to send alert (within 1 minute of alert time)
         if (diffMinutes > 0 && diffMinutes <= alertTime && diffMinutes >= alertTime - 1) {
@@ -122,8 +107,8 @@ const LeadFollowUpTracker: React.FC<LeadFollowUpTrackerProps> = ({
 
           // Browser notification
           if (userProfile.enable_browser_notifications && Notification.permission === 'granted') {
-            new Notification(`⏰ Recordatorio: ${task.method}`, {
-              body: `${task.leadName} - ${task.notes || 'Seguimiento programado'} (en ${alertTime} min)`,
+            new Notification(`⏰ Recordatorio: ${appt.method}`, {
+              body: `${appt.lead_name} - ${appt.notes || 'Seguimiento programado'} (en ${alertTime} min)`,
               icon: '/icons/icon-192x192.png'
             });
           }
@@ -132,17 +117,15 @@ const LeadFollowUpTracker: React.FC<LeadFollowUpTrackerProps> = ({
           if (userProfile.enable_whatsapp_alerts && userProfile.whatsapp_number) {
             sendWhatsAppAlert(
               userProfile.whatsapp_number,
-              task.method,
-              task.leadName,
-              task.notes,
+              appt.method,
+              appt.lead_name,
+              appt.notes || '',
               alertTime
             );
           }
 
-          // Mark alert as sent
-          setScheduledTasks(prev =>
-            prev.map(t => t.id === task.id ? { ...t, alertSent: true } : t)
-          );
+          // Mark alert as sent via Supabase
+          await updateAppointment(appt.id, {});
         }
       });
     };
@@ -155,16 +138,17 @@ const LeadFollowUpTracker: React.FC<LeadFollowUpTrackerProps> = ({
     const interval = setInterval(checkReminders, 60000); // Check every minute
     checkReminders(); // Check immediately on mount
     return () => clearInterval(interval);
-  }, [scheduledTasks, userProfile]);
+  }, [appointments, userProfile, updateAppointment]);
 
   // Get follow-ups for this lead
   const leadFollowUps = followUps
     .filter(f => f.leadId === lead.id)
     .sort((a, b) => a.followUpNumber - b.followUpNumber);
 
-  const leadScheduledTasks = scheduledTasks
-    .filter(t => t.leadId === lead.id && !t.completed)
-    .sort((a, b) => new Date(`${a.scheduledDate}T${a.scheduledTime}`).getTime() - new Date(`${b.scheduledDate}T${b.scheduledTime}`).getTime());
+  // Filter appointments for this lead (already filtered by hook, but ensure pending only)
+  const leadScheduledTasks = appointments
+    .filter(t => t.status === 'pending')
+    .sort((a, b) => new Date(`${a.scheduled_date}T${a.scheduled_time}`).getTime() - new Date(`${b.scheduled_date}T${b.scheduled_time}`).getTime());
 
   const currentFollowUpNumber = leadFollowUps.length;
   const nextFollowUpNumber = currentFollowUpNumber + 1;
@@ -184,69 +168,62 @@ const LeadFollowUpTracker: React.FC<LeadFollowUpTrackerProps> = ({
     setIsAddingFollowUp(false);
   };
 
-  const handleScheduleTask = () => {
+  const handleScheduleTask = async () => {
     if (!scheduledTask.date || !scheduledTask.time) return;
 
-    const newTask: ScheduledTask = {
-      id: `task-${Date.now()}`,
-      leadId: lead.id,
-      leadName: lead.name,
+    await createAppointment({
+      lead_id: lead.id,
+      lead_name: lead.name,
       method: scheduledTask.method,
-      appointmentType: scheduledTask.method === 'VISITA' ? scheduledTask.appointmentType : undefined,
-      scheduledDate: scheduledTask.date,
-      scheduledTime: scheduledTask.time,
+      appointment_type: scheduledTask.method === 'VISITA' ? scheduledTask.appointmentType : undefined,
+      scheduled_date: scheduledTask.date,
+      scheduled_time: scheduledTask.time,
       notes: scheduledTask.notes,
-      completed: false,
-      alertMinutesBefore: scheduledTask.alertMinutesBefore,
-      alertSent: false
-    };
+      alert_minutes_before: scheduledTask.alertMinutesBefore
+    });
 
-    setScheduledTasks(prev => [...prev, newTask]);
     setScheduledTask({ method: 'LLAMADA', appointmentType: undefined, date: '', time: '', notes: '', alertMinutesBefore: 15 });
     setIsScheduling(false);
     notificationSound.playSuccess();
   };
 
-  const handleCompleteTask = (taskId: string) => {
-    setScheduledTasks(prev => prev.map(t =>
-      t.id === taskId ? { ...t, completed: true } : t
-    ));
+  const handleCompleteTask = async (taskId: string) => {
+    await completeAppointment(taskId);
   };
 
-  const handleDeleteTask = (taskId: string) => {
-    setScheduledTasks(prev => prev.filter(t => t.id !== taskId));
+  const handleNoShowTask = async (taskId: string) => {
+    await noShowAppointment(taskId);
   };
 
-  const handleEditTask = (task: ScheduledTask) => {
-    setEditingTask(task);
+  const handleDeleteTask = async (taskId: string) => {
+    await deleteAppointment(taskId);
+  };
+
+  const handleEditTask = (task: Appointment) => {
+    setEditingTask(task as ScheduledTask);
     setScheduledTask({
-      method: task.method,
-      appointmentType: task.appointmentType,
-      date: task.scheduledDate,
-      time: task.scheduledTime,
-      notes: task.notes,
-      alertMinutesBefore: task.alertMinutesBefore
+      method: task.method as LeadFollowUp['method'],
+      appointmentType: task.appointment_type || undefined,
+      date: task.scheduled_date,
+      time: task.scheduled_time,
+      notes: task.notes || '',
+      alertMinutesBefore: task.alert_minutes_before
     });
     setIsScheduling(true);
   };
 
-  const handleSaveEditTask = () => {
+  const handleSaveEditTask = async () => {
     if (!editingTask || !scheduledTask.date || !scheduledTask.time) return;
 
-    setScheduledTasks(prev => prev.map(t =>
-      t.id === editingTask.id
-        ? {
-          ...t,
-          method: scheduledTask.method,
-          appointmentType: scheduledTask.method === 'VISITA' ? scheduledTask.appointmentType : undefined,
-          scheduledDate: scheduledTask.date,
-          scheduledTime: scheduledTask.time,
-          notes: scheduledTask.notes,
-          alertMinutesBefore: scheduledTask.alertMinutesBefore,
-          alertSent: false // Reset alert if time changed
-        }
-        : t
-    ));
+    await updateAppointment(editingTask.id, {
+      method: scheduledTask.method,
+      appointment_type: scheduledTask.method === 'VISITA' ? scheduledTask.appointmentType : undefined,
+      scheduled_date: scheduledTask.date,
+      scheduled_time: scheduledTask.time,
+      notes: scheduledTask.notes,
+      alert_minutes_before: scheduledTask.alertMinutesBefore
+    });
+
     setEditingTask(null);
     setScheduledTask({ method: 'LLAMADA', appointmentType: undefined, date: '', time: '', notes: '', alertMinutesBefore: 15 });
     setIsScheduling(false);
@@ -580,9 +557,9 @@ const LeadFollowUpTracker: React.FC<LeadFollowUpTrackerProps> = ({
         {leadScheduledTasks.length > 0 ? (
           <div className="space-y-2 mb-3">
             {leadScheduledTasks.map((task) => {
-              const taskDate = new Date(`${task.scheduledDate}T${task.scheduledTime}`);
+              const taskDate = new Date(`${task.scheduled_date}T${task.scheduled_time}`);
               const isPast = taskDate < new Date();
-              const isToday = task.scheduledDate === new Date().toISOString().split('T')[0];
+              const isToday = task.scheduled_date === new Date().toISOString().split('T')[0];
 
               return (
                 <div
@@ -602,7 +579,7 @@ const LeadFollowUpTracker: React.FC<LeadFollowUpTrackerProps> = ({
                       {isToday && !isPast && <span className="text-xs text-yellow-400">Hoy</span>}
                     </div>
                     <p className="text-xs text-gray-400">
-                      {new Date(task.scheduledDate).toLocaleDateString('es-ES')} a las {formatTime12h(task.scheduledTime)}
+                      {new Date(task.scheduled_date).toLocaleDateString('es-ES')} a las {formatTime12h(task.scheduled_time)}
                     </p>
                     {task.notes && <p className="text-xs text-gray-500 truncate">{task.notes}</p>}
                   </div>
@@ -682,8 +659,8 @@ const LeadFollowUpTracker: React.FC<LeadFollowUpTrackerProps> = ({
                   <button
                     onClick={() => setScheduledTask(prev => ({ ...prev, appointmentType: 'virtual' }))}
                     className={`p-3 rounded-lg flex items-center justify-center gap-2 transition-all ${scheduledTask.appointmentType === 'virtual'
-                        ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30 font-bold'
-                        : 'bg-nexus-surface border border-white/10 text-gray-400 hover:border-white/30'
+                      ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30 font-bold'
+                      : 'bg-nexus-surface border border-white/10 text-gray-400 hover:border-white/30'
                       }`}
                   >
                     🖥️ Virtual
@@ -691,8 +668,8 @@ const LeadFollowUpTracker: React.FC<LeadFollowUpTrackerProps> = ({
                   <button
                     onClick={() => setScheduledTask(prev => ({ ...prev, appointmentType: 'in_person' }))}
                     className={`p-3 rounded-lg flex items-center justify-center gap-2 transition-all ${scheduledTask.appointmentType === 'in_person'
-                        ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30 font-bold'
-                        : 'bg-nexus-surface border border-white/10 text-gray-400 hover:border-white/30'
+                      ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30 font-bold'
+                      : 'bg-nexus-surface border border-white/10 text-gray-400 hover:border-white/30'
                       }`}
                   >
                     🏠 Presencial
@@ -709,8 +686,9 @@ const LeadFollowUpTracker: React.FC<LeadFollowUpTrackerProps> = ({
                   type="date"
                   value={scheduledTask.date}
                   onChange={(e) => setScheduledTask(prev => ({ ...prev, date: e.target.value }))}
+                  onClick={(e) => (e.target as HTMLInputElement).showPicker?.()}
                   min={new Date().toISOString().split('T')[0]}
-                  className="w-full bg-nexus-surface border border-white/10 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-nexus-accent [color-scheme:dark]"
+                  className="w-full bg-nexus-surface border border-white/10 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-nexus-accent [color-scheme:dark] cursor-pointer"
                 />
               </div>
               <div>
@@ -719,7 +697,8 @@ const LeadFollowUpTracker: React.FC<LeadFollowUpTrackerProps> = ({
                   type="time"
                   value={scheduledTask.time}
                   onChange={(e) => setScheduledTask(prev => ({ ...prev, time: e.target.value }))}
-                  className="w-full bg-nexus-surface border border-white/10 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-nexus-accent [color-scheme:dark]"
+                  onClick={(e) => (e.target as HTMLInputElement).showPicker?.()}
+                  className="w-full bg-nexus-surface border border-white/10 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-nexus-accent [color-scheme:dark] cursor-pointer"
                 />
               </div>
             </div>

@@ -30,8 +30,9 @@ export interface NoteEntry {
   id: string;
   text: string;
   createdAt: string;
-  source: 'manual' | 'follow_up';
+  source: 'manual' | 'follow_up' | 'qualification';
   followUpNumber?: number;
+  questionId?: string; // For qualification notes
 }
 
 // Tabla: LEADS (Unifica "Leads Flow" y "Seguimiento")
@@ -57,6 +58,10 @@ export interface Lead {
     category: 'HOT' | 'WARM' | 'COLD';
     qualifiedAt?: string;
   };
+  // Qualification progress (partial save support)
+  qualificationAnswers?: Record<string, string>; // questionId -> answer value
+  qualificationNotes?: Record<string, string>;   // questionId -> note text
+  qualificationProgress?: number;                // 0-100 percentage
 }
 
 // Tabla: PROPERTIES (Equivalente a "Captaciones")

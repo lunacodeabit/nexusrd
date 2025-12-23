@@ -154,36 +154,24 @@ export default function VoiceAssistant() {
                 alert_sent: false,
             };
 
-            // 1. Save to Supabase
-            const { data: insertedTask, error: insertError } = await supabase
-                .from('scheduled_tasks')
-                .insert(taskData)
-                .select()
-                .single();
+            // Save to Supabase scheduled_appointments table
+            const { error: insertError } = await supabase
+                .from('scheduled_appointments')
+                .insert({
+                    user_id: user.id,
+                    lead_id: matchedLead?.id || null,
+                    lead_name: matchedLead?.name || parsedCommand.lead_name || 'Sin nombre',
+                    method: methodMap[parsedCommand.task_type] || 'OTRO',
+                    appointment_type: parsedCommand.appointment_type,
+                    scheduled_date: parsedCommand.date || new Date().toISOString().split('T')[0],
+                    scheduled_time: parsedCommand.time || '09:00',
+                    notes: parsedCommand.notes || '',
+                    status: 'pending',
+                    alert_minutes_before: 15,
+                    alert_sent: false,
+                });
 
             if (insertError) throw insertError;
-
-            // 2. Also save to localStorage for Dashboard compatibility
-            const localStorageTask = {
-                id: insertedTask?.id || crypto.randomUUID(),
-                leadId: matchedLead?.id || '',
-                leadName: matchedLead?.name || parsedCommand.lead_name || 'Sin nombre',
-                method: methodMap[parsedCommand.task_type] || 'OTRO',
-                scheduledDate: parsedCommand.date || new Date().toISOString().split('T')[0],
-                scheduledTime: parsedCommand.time || '09:00',
-                notes: parsedCommand.notes || '',
-                completed: false,
-                alertMinutesBefore: 15,
-                alertSent: false,
-            };
-
-            const saved = localStorage.getItem('nexus_scheduled_tasks');
-            const existingTasks = saved ? JSON.parse(saved) : [];
-            existingTasks.push(localStorageTask);
-            localStorage.setItem('nexus_scheduled_tasks', JSON.stringify(existingTasks));
-
-            // Dispatch storage event to notify Dashboard
-            window.dispatchEvent(new Event('storage'));
 
             setState('success');
 

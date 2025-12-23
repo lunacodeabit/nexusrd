@@ -1,16 +1,10 @@
 import { useState, useMemo } from 'react';
 import { ChevronLeft, ChevronRight, X, Clock, Phone, MessageSquare, Home } from 'lucide-react';
+import { useAppointments } from '../hooks/useAppointments';
+import type { Appointment } from '../services/appointmentService';
 
-interface ScheduledTask {
-    id: string;
-    leadId: string;
-    leadName: string;
-    method: 'LLAMADA' | 'WHATSAPP' | 'EMAIL' | 'VISITA' | 'OTRO';
-    scheduledDate: string;
-    scheduledTime: string;
-    notes: string;
-    completed: boolean;
-}
+// ScheduledTask type uses Appointment from service
+type ScheduledTask = Appointment;
 
 interface CalendarViewProps {
     isOpen: boolean;
@@ -30,24 +24,20 @@ export default function CalendarView({ isOpen, onClose }: CalendarViewProps) {
     const [currentYear, setCurrentYear] = useState(today.getFullYear());
     const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
-    // Get tasks from localStorage
-    const tasks = useMemo(() => {
-        const saved = localStorage.getItem('nexus_scheduled_tasks');
-        if (!saved) return [];
-        return JSON.parse(saved) as ScheduledTask[];
-    }, [isOpen]); // Re-read when modal opens
+    // Get tasks from Supabase via hook
+    const { appointments } = useAppointments();
 
     // Get tasks grouped by date
     const tasksByDate = useMemo(() => {
         const map: Record<string, ScheduledTask[]> = {};
-        tasks.forEach(task => {
-            if (!map[task.scheduledDate]) {
-                map[task.scheduledDate] = [];
+        appointments.forEach(task => {
+            if (!map[task.scheduled_date]) {
+                map[task.scheduled_date] = [];
             }
-            map[task.scheduledDate].push(task);
+            map[task.scheduled_date].push(task);
         });
         return map;
-    }, [tasks]);
+    }, [appointments]);
 
     // Calendar logic
     const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
@@ -173,8 +163,8 @@ export default function CalendarView({ isOpen, onClose }: CalendarViewProps) {
                             const dayTasks = getTasksForDay(day);
                             const isSelected = selectedDate === dateStr;
                             const hasTasks = dayTasks.length > 0;
-                            const hasCompletedOnly = hasTasks && dayTasks.every(t => t.completed);
-                            const hasIncomplete = hasTasks && dayTasks.some(t => !t.completed);
+                            const hasCompletedOnly = hasTasks && dayTasks.every(t => t.status === 'completed');
+                            const hasIncomplete = hasTasks && dayTasks.some(t => t.status === 'pending');
 
                             return (
                                 <button
@@ -233,19 +223,19 @@ export default function CalendarView({ isOpen, onClose }: CalendarViewProps) {
                                     {selectedDayTasks.map(task => (
                                         <div
                                             key={task.id}
-                                            className={`p-3 rounded-lg border ${task.completed
+                                            className={`p-3 rounded-lg border ${task.status === 'completed'
                                                 ? 'bg-green-500/10 border-green-500/20'
                                                 : 'bg-nexus-base border-white/10'
                                                 }`}
                                         >
                                             <div className="flex items-center gap-2">
                                                 {getMethodIcon(task.method)}
-                                                <span className={`font-medium ${task.completed ? 'text-green-400 line-through' : 'text-white'
+                                                <span className={`font-medium ${task.status === 'completed' ? 'text-green-400 line-through' : 'text-white'
                                                     }`}>
-                                                    {task.leadName}
+                                                    {task.lead_name}
                                                 </span>
                                                 <span className="text-xs text-gray-500 ml-auto">
-                                                    {task.scheduledTime}
+                                                    {task.scheduled_time}
                                                 </span>
                                             </div>
                                             {task.notes && (

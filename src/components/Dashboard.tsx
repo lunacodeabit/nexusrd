@@ -13,21 +13,13 @@ import { useTodayActivityDetails } from '../hooks/useTodayActivityDetails';
 import { useAutomations } from '../hooks/useAutomations';
 import { useAutomationEngine } from '../hooks/useAutomationEngine';
 import { useAppointmentMetrics } from '../hooks/useAppointmentMetrics';
+import { useAppointments } from '../hooks/useAppointments';
+import type { Appointment } from '../services/appointmentService';
 
-// Interface for scheduled tasks (same as in LeadFollowUpTracker)
-interface ScheduledTask {
-  id: string;
-  leadId: string;
-  leadName: string;
-  method: 'LLAMADA' | 'WHATSAPP' | 'EMAIL' | 'VISITA' | 'OTRO';
-  scheduledDate: string;
-  scheduledTime: string;
-  notes: string;
-  completed: boolean;
-  alertMinutesBefore?: number;
-  alertSent?: boolean;
+// Interface for scheduled tasks - now using Appointment from service
+type ScheduledTask = Appointment & {
   overdueLabel?: string; // For displaying how overdue the task is
-}
+};
 
 interface DashboardProps {
   leads: Lead[];
@@ -55,6 +47,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   const { rules } = useAutomations();
   const { pendingAutomations } = useAutomationEngine({ leads, rules });
   const { myMetrics } = useAppointmentMetrics();
+  const { appointments, complete: completeAppointment, update: updateAppointment, remove: removeAppointment, refresh: refreshAppointments } = useAppointments();
   const [showNotifications, setShowNotifications] = useState(false);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [editingTask, setEditingTask] = useState<ScheduledTask | null>(null);
@@ -158,22 +151,22 @@ const Dashboard: React.FC<DashboardProps> = ({
     return leads.filter(l => l.status === LeadStatus.VISIT_SCHEDULED);
   }, [leads]);
 
-  // Get scheduled tasks from localStorage for today - split into pending and overdue
+  // Get scheduled tasks from Supabase hook - split into pending and overdue
   const { todaysPendingTasks, todaysOverdueTasks } = useMemo(() => {
-    const saved = localStorage.getItem('nexus_scheduled_tasks');
-    if (!saved) return { todaysPendingTasks: [], todaysOverdueTasks: [] };
+    if (!appointments || appointments.length === 0) {
+      return { todaysPendingTasks: [], todaysOverdueTasks: [] };
+    }
 
-    const allTasks: ScheduledTask[] = JSON.parse(saved);
     const today = new Date().toISOString().split('T')[0];
     const now = new Date();
 
-    const todayTasks = allTasks.filter(task => task.scheduledDate === today && !task.completed);
+    const todayTasks = appointments.filter(task => task.scheduled_date === today && task.status === 'pending');
 
     const pending: ScheduledTask[] = [];
     const overdue: ScheduledTask[] = [];
 
     for (const task of todayTasks) {
-      const [hours, minutes] = task.scheduledTime.split(':').map(Number);
+      const [hours, minutes] = task.scheduled_time.split(':').map(Number);
       const taskTime = new Date(today);
       taskTime.setHours(hours, minutes, 0, 0);
 
@@ -193,93 +186,64 @@ const Dashboard: React.FC<DashboardProps> = ({
           overdueLabel = `Hace ${days} día${days > 1 ? 's' : ''}`;
         }
 
-        overdue.push({ ...task, overdueLabel } as ScheduledTask & { overdueLabel: string });
+        overdue.push({ ...task, overdueLabel });
       } else {
         pending.push(task);
       }
     }
 
     // Also check tasks from previous days that weren't completed
-    const pastTasks = allTasks.filter(task => task.scheduledDate < today && !task.completed);
+    const pastTasks = appointments.filter(task => task.scheduled_date < today && task.status === 'pending');
     for (const task of pastTasks) {
-      const taskDate = new Date(task.scheduledDate);
+      const taskDate = new Date(task.scheduled_date);
       const diffDays = Math.floor((now.getTime() - taskDate.getTime()) / (1000 * 60 * 60 * 24));
       const overdueLabel = diffDays === 1 ? 'Hace 1 día' : `Hace ${diffDays} días`;
-      overdue.push({ ...task, overdueLabel } as ScheduledTask & { overdueLabel: string });
+      overdue.push({ ...task, overdueLabel });
     }
 
     return {
-      todaysPendingTasks: pending.sort((a, b) => a.scheduledTime.localeCompare(b.scheduledTime)),
+      todaysPendingTasks: pending.sort((a, b) => a.scheduled_time.localeCompare(b.scheduled_time)),
       todaysOverdueTasks: overdue.sort((a, b) => {
         // Sort by date first, then by time
-        if (a.scheduledDate !== b.scheduledDate) {
-          return a.scheduledDate.localeCompare(b.scheduledDate);
+        if (a.scheduled_date !== b.scheduled_date) {
+          return a.scheduled_date.localeCompare(b.scheduled_date);
         }
-        return a.scheduledTime.localeCompare(b.scheduledTime);
+        return a.scheduled_time.localeCompare(b.scheduled_time);
       })
     };
-  }, [leads, refreshKey]);
+  }, [appointments]);
 
-  const handleCompleteTask = (taskId: string) => {
-    const saved = localStorage.getItem('nexus_scheduled_tasks');
-    if (!saved) return;
-
-    const allTasks: ScheduledTask[] = JSON.parse(saved);
-    const updated = allTasks.map(t =>
-      t.id === taskId ? { ...t, completed: true } : t
-    );
-    localStorage.setItem('nexus_scheduled_tasks', JSON.stringify(updated));
-    setRefreshKey(prev => prev + 1);
-    window.dispatchEvent(new Event('storage'));
+  const handleCompleteTask = async (taskId: string) => {
+    await completeAppointment(taskId);
   };
 
   const handleEditTask = (task: ScheduledTask) => {
     setEditingTask(task);
     setTaskForm({
-      method: task.method,
-      date: task.scheduledDate,
-      time: task.scheduledTime,
-      notes: task.notes,
-      alertMinutesBefore: task.alertMinutesBefore || 15
+      method: task.method as ScheduledTask['method'],
+      date: task.scheduled_date,
+      time: task.scheduled_time,
+      notes: task.notes || '',
+      alertMinutesBefore: task.alert_minutes_before || 15
     });
   };
 
-  const handleSaveTask = () => {
+  const handleSaveTask = async () => {
     if (!editingTask || !taskForm.date || !taskForm.time) return;
 
-    const saved = localStorage.getItem('nexus_scheduled_tasks');
-    if (!saved) return;
-
-    const allTasks: ScheduledTask[] = JSON.parse(saved);
-    const updated = allTasks.map(t =>
-      t.id === editingTask.id
-        ? {
-          ...t,
-          method: taskForm.method,
-          scheduledDate: taskForm.date,
-          scheduledTime: taskForm.time,
-          notes: taskForm.notes,
-          alertMinutesBefore: taskForm.alertMinutesBefore,
-          alertSent: false
-        }
-        : t
-    );
-    localStorage.setItem('nexus_scheduled_tasks', JSON.stringify(updated));
+    await updateAppointment(editingTask.id, {
+      method: taskForm.method,
+      scheduled_date: taskForm.date,
+      scheduled_time: taskForm.time,
+      notes: taskForm.notes,
+      alert_minutes_before: taskForm.alertMinutesBefore
+    });
     setEditingTask(null);
-    setRefreshKey(prev => prev + 1);
-    window.dispatchEvent(new Event('storage'));
   };
 
-  const handleDeleteTask = (taskId: string) => {
-    const saved = localStorage.getItem('nexus_scheduled_tasks');
-    if (!saved) return;
-
-    const allTasks: ScheduledTask[] = JSON.parse(saved);
-    const updated = allTasks.filter(t => t.id !== taskId);
-    localStorage.setItem('nexus_scheduled_tasks', JSON.stringify(updated));
+  const handleDeleteTask = async (taskId: string) => {
+    await removeAppointment(taskId);
     setEditingTask(null);
-    setRefreshKey(prev => prev + 1);
-    window.dispatchEvent(new Event('storage'));
   };
 
   const getTaskIcon = (method: ScheduledTask['method']) => {
@@ -515,10 +479,10 @@ const Dashboard: React.FC<DashboardProps> = ({
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     {getTaskIcon(task.method)}
-                    <p className="text-sm font-medium text-white truncate">{task.leadName}</p>
+                    <p className="text-sm font-medium text-white truncate">{task.lead_name}</p>
                   </div>
                   <p className="text-xs text-gray-400 truncate">
-                    {task.scheduledTime} {task.notes && `• ${task.notes}`}
+                    {task.scheduled_time} {task.notes && `• ${task.notes}`}
                   </p>
                 </div>
                 <div className="flex gap-1 flex-shrink-0 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
@@ -575,7 +539,7 @@ const Dashboard: React.FC<DashboardProps> = ({
             ) : (
               todaysOverdueTasks.map(task => {
                 // Find the lead associated with this task
-                const taskLead = leads.find(l => l.id === task.leadId);
+                const taskLead = leads.find(l => l.id === task.lead_id);
                 return (
                   <div
                     key={task.id}
@@ -589,14 +553,14 @@ const Dashboard: React.FC<DashboardProps> = ({
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           {getTaskIcon(task.method)}
-                          <p className="text-sm font-medium text-white truncate hover:text-amber-400">{task.leadName}</p>
+                          <p className="text-sm font-medium text-white truncate hover:text-amber-400">{task.lead_name}</p>
                         </div>
                         <div className="flex items-center gap-2 mt-1">
                           <span className="text-xs bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded">
                             {task.overdueLabel}
                           </span>
                           <span className="text-xs text-gray-500">
-                            Era: {task.scheduledTime}
+                            Era: {task.scheduled_time}
                           </span>
                         </div>
                         {task.notes && (
@@ -722,7 +686,7 @@ const Dashboard: React.FC<DashboardProps> = ({
             <div className="flex items-center gap-2 pb-3 border-b border-white/10">
               <CalendarPlus size={20} className="text-blue-400" />
               <div>
-                <p className="font-bold text-white">{editingTask.leadName}</p>
+                <p className="font-bold text-white">{editingTask.lead_name}</p>
                 <p className="text-xs text-gray-400">Editando tarea programada</p>
               </div>
             </div>

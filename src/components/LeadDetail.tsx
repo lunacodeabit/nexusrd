@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import type { Lead, Currency } from '../types';
+import type { Lead, Currency, NoteEntry } from '../types';
 import { LeadStatus } from '../types';
 import { Phone, MessageSquare, Mail, Calendar, Clock, ChevronRight, ClipboardCheck, TrendingUp, Edit3, Check, X, Save } from 'lucide-react';
 import { getScoreColor, getScoreEmoji, type LeadScore } from '../services/leadScoring';
@@ -14,7 +14,7 @@ const formatPhoneNumber = (value: string): string => {
   if (value.startsWith('+')) {
     return '+' + value.slice(1).replace(/[^\d\s-]/g, '');
   }
-  
+
   const numbers = value.replace(/\D/g, '');
   if (numbers.length <= 3) return numbers;
   if (numbers.length <= 6) return `${numbers.slice(0, 3)}-${numbers.slice(3)}`;
@@ -44,7 +44,7 @@ const LeadDetail: React.FC<LeadDetailProps> = ({ lead, onClose, onUpdateStatus, 
   const [showFollowUps, setShowFollowUps] = useState(false);
   const [showTrackingModal, setShowTrackingModal] = useState(false);
   const budgetInputRef = useRef<HTMLInputElement>(null);
-  
+
   // Editable fields state
   const [editingField, setEditingField] = useState<string | null>(null);
   const [editValues, setEditValues] = useState({
@@ -133,10 +133,10 @@ const LeadDetail: React.FC<LeadDetailProps> = ({ lead, onClose, onUpdateStatus, 
     } else {
       setEditValues(prev => ({
         ...prev,
-        [field]: field === 'phone' ? formatPhoneNumber(lead.phone) : 
-                 field === 'email' ? lead.email :
-                 field === 'interestArea' ? lead.interestArea :
-                 lead.notes
+        [field]: field === 'phone' ? formatPhoneNumber(lead.phone) :
+          field === 'email' ? lead.email :
+            field === 'interestArea' ? lead.interestArea :
+              lead.notes
       }));
     }
     setEditingField(null);
@@ -187,6 +187,49 @@ const LeadDetail: React.FC<LeadDetailProps> = ({ lead, onClose, onUpdateStatus, 
     if (onUpdateScore) {
       onUpdateScore(lead.id, score);
     }
+    // Also save the answers to the lead
+    if (onUpdateLead) {
+      onUpdateLead(lead.id, {
+        qualificationAnswers: score.answers,
+        qualificationProgress: 100
+      });
+    }
+    setShowQualification(false);
+  };
+
+  const handleQualificationDraft = (
+    answers: Record<string, string>,
+    notes: Record<string, string>,
+    progress: number
+  ) => {
+    if (onUpdateLead) {
+      // Save answers and notes to lead
+      const updates: Partial<Lead> = {
+        qualificationAnswers: answers,
+        qualificationNotes: notes,
+        qualificationProgress: progress
+      };
+
+      // Add qualification notes to notesHistory
+      if (Object.keys(notes).length > 0) {
+        const newNotes: NoteEntry[] = Object.entries(notes).map(([qId, text]) => ({
+          id: `qual-${qId}-${Date.now()}`,
+          text: text,
+          createdAt: new Date().toISOString(),
+          source: 'qualification' as const,
+          questionId: qId
+        }));
+
+        // Merge with existing notes, avoiding duplicates by questionId
+        const existingNotes = lead.notesHistory || [];
+        const filteredExisting = existingNotes.filter(
+          n => n.source !== 'qualification' || !notes[n.questionId || '']
+        );
+        updates.notesHistory = [...filteredExisting, ...newNotes];
+      }
+
+      onUpdateLead(lead.id, updates);
+    }
     setShowQualification(false);
   };
 
@@ -211,7 +254,10 @@ const LeadDetail: React.FC<LeadDetailProps> = ({ lead, onClose, onUpdateStatus, 
     return (
       <LeadQualification
         leadName={lead.name}
+        initialAnswers={lead.qualificationAnswers}
+        initialNotes={lead.qualificationNotes}
         onComplete={handleQualificationComplete}
+        onSaveDraft={handleQualificationDraft}
         onCancel={() => setShowQualification(false)}
       />
     );
@@ -247,7 +293,7 @@ const LeadDetail: React.FC<LeadDetailProps> = ({ lead, onClose, onUpdateStatus, 
         </div>
         <h3 className="text-xl font-bold text-white">{lead.name}</h3>
         <p className="text-gray-400 text-sm">{lead.source}</p>
-        
+
         {/* Score Badge */}
         {lead.score && (
           <div className={`inline-flex items-center gap-2 mt-3 px-3 py-1.5 rounded-full border ${getScoreColor(lead.score.category)}`}>
@@ -256,7 +302,7 @@ const LeadDetail: React.FC<LeadDetailProps> = ({ lead, onClose, onUpdateStatus, 
             <span className="text-sm opacity-75">({lead.score.percentage}%)</span>
           </div>
         )}
-        
+
         {/* Follow-up Badge */}
         <div className="inline-flex items-center gap-2 mt-2 ml-2 px-3 py-1.5 rounded-full border bg-purple-500/20 text-purple-400 border-purple-500/30">
           <TrendingUp size={14} />
@@ -285,7 +331,7 @@ const LeadDetail: React.FC<LeadDetailProps> = ({ lead, onClose, onUpdateStatus, 
             Recalificar
           </button>
         )}
-        
+
         {/* Follow-ups Button */}
         <button
           onClick={() => setShowFollowUps(true)}
@@ -305,7 +351,7 @@ const LeadDetail: React.FC<LeadDetailProps> = ({ lead, onClose, onUpdateStatus, 
           <span>Estado: {lead.status}</span>
           <ChevronRight size={18} className={`transition-transform ${showStatusMenu ? 'rotate-90' : ''}`} />
         </button>
-        
+
         {showStatusMenu && (
           <div className="absolute top-full left-0 right-0 mt-1 bg-nexus-base border border-white/10 rounded-lg overflow-hidden z-10">
             {statusOptions.map((status) => (
@@ -315,9 +361,8 @@ const LeadDetail: React.FC<LeadDetailProps> = ({ lead, onClose, onUpdateStatus, 
                   onUpdateStatus(lead.id, status);
                   setShowStatusMenu(false);
                 }}
-                className={`w-full text-left px-4 py-2 hover:bg-white/5 transition-colors ${
-                  lead.status === status ? 'text-nexus-accent' : 'text-gray-300'
-                }`}
+                className={`w-full text-left px-4 py-2 hover:bg-white/5 transition-colors ${lead.status === status ? 'text-nexus-accent' : 'text-gray-300'
+                  }`}
               >
                 {status}
               </button>
@@ -365,7 +410,7 @@ const LeadDetail: React.FC<LeadDetailProps> = ({ lead, onClose, onUpdateStatus, 
             <>
               <span className="text-white flex-1">{formatPhoneNumber(lead.phone)}</span>
               {onUpdateLead && (
-                <button 
+                <button
                   onClick={() => {
                     setEditValues(prev => ({ ...prev, phone: formatPhoneNumber(lead.phone) }));
                     setEditingField('phone');
@@ -378,7 +423,7 @@ const LeadDetail: React.FC<LeadDetailProps> = ({ lead, onClose, onUpdateStatus, 
             </>
           )}
         </div>
-        
+
         {/* Email */}
         <div className="flex items-center gap-3 p-3 bg-nexus-base rounded-lg group">
           <Mail size={16} className="text-gray-400 flex-shrink-0" />
@@ -402,7 +447,7 @@ const LeadDetail: React.FC<LeadDetailProps> = ({ lead, onClose, onUpdateStatus, 
             <>
               <span className="text-white flex-1">{lead.email}</span>
               {onUpdateLead && (
-                <button 
+                <button
                   onClick={() => {
                     setEditValues(prev => ({ ...prev, email: lead.email }));
                     setEditingField('email');
@@ -424,7 +469,7 @@ const LeadDetail: React.FC<LeadDetailProps> = ({ lead, onClose, onUpdateStatus, 
           <p className="text-xs text-gray-500 flex items-center justify-between mb-1">
             Presupuesto
             {onUpdateLead && editingField !== 'budget' && (
-              <button 
+              <button
                 onClick={() => {
                   setEditValues(prev => ({
                     ...prev,
@@ -464,16 +509,16 @@ const LeadDetail: React.FC<LeadDetailProps> = ({ lead, onClose, onUpdateStatus, 
                 />
               </div>
               <div className="flex gap-1">
-                <button 
+                <button
                   type="button"
-                  onClick={() => handleSaveField('budget')} 
+                  onClick={() => handleSaveField('budget')}
                   className="text-green-400 hover:text-green-300 p-1 hover:bg-green-400/20 rounded"
                 >
                   <Check size={14} />
                 </button>
-                <button 
+                <button
                   type="button"
-                  onClick={() => handleCancelEdit('budget')} 
+                  onClick={() => handleCancelEdit('budget')}
                   className="text-red-400 hover:text-red-300 p-1 hover:bg-red-400/20 rounded"
                 >
                   <X size={14} />
@@ -484,13 +529,13 @@ const LeadDetail: React.FC<LeadDetailProps> = ({ lead, onClose, onUpdateStatus, 
             <p className="text-lg font-bold text-nexus-accent truncate">{getCurrencySymbol(lead.currency)} {formatMoney(lead.budget)}</p>
           )}
         </div>
-        
+
         {/* Interest Area */}
         <div className="bg-nexus-base p-3 rounded-lg group overflow-hidden">
           <p className="text-xs text-gray-500 flex items-center justify-between mb-1">
             Zona de interés
             {onUpdateLead && editingField !== 'interestArea' && (
-              <button 
+              <button
                 onClick={() => {
                   setEditValues(prev => ({ ...prev, interestArea: lead.interestArea }));
                   setEditingField('interestArea');
@@ -531,7 +576,7 @@ const LeadDetail: React.FC<LeadDetailProps> = ({ lead, onClose, onUpdateStatus, 
           <Calendar size={14} />
           <span>Creado: {new Date(lead.createdAt).toLocaleDateString()}</span>
         </div>
-        
+
         {/* Próximo seguimiento - Editable */}
         <div className="flex items-center gap-2 text-sm text-gray-400 group">
           <Clock size={14} />
@@ -562,7 +607,7 @@ const LeadDetail: React.FC<LeadDetailProps> = ({ lead, onClose, onUpdateStatus, 
             <>
               <span>Próximo seguimiento: {new Date(lead.nextFollowUpDate).toLocaleString()}</span>
               {onUpdateLead && (
-                <button 
+                <button
                   onClick={() => {
                     setEditValues(prev => ({ ...prev, nextFollowUp: new Date(lead.nextFollowUpDate).toISOString().slice(0, 16) }));
                     setEditingField('nextFollowUp');
@@ -575,7 +620,7 @@ const LeadDetail: React.FC<LeadDetailProps> = ({ lead, onClose, onUpdateStatus, 
             </>
           )}
         </div>
-        
+
         {lead.score?.qualifiedAt && (
           <div className="flex items-center gap-2 text-sm text-gray-400">
             <ClipboardCheck size={14} />
@@ -589,7 +634,7 @@ const LeadDetail: React.FC<LeadDetailProps> = ({ lead, onClose, onUpdateStatus, 
         <p className="text-xs text-gray-500 mb-2 flex items-center justify-between">
           Notas
           {onUpdateLead && editingField !== 'notes' && (
-            <button 
+            <button
               onClick={() => {
                 setEditValues(prev => ({ ...prev, notes: lead.notes }));
                 setEditingField('notes');
@@ -600,7 +645,7 @@ const LeadDetail: React.FC<LeadDetailProps> = ({ lead, onClose, onUpdateStatus, 
             </button>
           )}
         </p>
-        
+
         {editingField === 'notes' ? (
           <div className="space-y-2">
             <textarea
@@ -612,16 +657,16 @@ const LeadDetail: React.FC<LeadDetailProps> = ({ lead, onClose, onUpdateStatus, 
               placeholder="Agregar nota..."
             />
             <div className="flex gap-2 justify-end">
-              <button 
+              <button
                 type="button"
-                onClick={() => handleSaveField('notes')} 
+                onClick={() => handleSaveField('notes')}
                 className="px-3 py-1 bg-green-500/20 text-green-400 rounded text-sm hover:bg-green-500/30"
               >
                 Guardar
               </button>
-              <button 
+              <button
                 type="button"
-                onClick={() => handleCancelEdit('notes')} 
+                onClick={() => handleCancelEdit('notes')}
                 className="px-3 py-1 bg-red-500/20 text-red-400 rounded text-sm hover:bg-red-500/30"
               >
                 Cancelar
@@ -636,7 +681,7 @@ const LeadDetail: React.FC<LeadDetailProps> = ({ lead, onClose, onUpdateStatus, 
                 "{lead.notes}"
               </div>
             )}
-            
+
             {/* Historial de notas de seguimientos */}
             {followUps
               .filter(f => f.leadId === lead.id && f.notes)
@@ -656,7 +701,7 @@ const LeadDetail: React.FC<LeadDetailProps> = ({ lead, onClose, onUpdateStatus, 
                 </div>
               ))
             }
-            
+
             {!lead.notes && followUps.filter(f => f.leadId === lead.id && f.notes).length === 0 && (
               <p className="text-gray-500 text-sm italic">Sin notas</p>
             )}

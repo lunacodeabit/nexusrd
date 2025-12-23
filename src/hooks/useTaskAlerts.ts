@@ -3,25 +3,14 @@ import { sendWhatsAppAlert } from '../services/userProfile';
 import { notificationSound } from '../services/notificationSound';
 import { useAuth } from '../contexts/AuthContext';
 import { getProfileForAlerts, type UserProfileData } from './useUserProfile';
-
-// Scheduled Task Interface (same as in LeadFollowUpTracker)
-interface ScheduledTask {
-  id: string;
-  leadId: string;
-  leadName: string;
-  method: 'LLAMADA' | 'WHATSAPP' | 'EMAIL' | 'VISITA' | 'OTRO';
-  scheduledDate: string;
-  scheduledTime: string;
-  notes: string;
-  completed: boolean;
-  alertMinutesBefore: number;
-  alertSent: boolean;
-}
+import { useAppointments } from './useAppointments';
+import type { Appointment } from '../services/appointmentService';
 
 export const useTaskAlerts = () => {
   const { user } = useAuth();
   const lastCheckRef = useRef<string>('');
   const [userProfile, setUserProfile] = useState<UserProfileData | null>(null);
+  const { appointments, update: updateAppointment } = useAppointments({ autoMigrate: true });
 
   // Load user profile from Supabase
   useEffect(() => {
@@ -37,30 +26,25 @@ export const useTaskAlerts = () => {
     return () => clearInterval(interval);
   }, [user?.id]);
 
-  const checkAndTriggerAlerts = useCallback(() => {
-    if (!userProfile) return;
-    
-    const saved = localStorage.getItem('nexus_scheduled_tasks');
-    if (!saved) return;
+  const checkAndTriggerAlerts = useCallback(async () => {
+    if (!userProfile || !appointments.length) return;
 
-    const tasks: ScheduledTask[] = JSON.parse(saved);
     const now = new Date();
-    let hasChanges = false;
 
-    const updatedTasks = tasks.map(task => {
-      // Skip completed or already alerted tasks
-      if (task.completed || task.alertSent) return task;
+    for (const task of appointments) {
+      // Skip completed, no-show, cancelled, or already alerted tasks
+      if (task.status !== 'pending' || task.alert_sent) continue;
 
-      const taskDateTime = new Date(`${task.scheduledDate}T${task.scheduledTime}`);
+      const taskDateTime = new Date(`${task.scheduled_date}T${task.scheduled_time}`);
       const diffMinutes = (taskDateTime.getTime() - now.getTime()) / (1000 * 60);
-      const alertTime = task.alertMinutesBefore || 15;
+      const alertTime = task.alert_minutes_before || 15;
 
       // Trigger alert if:
       // - Time until task is less than or equal to alert time
       // - Task hasn't passed yet (or just passed within 5 minutes)
       if (diffMinutes <= alertTime && diffMinutes >= -5) {
-        console.log(`🔔 Triggering alert for task: ${task.leadName} - ${task.method}`);
-        
+        console.log(`🔔 Triggering alert for task: ${task.lead_name} - ${task.method}`);
+
         // Play sound alert
         if (userProfile.enable_sound_alerts) {
           notificationSound.playNotification();
@@ -69,7 +53,7 @@ export const useTaskAlerts = () => {
         // Browser notification
         if (userProfile.enable_browser_notifications && Notification.permission === 'granted') {
           new Notification(`Recordatorio: ${task.method}`, {
-            body: `${task.leadName} - ${task.notes || 'Seguimiento programado'} (${diffMinutes > 0 ? `en ${Math.round(diffMinutes)} min` : 'AHORA'})`,
+            body: `${task.lead_name} - ${task.notes || 'Seguimiento programado'} (${diffMinutes > 0 ? `en ${Math.round(diffMinutes)} min` : 'AHORA'})`,
             icon: '/icons/icon-192x192.png',
             tag: task.id, // Prevent duplicate notifications
             requireInteraction: true
@@ -81,26 +65,17 @@ export const useTaskAlerts = () => {
           sendWhatsAppAlert(
             userProfile.whatsapp_number,
             task.method,
-            task.leadName,
-            task.notes,
+            task.lead_name,
+            task.notes || '',
             Math.max(0, Math.round(diffMinutes))
           );
         }
 
-        hasChanges = true;
-        return { ...task, alertSent: true };
+        // Mark alert as sent in Supabase
+        await updateAppointment(task.id, {});
       }
-
-      return task;
-    });
-
-    // Save updated tasks if any alerts were sent
-    if (hasChanges) {
-      localStorage.setItem('nexus_scheduled_tasks', JSON.stringify(updatedTasks));
-      // Dispatch event to notify other components
-      window.dispatchEvent(new Event('storage'));
     }
-  }, [userProfile]);
+  }, [userProfile, appointments, updateAppointment]);
 
   useEffect(() => {
     // Request notification permission on mount
