@@ -16,6 +16,9 @@ export interface UserProfileData {
   enable_browser_notifications: boolean;
   role?: string;
   is_active?: boolean;
+  display_name?: string;
+  onboarding_completed?: boolean;
+  onboarding_completed_at?: string;
 }
 
 const defaultProfile: Omit<UserProfileData, 'id' | 'email'> = {
@@ -84,7 +87,7 @@ export function useUserProfile(): UseUserProfileReturn {
     } catch (err) {
       console.error('Error fetching user profile:', err);
       setError(err instanceof Error ? err : new Error('Error fetching profile'));
-      
+
       // Set minimal profile with defaults
       if (user) {
         setProfile({
@@ -142,7 +145,7 @@ const CACHE_DURATION = 30000; // 30 seconds
 
 export async function getProfileForAlerts(userId: string): Promise<UserProfileData | null> {
   const now = Date.now();
-  
+
   // Return cached if still fresh
   if (cachedProfile && cachedProfile.id === userId && now - lastFetchTime < CACHE_DURATION) {
     return cachedProfile;
@@ -173,7 +176,7 @@ export async function getProfileForAlerts(userId: string): Promise<UserProfileDa
       enable_browser_notifications: data?.enable_browser_notifications ?? true,
     };
     lastFetchTime = now;
-    
+
     return cachedProfile;
   } catch (err) {
     console.error('Error in getProfileForAlerts:', err);

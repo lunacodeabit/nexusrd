@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
 import LeadsManager from './components/LeadsManager';
@@ -11,6 +11,7 @@ import AutomationsView from './components/AutomationsView';
 import FollowUpTrackingPage from './components/FollowUpTrackingPage';
 import VoiceAssistant from './components/VoiceAssistant';
 import CalculadoraView from './components/CalculadoraView';
+import OnboardingWizard from './components/OnboardingWizard';
 import { AuthScreen } from './components/Auth';
 import { useAuth } from './contexts/AuthContext';
 import { useLeads } from './hooks/useLeads';
@@ -18,6 +19,7 @@ import { useFollowUps } from './hooks/useFollowUps';
 import { useActivities } from './hooks/useActivities';
 import { useTaskAlerts } from './hooks/useTaskAlerts';
 import { usePersonalTaskAlerts } from './hooks/usePersonalTaskAlerts';
+import { useUserProfile } from './hooks/useUserProfile';
 import type { Lead } from './types';
 import { LeadStatus } from './types';
 import type { LeadScore } from './services/leadScoring';
@@ -26,6 +28,15 @@ import type { TaskCompletion, LeadFollowUp } from './types/activities';
 const App: React.FC = () => {
   const { user, loading: authLoading } = useAuth();
   const [activeTab, setActiveTab] = useState('dashboard');
+  const { profile, isLoading: profileLoading } = useUserProfile();
+  const [showOnboarding, setShowOnboarding] = useState(false);
+
+  // Check if user needs onboarding
+  useEffect(() => {
+    if (profile && !profile.onboarding_completed) {
+      setShowOnboarding(true);
+    }
+  }, [profile]);
 
   // Supabase hooks
   const { leads, addLead: addLeadToDb, updateLead } = useLeads();
@@ -37,7 +48,7 @@ const App: React.FC = () => {
   usePersonalTaskAlerts(); // Personal planner alerts
 
   // Show auth screen if not logged in
-  if (authLoading) {
+  if (authLoading || profileLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-900 via-blue-800 to-indigo-900 flex items-center justify-center">
         <div className="text-white text-xl">Cargando...</div>
@@ -177,6 +188,9 @@ const App: React.FC = () => {
 
   return (
     <>
+      {showOnboarding && (
+        <OnboardingWizard onComplete={() => setShowOnboarding(false)} />
+      )}
       <Layout activeTab={activeTab} setActiveTab={setActiveTab}>
         {renderContent()}
       </Layout>
