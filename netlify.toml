@@ -14,6 +14,11 @@
 [functions."critical-alerts"]
   schedule = "*/15 8-20 * * *"
 
+# Morning summary - runs once per day at 8am Dominican Republic time (12:00 UTC)
+# Sends daily agenda summary to each user via Telegram
+[functions."morning-summary"]
+  schedule = "0 12 * * *"
+
 # Functions should NOT be redirected
 [[redirects]]
   from = "/.netlify/*"
