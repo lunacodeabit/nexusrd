@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sin Conexión - ALVEARE CRM</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background: linear-gradient(135deg, #001f3f 0%, #0a2647 50%, #001f3f 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      text-align: center;
+      padding: 20px;
+    }
+    
+    .container {
+      max-width: 400px;
+    }
+    
+    .icon {
+      width: 120px;
+      height: 120px;
+      background: rgba(255, 133, 27, 0.1);
+      border-radius: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 30px;
+      border: 2px solid rgba(255, 133, 27, 0.3);
+    }
+    
+    .icon svg {
+      width: 60px;
+      height: 60px;
+      color: #FF851B;
+    }
+    
+    h1 {
+      font-size: 28px;
+      margin-bottom: 15px;
+      color: #FF851B;
+    }
+    
+    p {
+      font-size: 16px;
+      color: rgba(255, 255, 255, 0.7);
+      margin-bottom: 30px;
+      line-height: 1.6;
+    }
+    
+    .retry-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      background: #FF851B;
+      color: #001f3f;
+      font-weight: bold;
+      padding: 15px 30px;
+      border-radius: 10px;
+      text-decoration: none;
+      font-size: 16px;
+      transition: transform 0.2s, opacity 0.2s;
+    }
+    
+    .retry-btn:hover {
+      opacity: 0.9;
+      transform: scale(1.02);
+    }
+    
+    .tips {
+      margin-top: 40px;
+      padding: 20px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 15px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .tips h3 {
+      font-size: 14px;
+      color: rgba(255, 255, 255, 0.5);
+      margin-bottom: 15px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    
+    .tips ul {
+      list-style: none;
+      text-align: left;
+    }
+    
+    .tips li {
+      font-size: 14px;
+      color: rgba(255, 255, 255, 0.6);
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .tips li:last-child {
+      border-bottom: none;
+    }
+    
+    .tips li::before {
+      content: "•";
+      color: #FF851B;
+    }
+    
+    .status {
+      margin-top: 20px;
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.3);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="icon">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636a9 9 0 010 12.728m0 0l-2.829-2.829m2.829 2.829L21 21M15.536 8.464a5 5 0 010 7.072m0 0l-2.829-2.829m-4.243 2.829a4.978 4.978 0 01-1.414-2.83m-1.414 5.658a9 9 0 01-2.167-9.238m7.824 2.167a1 1 0 111.414 1.414m-1.414-1.414L3 3" />
+      </svg>
+    </div>
+    
+    <h1>Sin Conexión</h1>
+    <p>No hay conexión a internet. Verifica tu WiFi o datos móviles e intenta de nuevo.</p>
+    
+    <a href="/" class="retry-btn" onclick="window.location.reload(); return false;">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+      </svg>
+      Reintentar
+    </a>
+    
+    <div class="tips">
+      <h3>Mientras tanto puedes:</h3>
+      <ul>
+        <li>Revisar tus notas de clientes anteriores</li>
+        <li>Preparar tus próximas llamadas</li>
+        <li>Revisar tu agenda del día</li>
+      </ul>
+    </div>
+    
+    <p class="status">ALVEARE CRM v2.0 - Modo Offline</p>
+  </div>
+  
+  <script>
+    // Auto-retry when connection is restored
+    window.addEventListener('online', () => {
+      window.location.reload();
+    });
+    
+    // Check connection status periodically
+    setInterval(() => {
+      if (navigator.onLine) {
+        window.location.reload();
+      }
+    }, 5000);
+  </script>
+</body>
+</html>

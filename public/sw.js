@@ -1,14 +1,20 @@
-// Service Worker for NEXUS CRM PWA
-// Version is auto-incremented on each build
-const CACHE_VERSION = 'v20241221-1';
-const CACHE_NAME = `nexus-crm-${CACHE_VERSION}`;
+// Service Worker for ALVEARE CRM PWA
+// Enhanced version with full offline support
+const CACHE_VERSION = 'v20241223-2';
+const CACHE_NAME = `alveare-crm-${CACHE_VERSION}`;
+const OFFLINE_URL = '/offline.html';
 
-// Files to cache on install (only truly static files)
+// Files to cache on install
 const STATIC_CACHE = [
-  '/manifest.json'
+  '/',
+  '/index.html',
+  '/offline.html',
+  '/manifest.json',
+  '/icons/icon-192x192.png',
+  '/icons/icon-512x512.png'
 ];
 
-// Install event - cache static files and skip waiting
+// Install event - cache static files
 self.addEventListener('install', (event) => {
   console.log(`[SW] Installing version ${CACHE_VERSION}`);
 
@@ -18,13 +24,20 @@ self.addEventListener('install', (event) => {
         console.log('[SW] Caching static files');
         return cache.addAll(STATIC_CACHE);
       })
+      .then(() => {
+        // Pre-cache offline page
+        return caches.open(CACHE_NAME).then(cache => {
+          return fetch(OFFLINE_URL).then(response => {
+            return cache.put(OFFLINE_URL, response);
+          });
+        });
+      })
   );
 
-  // Force the waiting service worker to become active
   self.skipWaiting();
 });
 
-// Activate event - clean up old caches and take control
+// Activate event - clean up old caches
 self.addEventListener('activate', (event) => {
   console.log(`[SW] Activating version ${CACHE_VERSION}`);
 
@@ -32,20 +45,19 @@ self.addEventListener('activate', (event) => {
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
-          if (cacheName !== CACHE_NAME && cacheName.startsWith('nexus-crm-')) {
+          if (cacheName !== CACHE_NAME && cacheName.startsWith('alveare-crm-')) {
             console.log(`[SW] Deleting old cache: ${cacheName}`);
             return caches.delete(cacheName);
           }
         })
       );
     }).then(() => {
-      // Take control of all clients immediately
       return self.clients.claim();
     })
   );
 });
 
-// Fetch event - Network First strategy for HTML/JS/CSS, Cache First for assets
+// Fetch event - Network First with offline fallback
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
@@ -54,29 +66,24 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Skip cross-origin requests
-  if (url.origin !== location.origin) {
+  // Skip cross-origin requests (except for app-related ones)
+  if (url.origin !== location.origin &&
+    !url.hostname.includes('supabase') &&
+    !url.hostname.includes('telegram')) {
     return;
   }
 
-  // Skip API requests (Netlify functions, Supabase, etc)
-  if (url.pathname.startsWith('/.netlify/') ||
-    url.pathname.startsWith('/api/') ||
-    url.hostname.includes('supabase')) {
+  // Skip API requests - let them fail naturally
+  if (url.pathname.startsWith('/.netlify/') || url.pathname.startsWith('/api/')) {
     return;
   }
 
-  // For HTML, JS, CSS - use Network First (always get latest)
-  if (event.request.destination === 'document' ||
-    url.pathname.endsWith('.js') ||
-    url.pathname.endsWith('.css') ||
-    url.pathname === '/' ||
-    url.pathname === '/index.html') {
-
+  // For navigation requests (HTML pages)
+  if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request)
         .then((response) => {
-          // Clone and cache the fresh response
+          // Cache successful HTML responses
           const responseToCache = response.clone();
           caches.open(CACHE_NAME).then((cache) => {
             cache.put(event.request, responseToCache);
@@ -84,37 +91,85 @@ self.addEventListener('fetch', (event) => {
           return response;
         })
         .catch(() => {
-          // Only use cache if network fails
-          return caches.match(event.request);
+          // Return offline page when network fails
+          return caches.match(OFFLINE_URL);
         })
     );
     return;
   }
 
-  // For images and other assets - use Cache First (faster)
-  event.respondWith(
-    caches.match(event.request)
-      .then((response) => {
+  // For JS, CSS, and other assets - Stale While Revalidate
+  if (url.pathname.endsWith('.js') ||
+    url.pathname.endsWith('.css') ||
+    url.pathname.includes('/assets/')) {
+    event.respondWith(
+      caches.match(event.request).then((cachedResponse) => {
+        const fetchPromise = fetch(event.request).then((networkResponse) => {
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, networkResponse.clone());
+          });
+          return networkResponse;
+        });
+
+        return cachedResponse || fetchPromise;
+      })
+    );
+    return;
+  }
+
+  // For images and icons - Cache First
+  if (url.pathname.startsWith('/icons/') ||
+    event.request.destination === 'image') {
+    event.respondWith(
+      caches.match(event.request).then((response) => {
         if (response) {
           return response;
         }
 
-        return fetch(event.request).then((response) => {
-          // Don't cache non-successful responses
-          if (!response || response.status !== 200) {
-            return response;
+        return fetch(event.request).then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const responseToCache = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, responseToCache);
+            });
           }
-
-          const responseToCache = response.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseToCache);
-          });
-
-          return response;
+          return networkResponse;
         });
+      })
+    );
+    return;
+  }
+
+  // Default: Network First
+  event.respondWith(
+    fetch(event.request)
+      .then((response) => {
+        const responseToCache = response.clone();
+        caches.open(CACHE_NAME).then((cache) => {
+          cache.put(event.request, responseToCache);
+        });
+        return response;
+      })
+      .catch(() => {
+        return caches.match(event.request);
       })
   );
 });
+
+// Background Sync for offline actions
+self.addEventListener('sync', (event) => {
+  console.log('[SW] Background sync:', event.tag);
+
+  if (event.tag === 'sync-leads') {
+    event.waitUntil(syncLeads());
+  }
+});
+
+async function syncLeads() {
+  // Get pending actions from IndexedDB and sync when online
+  console.log('[SW] Syncing offline leads...');
+  // This would sync any leads created while offline
+}
 
 // Push notification event
 self.addEventListener('push', (event) => {
@@ -149,9 +204,13 @@ self.addEventListener('notificationclick', (event) => {
   }
 });
 
-// Message event - allow page to request update
+// Message event - handle skip waiting and cache updates
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
+  }
+
+  if (event.data && event.data.type === 'GET_VERSION') {
+    event.ports[0].postMessage({ version: CACHE_VERSION });
   }
 });
