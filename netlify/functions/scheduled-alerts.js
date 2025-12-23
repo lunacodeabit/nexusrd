@@ -1,6 +1,7 @@
 // Scheduled Alerts Function
 // This runs every minute on Netlify to check and send alerts
 // Works 24/7 even if no one has the page open
+// Handles: personal_tasks AND scheduled_appointments (calendar)
 
 const { createClient } = require('@supabase/supabase-js');
 
@@ -33,8 +34,8 @@ async function sendTelegram(chatId, message) {
   }
 }
 
-// Format alert message
-function formatMessage(task, minutesBefore) {
+// Format personal task alert message
+function formatTaskMessage(task, minutesBefore) {
   const categoryEmoji = {
     'trabajo': '💼',
     'cliente': '👤',
@@ -54,6 +55,45 @@ ${task.description ? `📝 ${task.description}` : ''}
 ¡No lo olvides!`;
 }
 
+// Format appointment alert message
+function formatAppointmentMessage(appt, minutesBefore) {
+  const methodEmoji = {
+    'LLAMADA': '📞',
+    'WHATSAPP': '💬',
+    'EMAIL': '📧',
+    'VISITA': '🏠',
+    'OTRO': '📌',
+  };
+  const emoji = methodEmoji[appt.method] || '📅';
+  const typeLabel = appt.appointment_type === 'virtual' ? '🖥️ Virtual' :
+    appt.appointment_type === 'in_person' ? '🏢 Presencial' : '';
+
+  return `📅 <b>CITA PROGRAMADA</b>
+
+${emoji} <b>${appt.method}</b> con <b>${appt.lead_name}</b>
+🕐 Hora: ${appt.scheduled_time}
+⏳ En ${minutesBefore} minutos
+${typeLabel ? `📍 ${typeLabel}` : ''}
+${appt.notes ? `📝 ${appt.notes}` : ''}
+
+<a href="https://alvearecrm.netlify.app/">Abrir CRM →</a>`;
+}
+
+// Check if it's time to send an alert
+function shouldSendAlert(scheduledTime, alertMinutesBefore, currentHour, currentMinute) {
+  const [taskHour, taskMinute] = scheduledTime.split(':').map(Number);
+  const taskTimeMinutes = taskHour * 60 + taskMinute;
+  const alertMinutes = alertMinutesBefore || 0;
+  const alertTimeMinutes = taskTimeMinutes - alertMinutes;
+  const currentTimeMinutes = currentHour * 60 + currentMinute;
+
+  // diff = how many minutes past the alert time we are
+  const diff = currentTimeMinutes - alertTimeMinutes;
+
+  // Send if we're within 0 to +3 minutes of alert time
+  return diff >= 0 && diff <= 3;
+}
+
 // Main handler - runs on schedule
 exports.handler = async (event, context) => {
   console.log('🔔 Scheduled alerts check running at:', new Date().toISOString());
@@ -68,26 +108,18 @@ exports.handler = async (event, context) => {
     const today = now.toISOString().split('T')[0]; // YYYY-MM-DD
 
     // IMPORTANT: Netlify runs in UTC. Tasks are stored in local time (Dominican Republic = UTC-4)
-    // We need to convert UTC to local time for comparison
     const TIMEZONE_OFFSET = -4; // Dominican Republic (AST = UTC-4)
     const localNow = new Date(now.getTime() + (TIMEZONE_OFFSET * 60 * 60 * 1000));
     const currentHour = localNow.getUTCHours();
     const currentMinute = localNow.getUTCMinutes();
 
-    console.log(`🔔 Checking for alerts - Server UTC: ${now.getUTCHours()}:${String(now.getUTCMinutes()).padStart(2, '0')}, Local (UTC${TIMEZONE_OFFSET}): ${currentHour}:${String(currentMinute).padStart(2, '0')} on ${today}`);
-    console.log(`Supabase URL: ${supabaseUrl ? 'SET' : 'MISSING'}`);
-    console.log(`Supabase Key: ${supabaseKey ? 'SET' : 'MISSING'}`);
+    console.log(`🔔 Local time (UTC${TIMEZONE_OFFSET}): ${currentHour}:${String(currentMinute).padStart(2, '0')} on ${today}`);
 
-    // First, let's see ALL tasks for today (for debugging)
-    const { data: allTasks, error: allError } = await supabase
-      .from('personal_tasks')
-      .select('*')
-      .eq('scheduled_date', today);
+    let alertsSent = 0;
 
-    console.log(`📋 ALL tasks for today (${today}):`, JSON.stringify(allTasks, null, 2));
-    if (allError) console.log('All tasks error:', allError);
-
-    // Get tasks that need alerts
+    // =====================================================
+    // 1. CHECK PERSONAL TASKS (Mi Planner)
+    // =====================================================
     const { data: tasks, error: tasksError } = await supabase
       .from('personal_tasks')
       .select('*')
@@ -97,77 +129,90 @@ exports.handler = async (event, context) => {
 
     if (tasksError) {
       console.error('Error fetching tasks:', tasksError);
-      return { statusCode: 500, body: JSON.stringify(tasksError) };
-    }
+    } else {
+      console.log(`📋 Personal tasks to check: ${tasks?.length || 0}`);
 
-    // Filter tasks that have alerts configured (including 0 for exact-time alerts)
-    const tasksWithAlerts = (tasks || []).filter(t =>
-      t.scheduled_time && t.alert_minutes_before !== undefined && t.alert_minutes_before !== null
-    );
+      for (const task of (tasks || [])) {
+        if (!task.scheduled_time || task.alert_minutes_before === undefined) continue;
 
-    console.log(`📌 Tasks with alert config: ${tasksWithAlerts.length}`);
+        if (shouldSendAlert(task.scheduled_time, task.alert_minutes_before, currentHour, currentMinute)) {
+          const { data: userProfile } = await supabase
+            .from('user_profiles')
+            .select('telegram_chat_id, enable_telegram_alerts')
+            .eq('id', task.user_id)
+            .single();
 
-    let alertsSent = 0;
+          if (userProfile?.enable_telegram_alerts && userProfile?.telegram_chat_id) {
+            console.log(`🔔 Sending alert for task: ${task.title}`);
+            const message = formatTaskMessage(task, task.alert_minutes_before);
+            const sent = await sendTelegram(userProfile.telegram_chat_id, message);
 
-    for (const task of tasksWithAlerts) {
-      // Parse task time
-      const [taskHour, taskMinute] = task.scheduled_time.split(':').map(Number);
-
-      // Calculate alert time (when the alert should fire)
-      const taskTimeMinutes = taskHour * 60 + taskMinute;
-      const alertMinutes = task.alert_minutes_before || 0;
-      const alertTimeMinutes = taskTimeMinutes - alertMinutes;
-      const currentTimeMinutes = currentHour * 60 + currentMinute;
-
-      // Check if it's time to send alert (within window)
-      // diff = how many minutes past the alert time we are
-      const diff = currentTimeMinutes - alertTimeMinutes;
-
-      console.log(`Task "${task.title}": scheduled ${task.scheduled_time}, alert ${alertMinutes}min before = ${Math.floor(alertTimeMinutes / 60)}:${String(alertTimeMinutes % 60).padStart(2, '0')}, current: ${currentHour}:${String(currentMinute).padStart(2, '0')}, diff: ${diff} min`);
-
-      // Send if we're within 0 to +3 minutes of alert time (tighter window for more accuracy)
-      if (diff >= 0 && diff <= 3) {
-        // Get user profile for this task
-        const { data: userProfile, error: profileError } = await supabase
-          .from('user_profiles')
-          .select('telegram_chat_id, enable_telegram_alerts')
-          .eq('id', task.user_id)
-          .single();
-
-        if (profileError) {
-          console.error(`Error getting profile for user ${task.user_id}:`, profileError);
-          continue;
-        }
-
-        if (userProfile?.enable_telegram_alerts && userProfile?.telegram_chat_id) {
-          console.log(`🔔 Sending alert for: ${task.title} to ${userProfile.telegram_chat_id}`);
-
-          const message = formatMessage(task, task.alert_minutes_before);
-          const sent = await sendTelegram(userProfile.telegram_chat_id, message);
-
-          if (sent) {
-            // Mark alert as sent
-            await supabase
-              .from('personal_tasks')
-              .update({ alert_sent: true })
-              .eq('id', task.id);
-
-            alertsSent++;
-            console.log(`✅ Alert sent for: ${task.title}`);
+            if (sent) {
+              await supabase
+                .from('personal_tasks')
+                .update({ alert_sent: true })
+                .eq('id', task.id);
+              alertsSent++;
+              console.log(`✅ Task alert sent: ${task.title}`);
+            }
           }
-        } else {
-          console.log(`⚠️ User has no Telegram configured for task: ${task.title}`);
         }
       }
     }
 
-    console.log(`🔔 Alerts sent: ${alertsSent}`);
+    // =====================================================
+    // 2. CHECK SCHEDULED APPOINTMENTS (Citas del Calendario)
+    // =====================================================
+    const { data: appointments, error: apptError } = await supabase
+      .from('scheduled_appointments')
+      .select('*')
+      .eq('scheduled_date', today)
+      .eq('status', 'pending')
+      .eq('alert_sent', false);
+
+    if (apptError) {
+      console.error('Error fetching appointments:', apptError);
+    } else {
+      console.log(`📅 Appointments to check: ${appointments?.length || 0}`);
+
+      for (const appt of (appointments || [])) {
+        if (!appt.scheduled_time) continue;
+
+        const alertMinutes = appt.alert_minutes_before || 15;
+
+        if (shouldSendAlert(appt.scheduled_time, alertMinutes, currentHour, currentMinute)) {
+          const { data: userProfile } = await supabase
+            .from('user_profiles')
+            .select('telegram_chat_id, enable_telegram_alerts')
+            .eq('id', appt.user_id)
+            .single();
+
+          if (userProfile?.enable_telegram_alerts && userProfile?.telegram_chat_id) {
+            console.log(`📅 Sending alert for appointment: ${appt.lead_name} - ${appt.method}`);
+            const message = formatAppointmentMessage(appt, alertMinutes);
+            const sent = await sendTelegram(userProfile.telegram_chat_id, message);
+
+            if (sent) {
+              await supabase
+                .from('scheduled_appointments')
+                .update({ alert_sent: true })
+                .eq('id', appt.id);
+              alertsSent++;
+              console.log(`✅ Appointment alert sent: ${appt.lead_name}`);
+            }
+          }
+        }
+      }
+    }
+
+    console.log(`🔔 Total alerts sent: ${alertsSent}`);
 
     return {
       statusCode: 200,
       body: JSON.stringify({
         message: 'Alerts checked',
-        tasksChecked: tasks?.length || 0,
+        personalTasksChecked: tasks?.length || 0,
+        appointmentsChecked: appointments?.length || 0,
         alertsSent,
         timestamp: now.toISOString()
       }),
