@@ -162,8 +162,56 @@ exports.handler = async (event) => {
 
         console.log('✅ Lead created successfully:', insertedLead.id);
 
-        // Optional: Send Telegram notification
-        // You could add Telegram notification here if desired
+        // Send Telegram notification to the advisor
+        if (userId) {
+            try {
+                // Get user's Telegram chat ID from their profile
+                const { data: profile } = await supabase
+                    .from('user_profiles')
+                    .select('telegram_chat_id, enable_telegram_alerts')
+                    .eq('id', userId)
+                    .single();
+
+                if (profile?.telegram_chat_id && profile?.enable_telegram_alerts) {
+                    const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+
+                    if (TELEGRAM_BOT_TOKEN) {
+                        const message = `🆕 <b>Nuevo Lead!</b>
+
+👤 <b>${name}</b>
+📞 ${phone || 'Sin teléfono'}
+📧 ${email || 'Sin email'}
+📍 Fuente: ${source || 'AlterEstate'}
+🏷️ Campaña: ${campaign || 'No especificada'}
+
+<a href="https://alvearecrm.netlify.app/">Abrir CRM →</a>`;
+
+                        const telegramResponse = await fetch(
+                            `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`,
+                            {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    chat_id: profile.telegram_chat_id,
+                                    text: message,
+                                    parse_mode: 'HTML',
+                                }),
+                            }
+                        );
+
+                        const telegramResult = await telegramResponse.json();
+                        if (telegramResult.ok) {
+                            console.log('📱 Telegram notification sent to:', profile.telegram_chat_id);
+                        } else {
+                            console.log('⚠️ Telegram notification failed:', telegramResult.description);
+                        }
+                    }
+                }
+            } catch (telegramError) {
+                console.log('⚠️ Error sending Telegram notification:', telegramError.message);
+                // Don't fail the whole request if Telegram fails
+            }
+        }
 
         return {
             statusCode: 201,

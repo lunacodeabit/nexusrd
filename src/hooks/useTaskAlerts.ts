@@ -4,7 +4,6 @@ import { notificationSound } from '../services/notificationSound';
 import { useAuth } from '../contexts/AuthContext';
 import { getProfileForAlerts, type UserProfileData } from './useUserProfile';
 import { useAppointments } from './useAppointments';
-import type { Appointment } from '../services/appointmentService';
 
 export const useTaskAlerts = () => {
   const { user } = useAuth();

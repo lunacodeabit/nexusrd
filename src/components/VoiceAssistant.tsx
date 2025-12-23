@@ -140,20 +140,6 @@ export default function VoiceAssistant() {
                 'other': 'OTRO',
             };
 
-            const taskData = {
-                user_id: user.id,
-                lead_id: matchedLead?.id || null,
-                lead_name: matchedLead?.name || parsedCommand.lead_name || 'Sin nombre',
-                lead_phone: matchedLead?.phone || null,
-                task_type: parsedCommand.task_type === 'visit' ? 'visit' : parsedCommand.task_type,
-                appointment_type: parsedCommand.appointment_type,
-                scheduled_date: parsedCommand.date || new Date().toISOString().split('T')[0],
-                scheduled_time: parsedCommand.time || '09:00',
-                notes: parsedCommand.notes,
-                is_completed: false,
-                alert_sent: false,
-            };
-
             // Save to Supabase scheduled_appointments table
             const { error: insertError } = await supabase
                 .from('scheduled_appointments')

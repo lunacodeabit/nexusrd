@@ -47,7 +47,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   const { rules } = useAutomations();
   const { pendingAutomations } = useAutomationEngine({ leads, rules });
   const { myMetrics } = useAppointmentMetrics();
-  const { appointments, complete: completeAppointment, update: updateAppointment, remove: removeAppointment, refresh: refreshAppointments } = useAppointments();
+  const { appointments, complete: completeAppointment, update: updateAppointment, remove: removeAppointment } = useAppointments();
   const [showNotifications, setShowNotifications] = useState(false);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [editingTask, setEditingTask] = useState<ScheduledTask | null>(null);
@@ -58,7 +58,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     notes: '',
     alertMinutesBefore: 15
   });
-  const [refreshKey, setRefreshKey] = useState(0);
+  const [_refreshKey, setRefreshKey] = useState(0);
   const [showAlertsModal, setShowAlertsModal] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
   const [showCallsModal, setShowCallsModal] = useState(false);

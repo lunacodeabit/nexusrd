@@ -40,6 +40,9 @@ export function useLeads() {
         notes: lead.notes || '',
         createdAt: lead.created_at,
         nextFollowUpDate: lead.next_follow_up_date,
+        qualificationAnswers: lead.qualification_answers || {},
+        qualificationNotes: lead.qualification_notes || {},
+        qualificationProgress: lead.qualification_progress || 0,
         score: lead.score ? {
           total: lead.score,
           percentage: Math.round((lead.score / 50) * 100),
@@ -134,6 +137,10 @@ export function useLeads() {
     if (updates.interestArea !== undefined) dbUpdates.interest_area = updates.interestArea;
     if (updates.notes !== undefined) dbUpdates.notes = updates.notes;
     if (updates.nextFollowUpDate !== undefined) dbUpdates.next_follow_up_date = updates.nextFollowUpDate;
+    // Qualification draft fields
+    if (updates.qualificationAnswers !== undefined) dbUpdates.qualification_answers = updates.qualificationAnswers;
+    if (updates.qualificationNotes !== undefined) dbUpdates.qualification_notes = updates.qualificationNotes;
+    if (updates.qualificationProgress !== undefined) dbUpdates.qualification_progress = updates.qualificationProgress;
     if (updates.score !== undefined) {
       dbUpdates.score = updates.score.total;
       dbUpdates.score_category = updates.score.category;

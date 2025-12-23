@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   Phone, MessageSquare, Mail, MapPin, MoreHorizontal,
   Plus, CheckCircle2, Clock, AlertCircle,
-  TrendingUp, CalendarPlus, Bell, X, Pencil, Check, Ban
+  TrendingUp, CalendarPlus, Bell, X, Pencil, Check
 } from 'lucide-react';
 import type { Lead } from '../types';
 import type { LeadFollowUp } from '../types/activities';
@@ -55,7 +55,7 @@ const LeadFollowUpTracker: React.FC<LeadFollowUpTrackerProps> = ({
   const [editingFollowUpId, setEditingFollowUpId] = useState<string | null>(null);
   const [editingNotes, setEditingNotes] = useState('');
   // Use Supabase-backed appointments hook
-  const { appointments, create: createAppointment, update: updateAppointment, remove: deleteAppointment, complete: completeAppointment, noShow: noShowAppointment, loading: appointmentsLoading } = useAppointments({ leadId: lead.id });
+  const { appointments, create: createAppointment, update: updateAppointment, remove: deleteAppointment, complete: completeAppointment } = useAppointments({ leadId: lead.id });
   const [newFollowUp, setNewFollowUp] = useState({
     method: 'WHATSAPP' as LeadFollowUp['method'],
     notes: '',
@@ -191,9 +191,6 @@ const LeadFollowUpTracker: React.FC<LeadFollowUpTrackerProps> = ({
     await completeAppointment(taskId);
   };
 
-  const handleNoShowTask = async (taskId: string) => {
-    await noShowAppointment(taskId);
-  };
 
   const handleDeleteTask = async (taskId: string) => {
     await deleteAppointment(taskId);
