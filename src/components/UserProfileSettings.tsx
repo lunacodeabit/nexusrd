@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { User, Mail, Bell, Volume2, MessageSquare, Save, Check, Send, RefreshCw } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { 
-  getUserProfileFromSupabase, 
-  saveUserProfileToSupabase, 
+import {
+  getUserProfileFromSupabase,
+  saveUserProfileToSupabase,
   migrateLocalStorageToSupabase
 } from '../services/userProfileService';
 import { sendTelegramAlert, getTelegramBotLink } from '../services/telegramService';
@@ -11,7 +11,7 @@ import { sendTelegramAlert, getTelegramBotLink } from '../services/telegramServi
 // Telegram icon component
 const TelegramIcon = ({ size = 18, className = "" }: { size?: number; className?: string }) => (
   <svg viewBox="0 0 24 24" width={size} height={size} className={className} fill="currentColor">
-    <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
+    <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z" />
   </svg>
 );
 
@@ -64,7 +64,7 @@ const UserProfileSettings: React.FC = () => {
 
         // Then fetch the profile from Supabase
         const data = await getUserProfileFromSupabase(user.id);
-        
+
         if (data) {
           setProfile({
             full_name: data.full_name || '',
@@ -133,13 +133,13 @@ const UserProfileSettings: React.FC = () => {
       alert('Por favor ingresa tu ID de Telegram primero');
       return;
     }
-    
+
     setTelegramTesting(true);
     const success = await sendTelegramAlert(
       profile.telegram_chat_id,
       `✅ <b>Prueba exitosa!</b>\n\nTu configuración de Telegram está funcionando.\n\nRecibirás alertas de:\n• Llamadas programadas\n• Visitas con clientes\n• Tareas pendientes`
     );
-    
+
     setTelegramTesting(false);
     if (success) {
       setTelegramTestSent(true);
@@ -212,11 +212,10 @@ const UserProfileSettings: React.FC = () => {
             <button
               onClick={handleTestTelegram}
               disabled={telegramTesting || !profile.telegram_chat_id}
-              className={`px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2 ${
-                telegramTestSent 
-                  ? 'bg-green-500 text-white' 
+              className={`px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2 ${telegramTestSent
+                  ? 'bg-green-500 text-white'
                   : 'bg-sky-500/20 text-sky-400 hover:bg-sky-500/30'
-              } disabled:opacity-50`}
+                } disabled:opacity-50`}
             >
               {telegramTesting ? (
                 <span className="animate-spin">⏳</span>
@@ -274,7 +273,7 @@ const UserProfileSettings: React.FC = () => {
             <Bell size={16} className="text-yellow-400" />
             Preferencias de Alertas
           </h3>
-          
+
           <div className="space-y-3">
             {/* Telegram Alerts - Recommended */}
             <label className="flex items-center justify-between p-3 bg-sky-500/10 border border-sky-500/20 rounded-lg cursor-pointer hover:bg-sky-500/20 transition-colors">
@@ -350,11 +349,10 @@ const UserProfileSettings: React.FC = () => {
         <button
           onClick={handleSave}
           disabled={isSaving}
-          className={`w-full py-3 rounded-lg font-bold transition-all flex items-center justify-center gap-2 ${
-            saved 
-              ? 'bg-green-500 text-white' 
+          className={`w-full py-3 rounded-lg font-bold transition-all flex items-center justify-center gap-2 ${saved
+              ? 'bg-green-500 text-white'
               : 'bg-nexus-accent text-nexus-base hover:opacity-90'
-          } disabled:opacity-50`}
+            } disabled:opacity-50`}
         >
           {isSaving ? (
             <>
@@ -373,6 +371,32 @@ const UserProfileSettings: React.FC = () => {
             </>
           )}
         </button>
+
+        {/* Tutorial Button */}
+        <div className="pt-4 border-t border-white/10">
+          <button
+            onClick={() => {
+              // Reset onboarding flag to show tutorial again
+              if (user) {
+                import('../lib/supabase').then(({ supabase }) => {
+                  supabase
+                    .from('user_profiles')
+                    .update({ onboarding_completed: false })
+                    .eq('id', user.id)
+                    .then(() => {
+                      window.location.reload();
+                    });
+                });
+              }
+            }}
+            className="w-full py-3 bg-purple-500/20 hover:bg-purple-500/30 text-purple-400 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+          >
+            🎓 Ver Tutorial de la App
+          </button>
+          <p className="text-gray-500 text-xs text-center mt-2">
+            Revisa las funciones principales del CRM
+          </p>
+        </div>
       </div>
     </div>
   );

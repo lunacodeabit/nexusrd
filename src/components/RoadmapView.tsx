@@ -80,14 +80,15 @@ const ROADMAP_DATA: RoadmapPhase[] = [
             {
                 id: 'offline',
                 name: 'Modo Offline',
-                progress: 30,
-                status: 'planned',
+                progress: 100,
+                status: 'completed',
                 description: 'Funcionalidad básica sin internet',
+                completedDate: '2024-12',
                 subTasks: [
                     { name: 'Service Worker básico', completed: true },
-                    { name: 'Cache de datos esenciales', completed: false },
-                    { name: 'Sincronización al reconectar', completed: false },
-                    { name: 'Indicador de estado offline', completed: false },
+                    { name: 'Cache de datos esenciales', completed: true },
+                    { name: 'Sincronización al reconectar', completed: true },
+                    { name: 'Indicador de estado offline', completed: true },
                 ]
             },
         ]
@@ -320,8 +321,8 @@ export default function RoadmapView() {
                                             <div
                                                 key={item.id}
                                                 className={`flex items-center gap-4 p-3 bg-nexus-base/50 rounded-lg transition-colors ${isClickable
-                                                        ? 'cursor-pointer hover:bg-nexus-base/80 hover:ring-1 hover:ring-nexus-accent/50'
-                                                        : ''
+                                                    ? 'cursor-pointer hover:bg-nexus-base/80 hover:ring-1 hover:ring-nexus-accent/50'
+                                                    : ''
                                                     }`}
                                                 onClick={() => handleItemClick(item)}
                                             >
@@ -375,7 +376,7 @@ export default function RoadmapView() {
 
             {/* Last Updated */}
             <div className="text-center text-gray-500 text-sm">
-                Última actualización: Diciembre 21, 2024
+                Última actualización: Diciembre 23, 2024
             </div>
 
             {/* Subtasks Modal */}
@@ -425,8 +426,8 @@ export default function RoadmapView() {
                                 <div
                                     key={index}
                                     className={`flex items-center gap-3 p-3 rounded-lg ${task.completed
-                                            ? 'bg-green-500/10 border border-green-500/20'
-                                            : 'bg-nexus-base/50 border border-white/5'
+                                        ? 'bg-green-500/10 border border-green-500/20'
+                                        : 'bg-nexus-base/50 border border-white/5'
                                         }`}
                                 >
                                     {task.completed ? (
