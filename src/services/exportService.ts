@@ -1,10 +1,11 @@
 import type { Lead } from '../types';
+import { LeadStatus } from '../types';
 import type { LeadFollowUp, TaskCompletion } from '../types/activities';
 import { QUALIFICATION_QUESTIONS } from './leadScoring';
 
 // Generate CSV content for leads with full history
 export const generateLeadsCSV = (
-  leads: Lead[], 
+  leads: Lead[],
   followUps: LeadFollowUp[],
   qualificationAnswers: Record<string, Record<string, string>> = {}
 ): string => {
@@ -43,9 +44,9 @@ export const generateLeadsCSV = (
     const leadFollowUps = followUps
       .filter(f => f.leadId === lead.id)
       .sort((a, b) => a.followUpNumber - b.followUpNumber);
-    
+
     const answers = qualificationAnswers[lead.id] || {};
-    
+
     // Follow-up dates for S1-S12
     const followUpDates: string[] = [];
     for (let i = 1; i <= 12; i++) {
@@ -107,7 +108,7 @@ export const generateLeadsCSV = (
 // Generate activities CSV
 export const generateActivitiesCSV = (completions: TaskCompletion[]): string => {
   const headers = ['Fecha', 'Día', 'Tarea ID', 'Completada', 'Hora Completada'];
-  
+
   const rows = completions.map(c => [
     c.date,
     c.dayOfWeek,
@@ -130,11 +131,11 @@ export const downloadCSV = (content: string, filename: string) => {
   const blob = new Blob([BOM + content], { type: 'text/csv;charset=utf-8;' });
   const link = document.createElement('a');
   const url = URL.createObjectURL(blob);
-  
+
   link.setAttribute('href', url);
   link.setAttribute('download', filename);
   link.style.visibility = 'hidden';
-  
+
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
@@ -144,4 +145,126 @@ export const downloadCSV = (content: string, filename: string) => {
 export const generateGoogleSheetsTemplate = (): string => {
   // This creates a template URL - user would need to import the CSV
   return 'https://docs.google.com/spreadsheets/create';
+};
+
+// Generate appointments CSV
+export const generateAppointmentsCSV = (appointments: any[]): string => {
+  const headers = [
+    'Fecha',
+    'Hora',
+    'Cliente',
+    'Teléfono',
+    'Tipo',
+    'Ubicación',
+    'Estado',
+    'Notas',
+    'Lead ID',
+    'Creado Por'
+  ];
+
+  const rows = appointments.map(apt => [
+    new Date(apt.date).toLocaleDateString('es-ES'),
+    apt.time,
+    apt.lead_name || apt.title || 'Sin nombre',
+    apt.lead_phone || '',
+    apt.type === 'virtual' ? 'Virtual' : 'Presencial',
+    apt.location || '',
+    apt.status === 'completed' ? 'Completada' : apt.status === 'cancelled' ? 'Cancelada' : 'Pendiente',
+    apt.notes || '',
+    apt.lead_id || '',
+    apt.user_name || ''
+  ]);
+
+  const escapeCSV = (value: string) => {
+    if (value && (value.includes(',') || value.includes('"') || value.includes('\n'))) {
+      return `"${value.replace(/"/g, '""')}"`;
+    }
+    return value || '';
+  };
+
+  const csvContent = [
+    headers.join(','),
+    ...rows.map(row => row.map(escapeCSV).join(','))
+  ].join('\n');
+
+  return csvContent;
+};
+
+// Generate follow-ups detailed CSV
+export const generateFollowUpsCSV = (followUps: LeadFollowUp[], leads: Lead[]): string => {
+  const headers = [
+    'Fecha',
+    'Lead',
+    'Teléfono',
+    '# Seguimiento',
+    'Método',
+    'Resultado',
+    'Notas'
+  ];
+
+  const rows = followUps.map(fu => {
+    const lead = leads.find(l => l.id === fu.leadId);
+    return [
+      new Date(fu.date).toLocaleDateString('es-ES'),
+      lead?.name || 'Sin lead',
+      lead?.phone || '',
+      `S${fu.followUpNumber}`,
+      fu.method,
+      fu.response === 'POSITIVA' ? '✅ Positiva' : fu.response === 'NEGATIVA' ? '❌ Negativa' : '⏳ Sin respuesta',
+      fu.notes || ''
+    ];
+  });
+
+  const escapeCSV = (value: string) => {
+    if (value && (value.includes(',') || value.includes('"') || value.includes('\n'))) {
+      return `"${value.replace(/"/g, '""')}"`;
+    }
+    return value || '';
+  };
+
+  const csvContent = [
+    headers.join(','),
+    ...rows.map(row => row.map(escapeCSV).join(','))
+  ].join('\n');
+
+  return csvContent;
+};
+
+// Generate summary report CSV
+export const generateSummaryReportCSV = (
+  leads: Lead[],
+  followUps: LeadFollowUp[],
+  appointments: any[]
+): string => {
+  const now = new Date();
+  const thisMonth = leads.filter(l => {
+    const created = new Date(l.createdAt);
+    return created.getMonth() === now.getMonth() && created.getFullYear() === now.getFullYear();
+  });
+
+  const stats = [
+    ['REPORTE RESUMEN - ' + now.toLocaleDateString('es-ES')],
+    [],
+    ['LEADS'],
+    ['Total Leads', leads.length.toString()],
+    ['Leads Este Mes', thisMonth.length.toString()],
+    ['Leads HOT', leads.filter(l => l.score?.category === 'HOT').length.toString()],
+    ['Leads WARM', leads.filter(l => l.score?.category === 'WARM').length.toString()],
+    ['Leads COLD', leads.filter(l => l.score?.category === 'COLD').length.toString()],
+    ['Leads Cerrados (Won)', leads.filter(l => l.status === LeadStatus.CLOSED_WON).length.toString()],
+    ['Leads Cerrados (Lost)', leads.filter(l => l.status === LeadStatus.CLOSED_LOST).length.toString()],
+    [],
+    ['SEGUIMIENTOS'],
+    ['Total Seguimientos', followUps.length.toString()],
+    ['Respuestas Positivas', followUps.filter(f => f.response === 'POSITIVA').length.toString()],
+    ['Sin Respuesta', followUps.filter(f => f.response === 'SIN_RESPUESTA').length.toString()],
+    ['Respuestas Negativas', followUps.filter(f => f.response === 'NEGATIVA').length.toString()],
+    [],
+    ['CITAS'],
+    ['Total Citas', appointments.length.toString()],
+    ['Citas Completadas', appointments.filter(a => a.status === 'completed').length.toString()],
+    ['Citas Pendientes', appointments.filter(a => a.status !== 'completed' && a.status !== 'cancelled').length.toString()],
+  ];
+
+  return stats.map(row => row.join(',')).join('\n');
 };

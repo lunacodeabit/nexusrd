@@ -134,13 +134,14 @@ const ROADMAP_DATA: RoadmapPhase[] = [
             {
                 id: 'basic-reports',
                 name: 'Reportes Básicos',
-                progress: 80,
-                status: 'in_progress',
+                progress: 100,
+                status: 'completed',
+                completedDate: '2024-12',
                 subTasks: [
                     { name: 'Métricas de equipo', completed: true },
                     { name: 'Ranking de asesores', completed: true },
                     { name: 'Conteo de citas', completed: true },
-                    { name: 'Exportar reportes', completed: false },
+                    { name: 'Exportar reportes', completed: true },
                 ]
             },
             {
