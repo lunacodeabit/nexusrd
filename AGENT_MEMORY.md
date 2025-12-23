@@ -1,7 +1,7 @@
 # 🧠 ALVEARE CRM - Memoria del Agente
 
 > **Propósito:** Este documento sirve como memoria para continuar el desarrollo del CRM ALVEARE.  
-> **Última actualización:** 19 de Diciembre, 2025  
+> **Última actualización:** 23 de Diciembre, 2025  
 > **Documento de directivas:** Ver `DIRECTIVAS_DESARROLLO.md` para reglas completas  
 
 ---
@@ -58,61 +58,95 @@ AI:           Google Gemini API (para Voice Assistant)
 
 ## 📅 Historial de Sesiones
 
-### Sesión 19 Dic 2025 (HOY)
+### Sesión 23 Dic 2025 (ÚLTIMA)
+**Objetivo:** Migrar citas de localStorage a Supabase para persistencia en la nube.
+
+**Logros:**
+1. **Migración de Citas a Supabase:**
+   - Las citas ahora se guardan en la base de datos en lugar de localStorage
+   - Persistencia real entre dispositivos y sesiones
+   - Commit: `37823b5`
+
+---
+
+### Sesión 21 Dic 2025
+**Objetivo:** Mejoras mayores al Dashboard, Voice Assistant y Admin Roadmap.
+
+**Logros:**
+1. **Admin Roadmap con Popup de Subtareas:**
+   - Panel visual de progreso de features
+   - Click en items muestra popup con subtareas completadas/pendientes
+   - Commit: `57538a1`
+
+2. **Fix Crítico - Netlify Redirects:**
+   - Los redirects estaban bloqueando las llamadas a funciones serverless
+   - Commit: `888d0f1`
+
+3. **Major Update - Dashboard, Voice, PWA, AlterEstate:**
+   - Mejoras significativas en múltiples áreas del sistema
+   - Commit: `0d3a66d`
+
+---
+
+### Sesión 20 Dic 2025
+**Objetivo:** Refinamiento del Voice Assistant y mejoras de UX.
+
+**Logros:**
+1. **Voice Assistant - Múltiples Fixes:**
+   - Mayor tolerancia de pausa al hablar
+   - Parsing robusto de tiempos
+   - Modo de comando único (sin acumulación de transcripts)
+   - Delay para sincronización de estado React
+   - Commits: `0039089`, `9e593a4`, `f1d960f`, `95da0a3`
+
+2. **Timezone y Formato de Hora:**
+   - Uso de timezone Santo Domingo (UTC-4)
+   - Formato 12h para tiempos relativos
+   - Commit: `de9a5e3`
+
+3. **Fix Gemini API:**
+   - Aumentado maxOutputTokens a 2048 (respuestas truncadas)
+   - Commit: `921c8de`
+
+4. **SEGURIDAD:**
+   - Removido token de Telegram hardcodeado del código fuente
+   - Commit: `309a27c`
+
+5. **Exportación PDF/Excel:**
+   - Añadidas librerías html2pdf.js y SheetJS
+   - Commit: `fe83b09`
+
+6. **Calculadora:**
+   - Removido sidebar, ahora usa toolbar inline
+   - Preserva navegación del CRM
+   - Commit: `debd7fe`
+
+---
+
+### Sesión 19 Dic 2025
 **Objetivo:** Implementar métricas de citas y asistente de voz AI.
 
 **Logros:**
-
 1. **Métricas de Citas (Virtual/Presencial):**
    - Añadido campo `appointment_type` a `scheduled_tasks`
    - Hook `useAppointmentMetrics.ts` para obtener métricas
    - Tarjeta "Citas del Mes" en Dashboard (agentes)
    - Tarjeta "Citas del Equipo" en SuperAdmin Dashboard
-   - Selector Virtual/Presencial en `LeadFollowUpTracker.tsx`
 
 2. **Asistente de Voz AI:**
    - Hook `useVoiceRecognition.ts` - Web Speech API
    - Función `parse-voice-command.ts` - Integración Gemini API
-   - Componente `VoiceAssistant.tsx` - UI completa con estados
-   - Botón flotante morado 🎤 en esquina inferior derecha
-   - Crea tareas/citas mediante comandos de voz en español
+   - Componente `VoiceAssistant.tsx` - UI completa
 
 3. **Fix Crítico - Alertas Telegram:**
-   - **Problema:** Alertas llegaban 11 minutos tarde
-   - **Causa:** Netlify corre en UTC, tareas guardadas en hora local (AST = UTC-4)
-   - **Solución:** Agregada conversión de timezone en `scheduled-alerts.js`
-   - También habilitado `alert_minutes_before = 0` para alertas exactas
-
-4. **Fix TypeScript:**
-   - Removido `teamMetrics` no usado en `SuperAdminDashboard.tsx`
-
-**Archivos Nuevos:**
-```
-src/hooks/useVoiceRecognition.ts
-src/hooks/useAppointmentMetrics.ts
-src/components/VoiceAssistant.tsx
-netlify/functions/parse-voice-command.ts
-supabase/migrations/009_appointment_metrics.sql
-```
-
-**Archivos Modificados:**
-```
-src/App.tsx - VoiceAssistant integrado (fuera de Layout)
-src/types.ts - tipos AppointmentType, AppointmentMetrics
-src/components/LeadFollowUpTracker.tsx - selector Virtual/Presencial
-src/components/Dashboard.tsx - tarjeta Citas del Mes
-src/components/SuperAdminDashboard.tsx - tarjeta Citas del Equipo
-netlify/functions/scheduled-alerts.js - fix timezone UTC→AST
-```
-
-**Pendiente de probar:**
-- VoiceAssistant con comandos de voz (usuario no podía hablar)
+   - Corregida conversión de timezone (UTC → AST)
 
 ---
 
 ### Sesión 17 Dic 2025
 
 ## 🗂 Estructura de Archivos Relevantes
+
 
 ```
 NEXUSRD/
