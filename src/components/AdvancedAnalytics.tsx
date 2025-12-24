@@ -2,17 +2,20 @@ import React, { useMemo, useState } from 'react';
 import type { Lead } from '../types';
 import { LeadStatus } from '../types';
 import type { TaskCompletion, LeadFollowUp } from '../types/activities';
-import { 
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, 
+import {
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   CartesianGrid, PieChart, Pie, Cell, Legend,
   ComposedChart, Area, Line
 } from 'recharts';
-import { 
-  TrendingUp, Users, Target, 
+import {
+  TrendingUp, Users, Target,
   Phone, Instagram, FileSpreadsheet,
-  ArrowUpRight, ArrowDownRight, Minus
+  ArrowUpRight, ArrowDownRight, Minus,
+  BarChart3, Zap
 } from 'lucide-react';
 import { generateLeadsCSV, downloadCSV } from '../services/exportService';
+import ConversionAnalytics from './ConversionAnalytics';
+import SalesForecast from './SalesForecast';
 
 interface AdvancedAnalyticsProps {
   leads: Lead[];
@@ -20,18 +23,21 @@ interface AdvancedAnalyticsProps {
   taskCompletions: TaskCompletion[];
 }
 
-const AdvancedAnalytics: React.FC<AdvancedAnalyticsProps> = ({ 
-  leads, 
-  followUps, 
-  taskCompletions 
+type AnalyticsTab = 'overview' | 'conversion' | 'forecast';
+
+const AdvancedAnalytics: React.FC<AdvancedAnalyticsProps> = ({
+  leads,
+  followUps,
+  taskCompletions
 }) => {
   const [selectedPeriod, setSelectedPeriod] = useState<'week' | 'month' | 'all'>('month');
+  const [activeTab, setActiveTab] = useState<AnalyticsTab>('overview');
 
   // Calculate date range
   const dateRange = useMemo(() => {
     const now = new Date();
     const start = new Date();
-    
+
     switch (selectedPeriod) {
       case 'week':
         start.setDate(now.getDate() - 7);
@@ -43,7 +49,7 @@ const AdvancedAnalytics: React.FC<AdvancedAnalyticsProps> = ({
         start.setFullYear(2020);
         break;
     }
-    
+
     return { start, end: now };
   }, [selectedPeriod]);
 
@@ -160,7 +166,7 @@ const AdvancedAnalytics: React.FC<AdvancedAnalyticsProps> = ({
     const warm = filteredLeads.filter(l => l.score?.category === 'WARM').length;
     const cold = filteredLeads.filter(l => l.score?.category === 'COLD').length;
     const notQualified = filteredLeads.filter(l => !l.score).length;
-    
+
     return [
       { name: 'HOT 🔥', value: hot, color: '#ef4444' },
       { name: 'WARM ☀️', value: warm, color: '#f59e0b' },
@@ -172,7 +178,7 @@ const AdvancedAnalytics: React.FC<AdvancedAnalyticsProps> = ({
   // Follow-up effectiveness
   const followUpEffectiveness = useMemo(() => {
     const byNumber: Record<number, { total: number; positive: number }> = {};
-    
+
     followUps.forEach(f => {
       if (!byNumber[f.followUpNumber]) {
         byNumber[f.followUpNumber] = { total: 0, positive: 0 };
@@ -203,25 +209,10 @@ const AdvancedAnalytics: React.FC<AdvancedAnalyticsProps> = ({
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-white">Analytics & Correlación</h2>
+          <h2 className="text-2xl font-bold text-white">Analytics & Reportes</h2>
           <p className="text-gray-400 text-sm">Mide el impacto de tus acciones en resultados</p>
         </div>
         <div className="flex gap-2">
-          <div className="flex bg-nexus-surface border border-white/10 rounded-lg overflow-hidden">
-            {(['week', 'month', 'all'] as const).map((period) => (
-              <button
-                key={period}
-                onClick={() => setSelectedPeriod(period)}
-                className={`px-4 py-2 text-sm font-medium transition-colors ${
-                  selectedPeriod === period 
-                    ? 'bg-nexus-accent text-nexus-base' 
-                    : 'text-gray-400 hover:text-white'
-                }`}
-              >
-                {period === 'week' ? '7 días' : period === 'month' ? '30 días' : 'Todo'}
-              </button>
-            ))}
-          </div>
           <button
             onClick={handleExportCSV}
             className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-500 transition-colors"
@@ -232,200 +223,265 @@ const AdvancedAnalytics: React.FC<AdvancedAnalyticsProps> = ({
         </div>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-        <KPICard 
-          title="Total Leads" 
-          value={kpis.totalLeads} 
-          icon={<Users size={20} />}
-          color="text-blue-400"
-        />
-        <KPICard 
-          title="Leads HOT" 
-          value={kpis.hotLeads} 
-          icon={<Target size={20} />}
-          color="text-red-400"
-          subtitle="🔥"
-        />
-        <KPICard 
-          title="Cerrados" 
-          value={kpis.closedWon} 
-          icon={<TrendingUp size={20} />}
-          color="text-green-400"
-          subtitle={`${kpis.conversionRate}%`}
-        />
-        <KPICard 
-          title="Seguimientos" 
-          value={kpis.totalFollowUps} 
-          icon={<Phone size={20} />}
-          color="text-purple-400"
-          subtitle={`${kpis.avgFollowUpsPerLead} por lead`}
-        />
-        <KPICard 
-          title="Posts" 
-          value={kpis.totalPosts} 
-          icon={<Instagram size={20} />}
-          color="text-pink-400"
-        />
+      {/* Analytics Tabs */}
+      <div className="flex flex-wrap gap-2">
+        <button
+          onClick={() => setActiveTab('overview')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${activeTab === 'overview'
+            ? 'bg-nexus-accent text-nexus-base'
+            : 'bg-nexus-surface text-gray-400 hover:text-white border border-white/10'
+            }`}
+        >
+          <BarChart3 size={18} />
+          Resumen
+        </button>
+        <button
+          onClick={() => setActiveTab('conversion')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${activeTab === 'conversion'
+            ? 'bg-purple-500 text-white'
+            : 'bg-nexus-surface text-gray-400 hover:text-white border border-white/10'
+            }`}
+        >
+          <TrendingUp size={18} />
+          Conversión
+        </button>
+        <button
+          onClick={() => setActiveTab('forecast')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${activeTab === 'forecast'
+            ? 'bg-green-500 text-white'
+            : 'bg-nexus-surface text-gray-400 hover:text-white border border-white/10'
+            }`}
+        >
+          <Zap size={18} />
+          Predicción
+        </button>
       </div>
 
-      {/* Correlation Chart */}
-      <div className="bg-nexus-surface p-6 rounded-xl border border-white/5">
-        <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-          <TrendingUp size={20} className="text-nexus-accent" />
-          Correlación: Actividades vs Resultados
-        </h3>
-        <p className="text-sm text-gray-400 mb-4">
-          ¿Más posts y seguimientos = más leads? Analiza la relación.
-        </p>
-        <div className="h-[300px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={correlationData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
-              <XAxis 
-                dataKey="date" 
-                stroke="#9ca3af" 
-                tick={{ fontSize: 10 }} 
-                tickFormatter={(val) => new Date(val).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}
-              />
-              <YAxis stroke="#9ca3af" tick={{ fontSize: 12 }} />
-              <Tooltip 
-                contentStyle={{ backgroundColor: '#0a192f', borderColor: '#FF851B', borderRadius: 8 }}
-                labelFormatter={(val) => new Date(val).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
-              />
-              <Legend />
-              <Area type="monotone" dataKey="activities" name="Actividades" fill="#8b5cf620" stroke="#8b5cf6" />
-              <Bar dataKey="posts" name="Posts" fill="#ec4899" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="followUps" name="Seguimientos" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-              <Line type="monotone" dataKey="newLeads" name="Nuevos Leads" stroke="#FF851B" strokeWidth={3} dot={{ fill: '#FF851B', r: 4 }} />
-            </ComposedChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
+      {/* Render based on active tab */}
+      {activeTab === 'conversion' && (
+        <ConversionAnalytics leads={leads} />
+      )}
 
-      {/* Two column layout */}
-      <div className="grid md:grid-cols-2 gap-6">
-        {/* Follow-up Effectiveness */}
-        <div className="bg-nexus-surface p-6 rounded-xl border border-white/5">
-          <h3 className="text-lg font-bold text-white mb-4">Efectividad por Seguimiento</h3>
-          <p className="text-sm text-gray-400 mb-4">¿En qué seguimiento responden mejor?</p>
-          <div className="h-[250px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={followUpEffectiveness}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
-                <XAxis dataKey="followUp" stroke="#9ca3af" tick={{ fontSize: 11 }} />
-                <YAxis stroke="#9ca3af" tick={{ fontSize: 11 }} />
-                <Tooltip 
-                  contentStyle={{ backgroundColor: '#0a192f', borderColor: '#FF851B', borderRadius: 8 }}
-                  formatter={(value, name) => [name === 'efectividad' ? `${value}%` : value, name === 'efectividad' ? 'Efectividad' : 'Total']}
-                />
-                <Bar dataKey="total" name="Total" fill="#6b7280" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="efectividad" name="Efectividad %" fill="#10b981" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
+      {activeTab === 'forecast' && (
+        <SalesForecast leads={leads} />
+      )}
 
-        {/* Score Distribution */}
-        <div className="bg-nexus-surface p-6 rounded-xl border border-white/5">
-          <h3 className="text-lg font-bold text-white mb-4">Distribución por Calificación</h3>
-          <div className="h-[250px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={scoreData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={90}
-                  paddingAngle={5}
-                  dataKey="value"
-                  label={({ name, value }) => `${name}: ${value}`}
-                  labelLine={{ stroke: '#9ca3af' }}
+      {activeTab === 'overview' && (
+        <>
+          {/* Period Filter */}
+          <div className="flex gap-2">
+            <div className="flex bg-nexus-surface border border-white/10 rounded-lg overflow-hidden">
+              {(['week', 'month', 'all'] as const).map((period) => (
+                <button
+                  key={period}
+                  onClick={() => setSelectedPeriod(period)}
+                  className={`px-4 py-2 text-sm font-medium transition-colors ${selectedPeriod === period
+                    ? 'bg-nexus-accent text-nexus-base'
+                    : 'text-gray-400 hover:text-white'
+                    }`}
                 >
-                  {scoreData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip 
-                  contentStyle={{ backgroundColor: '#0a192f', borderColor: '#FF851B', borderRadius: 8 }}
-                />
-              </PieChart>
-            </ResponsiveContainer>
+                  {period === 'week' ? '7 días' : period === 'month' ? '30 días' : 'Todo'}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
-      </div>
 
-      {/* Source and Status Distribution */}
-      <div className="grid md:grid-cols-2 gap-6">
-        {/* Lead Sources */}
-        <div className="bg-nexus-surface p-6 rounded-xl border border-white/5">
-          <h3 className="text-lg font-bold text-white mb-4">Fuentes de Leads</h3>
-          <div className="h-[200px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={sourceData} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
-                <XAxis type="number" stroke="#9ca3af" />
-                <YAxis dataKey="name" type="category" stroke="#9ca3af" tick={{ fontSize: 11 }} width={100} />
-                <Tooltip contentStyle={{ backgroundColor: '#0a192f', borderColor: '#FF851B', borderRadius: 8 }} />
-                <Bar dataKey="value" fill="#FF851B" radius={[0, 4, 4, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+          {/* KPI Cards */}
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            <KPICard
+              title="Total Leads"
+              value={kpis.totalLeads}
+              icon={<Users size={20} />}
+              color="text-blue-400"
+            />
+            <KPICard
+              title="Leads HOT"
+              value={kpis.hotLeads}
+              icon={<Target size={20} />}
+              color="text-red-400"
+              subtitle="🔥"
+            />
+            <KPICard
+              title="Cerrados"
+              value={kpis.closedWon}
+              icon={<TrendingUp size={20} />}
+              color="text-green-400"
+              subtitle={`${kpis.conversionRate}%`}
+            />
+            <KPICard
+              title="Seguimientos"
+              value={kpis.totalFollowUps}
+              icon={<Phone size={20} />}
+              color="text-purple-400"
+              subtitle={`${kpis.avgFollowUpsPerLead} por lead`}
+            />
+            <KPICard
+              title="Posts"
+              value={kpis.totalPosts}
+              icon={<Instagram size={20} />}
+              color="text-pink-400"
+            />
           </div>
-        </div>
 
-        {/* Status Distribution */}
-        <div className="bg-nexus-surface p-6 rounded-xl border border-white/5">
-          <h3 className="text-lg font-bold text-white mb-4">Pipeline por Estado</h3>
-          <div className="h-[200px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={statusData}
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={80}
-                  dataKey="value"
-                  label={({ value }) => `${value}`}
-                >
-                  {statusData.map((_, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip contentStyle={{ backgroundColor: '#0a192f', borderColor: '#FF851B', borderRadius: 8 }} />
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
+          {/* Correlation Chart */}
+          <div className="bg-nexus-surface p-6 rounded-xl border border-white/5">
+            <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+              <TrendingUp size={20} className="text-nexus-accent" />
+              Correlación: Actividades vs Resultados
+            </h3>
+            <p className="text-sm text-gray-400 mb-4">
+              ¿Más posts y seguimientos = más leads? Analiza la relación.
+            </p>
+            <div className="h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart data={correlationData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
+                  <XAxis
+                    dataKey="date"
+                    stroke="#9ca3af"
+                    tick={{ fontSize: 10 }}
+                    tickFormatter={(val) => new Date(val).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}
+                  />
+                  <YAxis stroke="#9ca3af" tick={{ fontSize: 12 }} />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: '#0a192f', borderColor: '#FF851B', borderRadius: 8 }}
+                    labelFormatter={(val) => new Date(val).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
+                  />
+                  <Legend />
+                  <Area type="monotone" dataKey="activities" name="Actividades" fill="#8b5cf620" stroke="#8b5cf6" />
+                  <Bar dataKey="posts" name="Posts" fill="#ec4899" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="followUps" name="Seguimientos" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                  <Line type="monotone" dataKey="newLeads" name="Nuevos Leads" stroke="#FF851B" strokeWidth={3} dot={{ fill: '#FF851B', r: 4 }} />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
           </div>
-        </div>
-      </div>
 
-      {/* Insights */}
-      <div className="bg-gradient-to-r from-nexus-accent/20 to-purple-500/20 p-6 rounded-xl border border-nexus-accent/30">
-        <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-          💡 Insights Automáticos
-        </h3>
-        <div className="grid md:grid-cols-3 gap-4">
-          <InsightCard
-            title="Tasa de Conversión"
-            value={`${kpis.conversionRate}%`}
-            trend={parseFloat(kpis.conversionRate) >= 10 ? 'up' : parseFloat(kpis.conversionRate) >= 5 ? 'neutral' : 'down'}
-            description={parseFloat(kpis.conversionRate) >= 10 ? '¡Excelente! Sigue así' : 'Necesita mejorar seguimientos'}
-          />
-          <InsightCard
-            title="Promedio Seguimientos"
-            value={kpis.avgFollowUpsPerLead}
-            trend={parseFloat(kpis.avgFollowUpsPerLead) >= 5 ? 'up' : 'down'}
-            description={parseFloat(kpis.avgFollowUpsPerLead) < 5 ? 'Aumenta los seguimientos' : 'Buen ritmo de contacto'}
-          />
-          <InsightCard
-            title="Leads HOT"
-            value={`${kpis.hotLeads}/${kpis.totalLeads}`}
-            trend={kpis.hotLeads > 0 ? 'up' : 'neutral'}
-            description={kpis.hotLeads > 0 ? '¡Prioriza estos leads!' : 'Califica más leads'}
-          />
-        </div>
-      </div>
+          {/* Two column layout */}
+          <div className="grid md:grid-cols-2 gap-6">
+            {/* Follow-up Effectiveness */}
+            <div className="bg-nexus-surface p-6 rounded-xl border border-white/5">
+              <h3 className="text-lg font-bold text-white mb-4">Efectividad por Seguimiento</h3>
+              <p className="text-sm text-gray-400 mb-4">¿En qué seguimiento responden mejor?</p>
+              <div className="h-[250px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={followUpEffectiveness}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
+                    <XAxis dataKey="followUp" stroke="#9ca3af" tick={{ fontSize: 11 }} />
+                    <YAxis stroke="#9ca3af" tick={{ fontSize: 11 }} />
+                    <Tooltip
+                      contentStyle={{ backgroundColor: '#0a192f', borderColor: '#FF851B', borderRadius: 8 }}
+                      formatter={(value, name) => [name === 'efectividad' ? `${value}%` : value, name === 'efectividad' ? 'Efectividad' : 'Total']}
+                    />
+                    <Bar dataKey="total" name="Total" fill="#6b7280" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="efectividad" name="Efectividad %" fill="#10b981" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* Score Distribution */}
+            <div className="bg-nexus-surface p-6 rounded-xl border border-white/5">
+              <h3 className="text-lg font-bold text-white mb-4">Distribución por Calificación</h3>
+              <div className="h-[250px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={scoreData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={90}
+                      paddingAngle={5}
+                      dataKey="value"
+                      label={({ name, value }) => `${name}: ${value}`}
+                      labelLine={{ stroke: '#9ca3af' }}
+                    >
+                      {scoreData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{ backgroundColor: '#0a192f', borderColor: '#FF851B', borderRadius: 8 }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
+
+          {/* Source and Status Distribution */}
+          <div className="grid md:grid-cols-2 gap-6">
+            {/* Lead Sources */}
+            <div className="bg-nexus-surface p-6 rounded-xl border border-white/5">
+              <h3 className="text-lg font-bold text-white mb-4">Fuentes de Leads</h3>
+              <div className="h-[200px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={sourceData} layout="vertical">
+                    <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
+                    <XAxis type="number" stroke="#9ca3af" />
+                    <YAxis dataKey="name" type="category" stroke="#9ca3af" tick={{ fontSize: 11 }} width={100} />
+                    <Tooltip contentStyle={{ backgroundColor: '#0a192f', borderColor: '#FF851B', borderRadius: 8 }} />
+                    <Bar dataKey="value" fill="#FF851B" radius={[0, 4, 4, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* Status Distribution */}
+            <div className="bg-nexus-surface p-6 rounded-xl border border-white/5">
+              <h3 className="text-lg font-bold text-white mb-4">Pipeline por Estado</h3>
+              <div className="h-[200px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={statusData}
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={80}
+                      dataKey="value"
+                      label={({ value }) => `${value}`}
+                    >
+                      {statusData.map((_, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip contentStyle={{ backgroundColor: '#0a192f', borderColor: '#FF851B', borderRadius: 8 }} />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
+
+          {/* Insights */}
+          <div className="bg-gradient-to-r from-nexus-accent/20 to-purple-500/20 p-6 rounded-xl border border-nexus-accent/30">
+            <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+              💡 Insights Automáticos
+            </h3>
+            <div className="grid md:grid-cols-3 gap-4">
+              <InsightCard
+                title="Tasa de Conversión"
+                value={`${kpis.conversionRate}%`}
+                trend={parseFloat(kpis.conversionRate) >= 10 ? 'up' : parseFloat(kpis.conversionRate) >= 5 ? 'neutral' : 'down'}
+                description={parseFloat(kpis.conversionRate) >= 10 ? '¡Excelente! Sigue así' : 'Necesita mejorar seguimientos'}
+              />
+              <InsightCard
+                title="Promedio Seguimientos"
+                value={kpis.avgFollowUpsPerLead}
+                trend={parseFloat(kpis.avgFollowUpsPerLead) >= 5 ? 'up' : 'down'}
+                description={parseFloat(kpis.avgFollowUpsPerLead) < 5 ? 'Aumenta los seguimientos' : 'Buen ritmo de contacto'}
+              />
+              <InsightCard
+                title="Leads HOT"
+                value={`${kpis.hotLeads}/${kpis.totalLeads}`}
+                trend={kpis.hotLeads > 0 ? 'up' : 'neutral'}
+                description={kpis.hotLeads > 0 ? '¡Prioriza estos leads!' : 'Califica más leads'}
+              />
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 };

@@ -147,23 +147,25 @@ const ROADMAP_DATA: RoadmapPhase[] = [
             {
                 id: 'conversion-analytics',
                 name: 'Análisis de Conversión',
-                progress: 0,
-                status: 'planned',
+                progress: 100,
+                status: 'completed',
+                completedDate: '2024-12',
                 subTasks: [
-                    { name: 'Funnel de conversión', completed: false },
-                    { name: 'Tiempo promedio de cierre', completed: false },
-                    { name: 'Análisis por fuente', completed: false },
+                    { name: 'Funnel de conversión', completed: true },
+                    { name: 'Tiempo promedio de cierre', completed: true },
+                    { name: 'Análisis por fuente', completed: true },
                 ]
             },
             {
                 id: 'forecasting',
                 name: 'Predicción de Ventas',
-                progress: 0,
-                status: 'planned',
+                progress: 100,
+                status: 'completed',
+                completedDate: '2024-12',
                 subTasks: [
-                    { name: 'Modelo de predicción', completed: false },
-                    { name: 'Dashboard de forecast', completed: false },
-                    { name: 'Alertas de metas', completed: false },
+                    { name: 'Modelo de predicción', completed: true },
+                    { name: 'Dashboard de forecast', completed: true },
+                    { name: 'Alertas de metas', completed: true },
                 ]
             },
         ]
