@@ -544,29 +544,66 @@ const PaymentPlanCalculator: React.FC<PaymentPlanCalculatorProps> = ({
     const handleCopyToClipboard = async () => {
         if (!previewBlob) return;
 
-        try {
-            await navigator.clipboard.write([
-                new ClipboardItem({ 'image/png': previewBlob })
-            ]);
-            setToastMessage({ text: '✅ Imagen copiada al portapapeles', type: 'success' });
-            setTimeout(() => setToastMessage(null), 3000);
-            setShowPreviewModal(false);
-        } catch (error) {
-            // Fallback: download the image
-            if (previewImageUrl) {
-                const link = document.createElement('a');
-                link.href = previewImageUrl;
-                const sanitizedClientName = name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-                link.download = `plan_pago_${sanitizedClientName || 'cliente'}.png`;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                setToastMessage({ text: '📥 Imagen descargada (copiar no soportado)', type: 'success' });
+        const sanitizedClientName = name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+        const fileName = `plan_pago_${sanitizedClientName || 'cliente'}.png`;
+
+        // Method 1: Try modern ClipboardItem API (works in Chrome, Edge, newer browsers)
+        if (navigator.clipboard && typeof ClipboardItem !== 'undefined') {
+            try {
+                await navigator.clipboard.write([
+                    new ClipboardItem({ 'image/png': previewBlob })
+                ]);
+                setToastMessage({ text: '✅ Imagen copiada al portapapeles', type: 'success' });
                 setTimeout(() => setToastMessage(null), 3000);
                 setShowPreviewModal(false);
+                return;
+            } catch (clipboardError) {
+                console.log('ClipboardItem API failed, trying fallback...', clipboardError);
             }
         }
+
+        // Method 2: Try legacy execCommand with canvas (works in older browsers)
+        try {
+            const img = new Image();
+            img.src = previewImageUrl || '';
+            await new Promise((resolve) => { img.onload = resolve; });
+
+            const canvas = document.createElement('canvas');
+            canvas.width = img.width;
+            canvas.height = img.height;
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+                ctx.drawImage(img, 0, 0);
+                canvas.toBlob(async (blob) => {
+                    if (blob && navigator.clipboard && typeof ClipboardItem !== 'undefined') {
+                        try {
+                            await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+                            setToastMessage({ text: '✅ Imagen copiada al portapapeles', type: 'success' });
+                            setTimeout(() => setToastMessage(null), 3000);
+                            setShowPreviewModal(false);
+                            return;
+                        } catch { /* fallthrough */ }
+                    }
+                }, 'image/png');
+            }
+        } catch (canvasError) {
+            console.log('Canvas copy failed, falling back to download...', canvasError);
+        }
+
+        // Method 3: Fallback - download the image (always works)
+        if (previewImageUrl) {
+            const link = document.createElement('a');
+            link.href = previewImageUrl;
+            link.download = fileName;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            setToastMessage({ text: '📥 Imagen guardada (tu navegador no soporta copiar imágenes)', type: 'success' });
+            setTimeout(() => setToastMessage(null), 4000);
+            setShowPreviewModal(false);
+        }
     };
+
 
     const handleShareFromModal = async () => {
         if (!previewBlob) return;
