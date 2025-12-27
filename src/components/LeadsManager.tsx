@@ -8,6 +8,7 @@ import LeadDetail from './LeadDetail';
 import MoveToTrackingModal from './MoveToTrackingModal';
 import { getScoreColor, getScoreEmoji, type LeadScore } from '../services/leadScoring';
 import type { LeadFollowUp } from '../types/activities';
+import { useUserProfile } from '../hooks/useUserProfile';
 
 // Configuración de columnas del Kanban
 const KANBAN_COLUMNS = [
@@ -31,6 +32,7 @@ interface LeadsManagerProps {
 }
 
 const LeadsManager: React.FC<LeadsManagerProps> = ({ leads, addLead, updateLeadStatus, updateLeadScore, updateLead, followUps = [], addFollowUp, updateFollowUpNotes }) => {
+  const { profile } = useUserProfile();
   const [searchQuery, setSearchQuery] = useState('');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
@@ -76,7 +78,10 @@ const LeadsManager: React.FC<LeadsManagerProps> = ({ leads, addLead, updateLeadS
   };
 
   const handleWhatsApp = (phone: string, name: string) => {
-    const message = encodeURIComponent(`Hola ${name}, te contacto de NEXUS Inmobiliaria.`);
+    // Get first names only
+    const clientFirstName = name.split(' ')[0];
+    const advisorFirstName = profile?.full_name?.split(' ')[0] || 'tu asesor';
+    const message = encodeURIComponent(`Hola ${clientFirstName}, un placer, te habla ${advisorFirstName} de Alveare Realty.`);
     window.open(`https://wa.me/${phone.replace(/\s/g, '')}?text=${message}`, '_blank');
   };
 

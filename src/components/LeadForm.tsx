@@ -10,7 +10,7 @@ const formatPhoneNumber = (value: string): string => {
     // Only allow digits, spaces, and dashes after the +
     return '+' + value.slice(1).replace(/[^\d\s-]/g, '');
   }
-  
+
   // Local format (no +) - use xxx-xxx-xxxx
   const numbers = value.replace(/\D/g, '');
   if (numbers.length <= 3) return numbers;
@@ -70,7 +70,7 @@ const LeadForm: React.FC<LeadFormProps> = ({ onSave, onCancel }) => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     const newLead: Lead = {
       id: `l-${Date.now()}`,
       name: formData.name || 'Sin nombre',
@@ -144,6 +144,10 @@ const LeadForm: React.FC<LeadFormProps> = ({ onSave, onCancel }) => {
             <option value="Cliente Anterior">Cliente Anterior</option>
             <option value="Instagram">Instagram</option>
             <option value="Facebook">Facebook</option>
+            <option value="Marketplace">Marketplace</option>
+            <option value="SuperCasas">SuperCasas</option>
+            <option value="Corotos">Corotos</option>
+            <option value="Mercado Libre">Mercado Libre</option>
             <option value="TikTok">TikTok</option>
             <option value="YouTube">YouTube</option>
             <option value="Letrero o Valla">Letrero o Valla</option>

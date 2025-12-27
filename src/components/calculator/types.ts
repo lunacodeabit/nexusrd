@@ -26,4 +26,5 @@ export interface ExtraPayment {
   startMonth: number;
   startYear: number;
   frequency: number; // in months. 0 = one-time
+  isBalonExtra?: boolean; // Si es true, no se resta de construcción
 }

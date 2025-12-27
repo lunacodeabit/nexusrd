@@ -17,6 +17,10 @@ interface ShareableImageProps {
     paymentFrequency: 'monthly' | 'quarterly';
     customLogo: string | null;
     promotionName: string;
+    // Pagos extras de cuota balón
+    balonExtraAmount?: string;
+    balonFrequency?: number;
+    balonPaymentsCount?: number;
 }
 
 
@@ -36,6 +40,9 @@ const ShareableImage: React.FC<ShareableImageProps> = ({
     paymentFrequency,
     customLogo,
     promotionName: _promotionName,
+    balonExtraAmount,
+    balonFrequency,
+    balonPaymentsCount,
 }) => {
     const paymentFrequencyText = paymentFrequency === 'monthly' ? 'PAGO MENSUAL' : 'PAGO TRIMESTRAL';
     const hasDiscount = (parseFloat(fairDiscount.replace(/[^0-9.]/g, '')) || 0) > 0;
@@ -105,6 +112,17 @@ const ShareableImage: React.FC<ShareableImageProps> = ({
                             <p className="text-sm text-green-700 font-semibold">{paymentFrequencyText}</p>
                             <p className="text-3xl font-bold text-green-900 mt-1">{installmentAmount}</p>
                         </div>
+                    </div>
+                )}
+
+                {/* Pagos Extras de Cuota Balón */}
+                {balonExtraAmount && balonPaymentsCount && balonPaymentsCount > 0 && (
+                    <div className="mt-4 bg-purple-50 p-4 rounded-lg text-center">
+                        <p className="text-sm text-purple-700 font-semibold">PAGOS ADICIONALES (CUOTA BALÓN)</p>
+                        <p className="text-2xl font-bold text-purple-900 mt-1">{balonExtraAmount}</p>
+                        <p className="text-xs text-purple-600 mt-1">
+                            Cada {balonFrequency} meses • {balonPaymentsCount} pagos durante el plazo
+                        </p>
                     </div>
                 )}
             </main>

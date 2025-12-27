@@ -8,6 +8,7 @@ import LeadFollowUpTracker from './LeadFollowUpTracker';
 import MoveToTrackingModal from './MoveToTrackingModal';
 import type { LeadFollowUp } from '../types/activities';
 import { useActivityLogger } from '../hooks/useActivityLogger';
+import { useUserProfile } from '../hooks/useUserProfile';
 
 // Format phone number - supports international format with + prefix
 const formatPhoneNumber = (value: string): string => {
@@ -39,6 +40,7 @@ interface LeadDetailProps {
 
 const LeadDetail: React.FC<LeadDetailProps> = ({ lead, onClose, onUpdateStatus, onUpdateScore, onUpdateLead, followUps = [], onAddFollowUp, onUpdateFollowUpNotes }) => {
   const { logActivity } = useActivityLogger();
+  const { profile } = useUserProfile();
   const [showStatusMenu, setShowStatusMenu] = useState(false);
   const [showQualification, setShowQualification] = useState(false);
   const [showFollowUps, setShowFollowUps] = useState(false);
@@ -159,7 +161,10 @@ const LeadDetail: React.FC<LeadDetailProps> = ({ lead, onClose, onUpdateStatus, 
   };
 
   const handleWhatsApp = () => {
-    const message = encodeURIComponent(`Hola ${lead.name}, te contacto de ALVEARE Inmobiliaria.`);
+    // Get first names only
+    const clientFirstName = lead.name.split(' ')[0];
+    const advisorFirstName = profile?.full_name?.split(' ')[0] || 'tu asesor';
+    const message = encodeURIComponent(`Hola ${clientFirstName}, un placer, te habla ${advisorFirstName} de Alveare Realty.`);
     window.open(`https://wa.me/${lead.phone.replace(/\s/g, '')}?text=${message}`, '_blank');
     // Log activity
     logActivity({
@@ -171,8 +176,10 @@ const LeadDetail: React.FC<LeadDetailProps> = ({ lead, onClose, onUpdateStatus, 
   };
 
   const handleEmail = () => {
-    const subject = encodeURIComponent('Información inmobiliaria - ALVEARE');
-    const body = encodeURIComponent(`Hola ${lead.name},\n\nGracias por tu interés...`);
+    const clientFirstName = lead.name.split(' ')[0];
+    const advisorFirstName = profile?.full_name?.split(' ')[0] || 'tu asesor';
+    const subject = encodeURIComponent('Información inmobiliaria - Alveare Realty');
+    const body = encodeURIComponent(`Hola ${clientFirstName},\n\nGracias por tu interés en nuestros proyectos inmobiliarios.\n\nQuedo atento a cualquier consulta.\n\nSaludos,\n${advisorFirstName}\nAlveare Realty`);
     window.open(`mailto:${lead.email}?subject=${subject}&body=${body}`, '_blank');
     // Log activity
     logActivity({

@@ -14,6 +14,7 @@ import { useAutomations } from '../hooks/useAutomations';
 import { useAutomationEngine } from '../hooks/useAutomationEngine';
 import { useAppointmentMetrics } from '../hooks/useAppointmentMetrics';
 import { useAppointments } from '../hooks/useAppointments';
+import { useUserProfile } from '../hooks/useUserProfile';
 import type { Appointment } from '../services/appointmentService';
 
 // Interface for scheduled tasks - now using Appointment from service
@@ -48,6 +49,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   const { pendingAutomations } = useAutomationEngine({ leads, rules });
   const { myMetrics } = useAppointmentMetrics();
   const { appointments, complete: completeAppointment, update: updateAppointment, remove: removeAppointment } = useAppointments();
+  const { profile } = useUserProfile();
   const [showNotifications, setShowNotifications] = useState(false);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [editingTask, setEditingTask] = useState<ScheduledTask | null>(null);
@@ -275,7 +277,10 @@ const Dashboard: React.FC<DashboardProps> = ({
   };
 
   const handleWhatsApp = (phone: string, name: string) => {
-    const message = encodeURIComponent(`Hola ${name}, te contacto de ALVEARE Inmobiliaria.`);
+    // Get first names only
+    const clientFirstName = name.split(' ')[0];
+    const advisorFirstName = profile?.full_name?.split(' ')[0] || 'tu asesor';
+    const message = encodeURIComponent(`Hola ${clientFirstName}, un placer, te habla ${advisorFirstName} de Alveare Realty.`);
     window.open(`https://wa.me/${phone.replace(/\D/g, '')}?text=${message}`, '_blank');
   };
 

@@ -2,16 +2,22 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { GoogleGenAI } from "@google/genai";
 import { Currency } from './types';
 import PaymentPlanCalculator from './PaymentPlanCalculator';
+import PaymentPlanHistory from './PaymentPlanHistory';
 import { DEFAULT_BUY_RATE, DEFAULT_SELL_RATE } from './constants';
 import { RefreshIcon } from './icons/RefreshIcon';
 import { UploadIcon } from './icons/UploadIcon';
 import { TrashIcon } from './icons/TrashIcon';
+import { useUserRole } from '../../hooks/useUserRole';
+import type { PaymentPlanRecord } from '../../services/paymentPlanHistoryService';
 
 // Get API key from Vite env vars
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || '';
 
 const CalculatorPage: React.FC = () => {
     const [excelExportTrigger, setExcelExportTrigger] = useState(0);
+
+    // Detectar si el usuario puede ver funciones avanzadas (supervisor/admin)
+    const { canViewTeam } = useUserRole();
 
     const [_buyRate, setBuyRate] = useState<number>(DEFAULT_BUY_RATE);
     const [sellRate, setSellRate] = useState<number>(DEFAULT_SELL_RATE);
@@ -38,6 +44,19 @@ const CalculatorPage: React.FC = () => {
 
     // Settings panel visibility
     const [showSettings, setShowSettings] = useState(false);
+
+    // History modal visibility
+    const [showHistory, setShowHistory] = useState(false);
+
+    // Plan cargado desde historial
+    const [loadedPlan, setLoadedPlan] = useState<PaymentPlanRecord | null>(null);
+
+    // Callback para cargar plan desde historial
+    const handleLoadPlan = useCallback((plan: PaymentPlanRecord) => {
+        setLoadedPlan(plan);
+        // Limpiar después de un tick para que el calculador lo procese
+        setTimeout(() => setLoadedPlan(null), 100);
+    }, []);
 
     useEffect(() => {
         const storedLogo = localStorage.getItem('calculatorCustomLogo');
@@ -253,6 +272,14 @@ const CalculatorPage: React.FC = () => {
                     ⚙️ Más opciones
                 </button>
 
+                {/* History Button */}
+                <button
+                    onClick={() => setShowHistory(true)}
+                    className="flex items-center gap-1 px-3 py-1.5 text-xs text-gray-400 hover:text-white hover:bg-nexus-base rounded-md transition-colors"
+                >
+                    📜 Historial
+                </button>
+
                 {/* Excel Export */}
                 <button
                     onClick={handleTriggerExcelExport}
@@ -303,6 +330,15 @@ const CalculatorPage: React.FC = () => {
                 currency={currency}
                 promotionEnabled={promotionEnabled}
                 promotionName={promotionName}
+                canViewAdvanced={canViewTeam}
+                loadedPlan={loadedPlan}
+            />
+
+            {/* History Modal */}
+            <PaymentPlanHistory
+                isOpen={showHistory}
+                onClose={() => setShowHistory(false)}
+                onLoadPlan={handleLoadPlan}
             />
         </div>
     );

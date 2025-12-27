@@ -14,6 +14,8 @@ import { ShareIcon } from './icons/ShareIcon';
 import ShareableImage from './ShareableImage';
 import { TrashIcon } from './icons/TrashIcon';
 import PrintableReport from './PrintableReport';
+import CuotaBalonSection from './CuotaBalonSection';
+import { savePaymentPlan, type PaymentPlanRecord } from '../../services/paymentPlanHistoryService';
 
 interface PaymentPlanCalculatorProps {
     sellRate: number;
@@ -23,6 +25,8 @@ interface PaymentPlanCalculatorProps {
     currency: Currency;
     promotionEnabled: boolean;
     promotionName: string;
+    canViewAdvanced?: boolean;
+    loadedPlan?: PaymentPlanRecord | null;
 }
 
 const PaymentPlanCalculator: React.FC<PaymentPlanCalculatorProps> = ({
@@ -33,6 +37,8 @@ const PaymentPlanCalculator: React.FC<PaymentPlanCalculatorProps> = ({
     currency,
     promotionEnabled,
     promotionName,
+    canViewAdvanced = false,
+    loadedPlan,
 }) => {
     const currentYear = new Date().getFullYear();
     const currentMonth = new Date().getMonth();
@@ -79,6 +85,56 @@ const PaymentPlanCalculator: React.FC<PaymentPlanCalculatorProps> = ({
             setFairDiscountInputValue('');
         }
     }, [promotionEnabled]);
+
+    // Cargar datos de un plan desde el historial
+    useEffect(() => {
+        if (loadedPlan) {
+            // Datos del cliente
+            setName(loadedPlan.client_name || '');
+            setPhone(loadedPlan.client_phone || '');
+            setEmail(loadedPlan.client_email || '');
+            setUnitType(loadedPlan.unit_type || '');
+
+            // Valores financieros
+            setPropertyValue(loadedPlan.property_value?.toString() || '');
+            setReservation(loadedPlan.reservation?.toString() || '');
+
+            // Porcentajes
+            setInitialPercentage(loadedPlan.initial_percentage?.toString() || '');
+            setConstructionPercentage(loadedPlan.construction_percentage?.toString() || '');
+
+            // Fechas
+            if (loadedPlan.start_month !== undefined) setStartMonth(loadedPlan.start_month);
+            if (loadedPlan.start_year !== undefined) setStartYear(loadedPlan.start_year);
+            if (loadedPlan.end_month !== undefined) setEndMonth(loadedPlan.end_month);
+            if (loadedPlan.end_year !== undefined) setEndYear(loadedPlan.end_year);
+
+            // Frecuencia de pago
+            if (loadedPlan.payment_frequency === 'quarterly') {
+                setPaymentFrequency('quarterly');
+            } else {
+                setPaymentFrequency('monthly');
+            }
+
+            // Limpiar pagos extras anteriores y cargar los del plan
+            if (loadedPlan.extra_payments && Array.isArray(loadedPlan.extra_payments)) {
+                const loadedExtras: ExtraPayment[] = loadedPlan.extra_payments.map((ep, index) => ({
+                    id: Date.now() + index,
+                    amount: ep.amount?.toString() || '',
+                    description: ep.description || '',
+                    startMonth: ep.month || 0,
+                    startYear: ep.year || currentYear,
+                    frequency: ep.frequency || 0
+                }));
+                setExtraPayments(loadedExtras);
+            } else {
+                setExtraPayments([]);
+            }
+
+            setToastMessage({ text: `📥 Plan "${loadedPlan.client_name}" cargado`, type: 'success' });
+            setTimeout(() => setToastMessage(null), 3000);
+        }
+    }, [loadedPlan, currentYear]);
 
     useEffect(() => {
         if (fairDiscountInputMode === 'percent') {
@@ -313,8 +369,10 @@ const PaymentPlanCalculator: React.FC<PaymentPlanCalculatorProps> = ({
         // The last payment month is the one BEFORE the delivery month.
         const constructionEndDate = new Date(deliveryDate.getFullYear(), deliveryDate.getMonth() - 1);
 
-        let totalExtraPayments = 0;
-        const extraPaymentSchedule: { date: Date; amount: number; description: string }[] = [];
+        const extraPaymentSchedule: { date: Date; amount: number; description: string; isBalonExtra?: boolean }[] = [];
+        // Separar extras normales de extras de balón
+        let totalNormalExtraPayments = 0;
+        let totalBalonExtraPayments = 0;
 
         extraPayments.forEach(p => {
             const amount = parseFloat(p.amount.replace(/,/g, '')) || 0;
@@ -322,14 +380,22 @@ const PaymentPlanCalculator: React.FC<PaymentPlanCalculatorProps> = ({
                 let paymentDate = new Date(p.startYear, p.startMonth);
                 if (p.frequency === 0) { // One-time payment
                     if (paymentDate >= constructionStartDate && paymentDate <= constructionEndDate) {
-                        totalExtraPayments += amount;
-                        extraPaymentSchedule.push({ date: paymentDate, amount, description: p.description || `Pago Extra` });
+                        if (p.isBalonExtra) {
+                            totalBalonExtraPayments += amount;
+                        } else {
+                            totalNormalExtraPayments += amount;
+                        }
+                        extraPaymentSchedule.push({ date: paymentDate, amount, description: p.description || `Pago Extra`, isBalonExtra: p.isBalonExtra });
                     }
                 } else { // Recurring payment
                     while (paymentDate <= constructionEndDate) {
                         if (paymentDate >= constructionStartDate) {
-                            totalExtraPayments += amount;
-                            extraPaymentSchedule.push({ date: new Date(paymentDate), amount, description: p.description || `Pago Extra` });
+                            if (p.isBalonExtra) {
+                                totalBalonExtraPayments += amount;
+                            } else {
+                                totalNormalExtraPayments += amount;
+                            }
+                            extraPaymentSchedule.push({ date: new Date(paymentDate), amount, description: p.description || `Pago Extra`, isBalonExtra: p.isBalonExtra });
                         }
                         paymentDate.setMonth(paymentDate.getMonth() + p.frequency);
                     }
@@ -337,10 +403,13 @@ const PaymentPlanCalculator: React.FC<PaymentPlanCalculatorProps> = ({
             }
         });
 
+        // Solo los extras normales se restan de construcción
+        const totalExtraPayments = totalNormalExtraPayments;
+
         const totalInitial = (_discountedPropertyValue * _initialPercentage) / 100;
         const onContractSigning = totalInitial > _reservation ? totalInitial - _reservation : 0;
         const duringConstruction = (_discountedPropertyValue * _constructionPercentage) / 100;
-        const remainingDuringConstruction = duringConstruction - totalExtraPayments;
+        const remainingDuringConstruction = duringConstruction - totalNormalExtraPayments;
 
         const onDelivery = _discountedPropertyValue - totalInitial - duringConstruction;
 
@@ -353,7 +422,7 @@ const PaymentPlanCalculator: React.FC<PaymentPlanCalculatorProps> = ({
         const installmentsCount = paymentFrequency === 'monthly' ? monthsDiff : Math.ceil(monthsDiff / 3);
         const installmentAmount = installmentsCount > 0 && remainingDuringConstruction > 0 ? remainingDuringConstruction / installmentsCount : 0;
 
-        return { onContractSigning, duringConstruction, totalExtraPayments, onDelivery, installmentsCount, installmentAmount, extraPaymentSchedule, totalInitial, remainingDuringConstruction, discountedPropertyValue: _discountedPropertyValue };
+        return { onContractSigning, duringConstruction, totalExtraPayments, totalBalonExtraPayments, onDelivery, installmentsCount, installmentAmount, extraPaymentSchedule, totalInitial, remainingDuringConstruction, discountedPropertyValue: _discountedPropertyValue, totalMeses: monthsDiff };
     }, [propertyValue, fairDiscount, reservation, initialPercentage, constructionPercentage, startMonth, startYear, endMonth, endYear, extraPayments, paymentFrequency]);
 
     const combinedPaymentSchedule = useMemo(() => {
@@ -421,7 +490,107 @@ const PaymentPlanCalculator: React.FC<PaymentPlanCalculatorProps> = ({
 
     const deliveryPercentage = 100 - (parseFloat(initialPercentage) || 0) - (parseFloat(constructionPercentage) || 0);
 
+    // Callback para aplicar pagos desde CuotaBalón
+    // Calcula el % de construcción y agrega extras de balón (marcados para no restarse)
+    const handleApplyFromCuotaBalon = useCallback((pagoExtra: number, frecuencia: number, cuotaMensual: number) => {
+        // Calcular el % de construcción necesario para lograr la cuota mensual deseada
+        const totalMeses = calculations.totalMeses;
+        const valorPropiedad = calculations.discountedPropertyValue;
+
+        if (valorPropiedad > 0 && totalMeses > 0 && cuotaMensual > 0) {
+            // Total que se pagará en cuotas mensuales
+            const montoConstruccion = cuotaMensual * totalMeses;
+            // Calcular el % que representa
+            const nuevoPorcentajeConstruccion = (montoConstruccion / valorPropiedad) * 100;
+
+            // Limitar a un máximo razonable (no puede ser más de 100% - inicial%)
+            const porcentajeInicial = parseFloat(initialPercentage) || 0;
+            const maxConstruccion = 100 - porcentajeInicial;
+            const porcentajeFinal = Math.min(nuevoPorcentajeConstruccion, maxConstruccion);
+
+            // Actualizar el % de construcción
+            setConstructionPercentage(porcentajeFinal.toFixed(2));
+        }
+
+        // Limpiar pagos extras de cuota balón anteriores (mantener extras normales)
+        const existingNonBalonExtras = extraPayments.filter(ep => !ep.isBalonExtra);
+        const newPayments: ExtraPayment[] = [...existingNonBalonExtras];
+
+        // Solo agregar los pagos extras (semestrales, trimestrales, etc.) - marcados como balón
+        if (pagoExtra > 0) {
+            newPayments.push({
+                id: Date.now(),
+                amount: pagoExtra.toFixed(2),
+                description: 'Pago Extra (Cuota Balón)',
+                startMonth: startMonth,
+                startYear: startYear,
+                frequency: frecuencia,
+                isBalonExtra: true // NO se resta de construcción
+            });
+        }
+
+        // Setear los nuevos pagos
+        setExtraPayments(newPayments);
+
+        setToastMessage({
+            text: `✅ Plan aplicado: cuota mensual de ${currency === Currency.USD ? 'US$' : 'RD$'}${cuotaMensual.toLocaleString('en-US', { minimumFractionDigits: 2 })} + extras cada ${frecuencia} meses`,
+            type: 'success'
+        });
+        setTimeout(() => setToastMessage(null), 5000);
+    }, [startMonth, startYear, currency, calculations, initialPercentage, extraPayments]);
+
+    // Función para guardar el plan actual en el historial (solo si hay nombre)
+    const saveCurrentPlan = useCallback(async (generatedType: 'pdf' | 'image') => {
+        if (!name || name.trim() === '') return;
+
+        const _propertyValue = parseFloat(propertyValue.replace(/,/g, '')) || 0;
+        const _reservation = parseFloat(reservation.replace(/,/g, '')) || 0;
+        const _initialPercentage = parseFloat(initialPercentage) || 0;
+        const _constructionPercentage = parseFloat(constructionPercentage) || 0;
+
+        const extraPaymentsData = extraPayments.map(ep => ({
+            description: ep.description,
+            amount: parseFloat(ep.amount.replace(/,/g, '')) || 0,
+            month: ep.startMonth,
+            year: ep.startYear,
+            frequency: ep.frequency
+        }));
+
+        await savePaymentPlan({
+            client_name: name.trim(),
+            client_phone: phone,
+            client_email: email,
+            unit_type: unitType,
+            property_value: _propertyValue,
+            discounted_value: calculations.discountedPropertyValue,
+            reservation: _reservation,
+            initial_percentage: _initialPercentage,
+            construction_percentage: _constructionPercentage,
+            delivery_percentage: deliveryPercentage,
+            total_initial: calculations.totalInitial,
+            on_contract_signing: calculations.onContractSigning,
+            during_construction: calculations.duringConstruction,
+            installments_count: calculations.installmentsCount,
+            installment_amount: calculations.installmentAmount,
+            delivery_amount: calculations.onDelivery,
+            extra_payments: extraPaymentsData,
+            currency: currency === Currency.USD ? 'USD' : 'DOP',
+            sell_rate: sellRate,
+            payment_frequency: paymentFrequency,
+            start_month: startMonth,
+            start_year: startYear,
+            end_month: endMonth,
+            end_year: endYear,
+            promotion_enabled: promotionEnabled,
+            promotion_name: promotionName,
+            generated_type: generatedType
+        });
+    }, [name, phone, email, unitType, propertyValue, fairDiscount, reservation, initialPercentage, constructionPercentage, deliveryPercentage, calculations, extraPayments, currency, sellRate, paymentFrequency, startMonth, startYear, endMonth, endYear, promotionEnabled, promotionName]);
+
     const handlePrint = () => {
+        // Guardar en historial si hay nombre
+        saveCurrentPlan('pdf');
+
         setIsGeneratingPdf(true);
         setToastMessage(null);
 
@@ -511,6 +680,9 @@ const PaymentPlanCalculator: React.FC<PaymentPlanCalculatorProps> = ({
 
     const handleShare = async () => {
         if (!shareableRef.current) return;
+
+        // Guardar en historial si hay nombre
+        saveCurrentPlan('image');
 
         setIsGeneratingImage(true);
         setToastMessage(null);
@@ -928,6 +1100,19 @@ const PaymentPlanCalculator: React.FC<PaymentPlanCalculatorProps> = ({
                     </Button>
                 </Card>
 
+                {/* Sección Cuota Balón - Solo para Supervisores/Admins */}
+                {canViewAdvanced && (
+                    <div className="lg:col-span-3">
+                        <CuotaBalonSection
+                            deudaTotal={calculations.discountedPropertyValue}
+                            totalMeses={calculations.totalMeses}
+                            currency={currency}
+                            sellRate={sellRate}
+                            onApplyExtras={handleApplyFromCuotaBalon}
+                        />
+                    </div>
+                )}
+
                 <Card title="Resumen Financiero" className="lg:col-span-3 card-print">
                     <div className="space-y-4 text-slate-600 dark:text-slate-300">
                         {/* Total Separación */}
@@ -1076,6 +1261,18 @@ const PaymentPlanCalculator: React.FC<PaymentPlanCalculatorProps> = ({
                         paymentFrequency={paymentFrequency}
                         customLogo={customLogo}
                         promotionName={promotionName}
+                        balonExtraAmount={(() => {
+                            const balonExtra = extraPayments.find(ep => ep.isBalonExtra);
+                            return balonExtra ? formatCurrency(parseFloat(balonExtra.amount.replace(/,/g, '')) || 0) : undefined;
+                        })()}
+                        balonFrequency={(() => {
+                            const balonExtra = extraPayments.find(ep => ep.isBalonExtra);
+                            return balonExtra ? balonExtra.frequency : undefined;
+                        })()}
+                        balonPaymentsCount={(() => {
+                            const balonSchedule = calculations.extraPaymentSchedule.filter((ep: { isBalonExtra?: boolean }) => ep.isBalonExtra);
+                            return balonSchedule.length;
+                        })()}
                     />
                 </div>
             </div>

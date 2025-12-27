@@ -22,6 +22,7 @@ interface PrintableReportProps {
         totalInitial: number;
         duringConstruction: number;
         totalExtraPayments: number;
+        totalBalonExtraPayments: number;
         onDelivery: number;
         installmentsCount: number;
         installmentAmount: number;
@@ -253,6 +254,12 @@ const PrintableReport: React.FC<PrintableReportProps> = ({
                             <div style={{ ...styles.summaryRow, ...styles.summaryIndented }}>
                                 <span style={styles.summaryLabel}>Pagos Extraordinarios:</span>
                                 <span style={styles.summaryValue}>{formatCurrency(calculations.totalExtraPayments)}</span>
+                            </div>
+                        )}
+                        {calculations.totalBalonExtraPayments > 0 && (
+                            <div style={{ ...styles.summaryRow, ...styles.summaryIndented }}>
+                                <span style={{ ...styles.summaryLabel, color: '#7c3aed' }}>Pagos Adicionales (Cuota Balón):</span>
+                                <span style={{ ...styles.summaryValue, color: '#7c3aed' }}>{formatCurrency(calculations.totalBalonExtraPayments)}</span>
                             </div>
                         )}
                         <div style={{ ...styles.summaryRow }}>
